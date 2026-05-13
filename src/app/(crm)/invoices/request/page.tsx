@@ -16,6 +16,7 @@ interface LeadData {
   country: string;
   port: string;
   status: string;
+  isCustomer?: boolean;
 }
 
 export default function InvoiceRequestPage() {
@@ -35,7 +36,7 @@ export default function InvoiceRequestPage() {
       .then((r) => r.json())
       .then(({ lead: l }) => {
         if (!l) { setError("Lead not found."); return; }
-        if (l.status !== "in_progress") { setError("Invoice can only be requested for in-progress leads."); return; }
+        if (l.status === "closed" && !l.isCustomer) { setError("Cannot request invoice for a closed lead."); return; }
         setLead(l);
       })
       .catch(() => setError("Failed to load lead."))
