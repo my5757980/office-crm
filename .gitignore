@@ -39,3 +39,11 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# sensitive / local files
+seed-prod-users.mjs
+*.xls
+*.xlsx
+*.docx
+*.doc
+.env.production.temp
