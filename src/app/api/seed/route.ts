@@ -21,11 +21,13 @@ export async function GET(request: NextRequest) {
 
   const results: string[] = [];
   for (const u of users) {
-    const exists = await col.findOne({ email: u.email });
-    if (exists) { results.push(`already exists: ${u.email}`); continue; }
     const hashed = await bcrypt.hash(u.password, 12);
-    await col.insertOne({ name: u.name, email: u.email, password: hashed, role: u.role, createdAt: new Date(), updatedAt: new Date() });
-    results.push(`created: ${u.email} (${u.role})`);
+    const res = await col.updateOne(
+      { email: u.email },
+      { $set: { name: u.name, password: hashed, role: u.role, isActive: true, updatedAt: new Date() }, $setOnInsert: { createdAt: new Date() } },
+      { upsert: true }
+    );
+    results.push(res.upsertedCount ? `created: ${u.email} (${u.role})` : `updated: ${u.email} (isActive=true)`);
   }
 
   return NextResponse.json({ ok: true, results });
