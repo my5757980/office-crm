@@ -10,6 +10,7 @@ interface InvoiceDetailProps {
     status: string;
     rejectionNote?: string;
     unit: string;
+    year?: string;
     chassisNo: string;
     engineNo: string;
     color: string;
@@ -22,6 +23,7 @@ interface InvoiceDetailProps {
     leadId?: { customerName: string; contactPerson: string } | null;
     createdBy?: { name: string; email: string } | null;
     approvedBy?: { name: string } | null;
+    uploadedPdf?: { data: string; filename: string; uploadedAt: string } | null;
   };
   role: string;
 }
@@ -43,6 +45,29 @@ export default function InvoiceDetail({ invoice, role }: InvoiceDetailProps) {
   const [rejectNote, setRejectNote] = useState("");
 
   const [dlLoading, setDlLoading] = useState<"sbk" | "jdm" | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadedPdf, setUploadedPdf] = useState(invoice.uploadedPdf ?? null);
+
+  const handlePdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    const form = new FormData();
+    form.append("pdf", file);
+    const res = await fetch(`/api/invoices/${invoice._id}/upload`, { method: "POST", body: form });
+    const json = await res.json();
+    if (res.ok) {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const base64 = (ev.target?.result as string).split(",")[1];
+        setUploadedPdf({ data: base64, filename: file.name, uploadedAt: new Date().toISOString() });
+      };
+      reader.readAsDataURL(file);
+    } else {
+      alert(json.error ?? "Upload failed");
+    }
+    setUploading(false);
+  };
 
   const downloadInvoice = async (type: "sbk" | "jdm") => {
     setDlLoading(type);
@@ -253,7 +278,7 @@ export default function InvoiceDetail({ invoice, role }: InvoiceDetailProps) {
               </>
             )}
 
-            {role === "super_admin" && invoice.status === "approved" && (
+            {role === "super_admin" && invoice.status === "approved" && uploadedPdf && (
               <button
                 onClick={() => patch("mark_sent")}
                 disabled={loading}
@@ -372,6 +397,74 @@ export default function InvoiceDetail({ invoice, role }: InvoiceDetailProps) {
           ))}
         </div>
       </div>
+
+      {/* PDF Upload + Preview (supervisor: approved/sent | agent: sent) */}
+      {(["approved", "sent"].includes(invoice.status)) && (role === "super_admin" || (role === "user" && invoice.status === "sent")) && (
+        <div style={cardStyle}>
+          <div style={{
+            padding: "14px 24px", borderBottom: "1px solid #d0d7de",
+            background: "linear-gradient(135deg, #f6f8fa 0%, #eff6ff 100%)",
+            display: "flex", alignItems: "center", justifyContent: "space-between",
+          }}>
+            <p style={{ fontSize: "13px", fontWeight: 700, color: "#1f2328" }}>
+              {uploadedPdf ? "Invoice PDF" : "Upload Invoice PDF"}
+            </p>
+            {role === "super_admin" && !uploadedPdf && (
+              <span style={{ fontSize: "12px", color: "#8c959f" }}>Upload PDF to enable Mark as Sent</span>
+            )}
+            {uploadedPdf && (
+              <span style={{ fontSize: "12px", color: "#059669", fontWeight: 600 }}>
+                ✓ {uploadedPdf.filename}
+              </span>
+            )}
+          </div>
+
+          {/* Upload button — supervisor only */}
+          {role === "super_admin" && (
+            <div style={{ padding: "16px 24px", borderBottom: uploadedPdf ? "1px solid #f0f2f4" : "none" }}>
+              <label style={{
+                display: "inline-flex", alignItems: "center", gap: "8px",
+                padding: "8px 16px", borderRadius: "8px", fontSize: "13px", fontWeight: 600,
+                color: uploading ? "#8c959f" : "#2563eb",
+                background: uploading ? "#f6f8fa" : "#eff6ff",
+                border: `1px solid ${uploading ? "#d0d7de" : "#bfdbfe"}`,
+                cursor: uploading ? "not-allowed" : "pointer",
+                transition: "all 150ms",
+              }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+                  <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+                </svg>
+                {uploading ? "Uploading…" : uploadedPdf ? "Replace PDF" : "Upload PDF"}
+                <input
+                  type="file" accept="application/pdf"
+                  onChange={handlePdfUpload}
+                  disabled={uploading}
+                  style={{ display: "none" }}
+                />
+              </label>
+            </div>
+          )}
+
+          {/* PDF Preview */}
+          {uploadedPdf && (
+            <div style={{ padding: "0" }}>
+              <iframe
+                src={`data:application/pdf;base64,${uploadedPdf.data}`}
+                style={{ width: "100%", height: "600px", border: "none", display: "block" }}
+                title="Invoice PDF"
+              />
+            </div>
+          )}
+
+          {/* No PDF yet message for agent */}
+          {!uploadedPdf && role === "user" && (
+            <div style={{ padding: "32px 24px", textAlign: "center", color: "#8c959f", fontSize: "13px" }}>
+              Invoice PDF not uploaded yet.
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Reject Modal */}
       {rejectModal && (

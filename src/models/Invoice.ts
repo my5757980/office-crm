@@ -22,6 +22,7 @@ export interface IInvoice extends Document {
   cnfPrice: number;
   status: "pending" | "approved" | "rejected" | "sent";
   rejectionNote?: string;
+  uploadedPdf?: { data: string; filename: string; uploadedAt: Date };
   createdAt: Date;
   updatedAt: Date;
 }
@@ -53,6 +54,11 @@ const InvoiceSchema = new Schema<IInvoice>(
       default: "pending",
     },
     rejectionNote: { type: String },
+    uploadedPdf: {
+      data:       { type: String },
+      filename:   { type: String },
+      uploadedAt: { type: Date },
+    },
   },
   { timestamps: true }
 );
