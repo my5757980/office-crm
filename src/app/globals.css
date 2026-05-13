@@ -1,0 +1,166 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary:      #2563eb;
+  --color-primary-dark: #1d4ed8;
+  --color-primary-soft: #eff6ff;
+  --color-sidebar:      #0d1117;
+  --color-sidebar-2:    #161b22;
+  --color-sidebar-3:    #21262d;
+  --color-page-bg:      #f6f8fa;
+  --color-card:         #ffffff;
+  --color-border:       #d0d7de;
+  --color-border-soft:  #f0f2f4;
+  --color-text-1:       #1f2328;
+  --color-text-2:       #656d76;
+  --color-text-3:       #8c959f;
+  --color-success:      #1a7f37;
+  --color-success-soft: #dafbe1;
+  --color-warning:      #9a6700;
+  --color-warning-soft: #fff8c5;
+  --color-danger:       #cf222e;
+  --color-danger-soft:  #ffebe9;
+  --color-accent:       #8250df;
+  --color-accent-soft:  #fbefff;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  height: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background: #f6f8fa;
+  color: #1f2328;
+}
+
+/* ── Scrollbar ─────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #d0d7de; border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: #8c959f; }
+
+a, button, input, select, textarea { transition: all 150ms ease; }
+:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; }
+
+/* ── Core Animations ───────────────────────────────────── */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes slideInLeft {
+  from { opacity: 0; transform: translateX(-20px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+/* ── Floating Particles (Auth page) ───────────────────── */
+@keyframes floatUp1 {
+  0%   { transform: translateY(0px)   translateX(0px)   scale(1);   opacity: 0; }
+  10%  { opacity: 0.6; }
+  90%  { opacity: 0.3; }
+  100% { transform: translateY(-700px) translateX(40px)  scale(0.4); opacity: 0; }
+}
+@keyframes floatUp2 {
+  0%   { transform: translateY(0px)   translateX(0px)   scale(1);   opacity: 0; }
+  10%  { opacity: 0.4; }
+  90%  { opacity: 0.2; }
+  100% { transform: translateY(-600px) translateX(-30px) scale(0.5); opacity: 0; }
+}
+@keyframes floatUp3 {
+  0%   { transform: translateY(0px)   translateX(0px)   scale(1);   opacity: 0; }
+  10%  { opacity: 0.5; }
+  90%  { opacity: 0.15; }
+  100% { transform: translateY(-650px) translateX(20px)  scale(0.3); opacity: 0; }
+}
+@keyframes floatSide {
+  0%, 100% { transform: translateX(0px) translateY(0px); }
+  25%       { transform: translateX(12px) translateY(-8px); }
+  50%       { transform: translateX(-8px) translateY(-16px); }
+  75%       { transform: translateX(6px)  translateY(-6px); }
+}
+
+/* ── Orb / Glow animations ─────────────────────────────── */
+@keyframes orbPulse {
+  0%, 100% { opacity: 0.10; transform: scale(1); }
+  50%       { opacity: 0.22; transform: scale(1.06); }
+}
+@keyframes orbPulse2 {
+  0%, 100% { opacity: 0.08; transform: scale(1.06); }
+  50%       { opacity: 0.18; transform: scale(1); }
+}
+@keyframes gradientShift {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* ── Grid / Dot patterns ───────────────────────────────── */
+@keyframes gridMove {
+  0%   { background-position: 0px 0px; }
+  100% { background-position: 44px 44px; }
+}
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.35; }
+}
+
+/* ── Shimmer / Skeleton ────────────────────────────────── */
+@keyframes shimmer {
+  0%   { background-position: -600px 0; }
+  100% { background-position: 600px 0; }
+}
+.skeleton {
+  background: linear-gradient(90deg, #f0f2f4 25%, #e8eaed 50%, #f0f2f4 75%);
+  background-size: 600px 100%;
+  animation: shimmer 1.6s infinite;
+}
+
+/* ── Card hover lift ───────────────────────────────────── */
+@keyframes cardIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.card-hover {
+  transition: transform 200ms ease, box-shadow 200ms ease;
+}
+.card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.08) !important;
+}
+
+/* ── Utility classes ───────────────────────────────────── */
+.animate-fade-in    { animation: fadeIn    200ms ease forwards; }
+.animate-fade-in-up { animation: fadeInUp  300ms ease forwards; }
+.animate-slide-down { animation: slideDown 180ms ease forwards; }
+.animate-slide-left { animation: slideInLeft 250ms ease forwards; }
+
+/* ── CRM content area background ──────────────────────── */
+.crm-bg {
+  background-color: #f6f8fa;
+  background-image:
+    radial-gradient(circle, #d0d7de 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+
+/* ── Staggered card entrance ───────────────────────────── */
+.stagger-1 { animation: fadeInUp 300ms 0ms   ease both; }
+.stagger-2 { animation: fadeInUp 300ms 60ms  ease both; }
+.stagger-3 { animation: fadeInUp 300ms 120ms ease both; }
+.stagger-4 { animation: fadeInUp 300ms 180ms ease both; }
+
+@media print {
+  .no-print, aside, nav { display: none !important; }
+  body { background: white !important; color: #000 !important; }
+  * { box-shadow: none !important; }
+}

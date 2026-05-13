@@ -1,0 +1,24 @@
+⚠ The "middleware" file convention is deprecated. Please use "proxy" instead. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy
+
+> Build error occurred
+Error: Turbopack build failed with 1 errors:
+./src/app/globals.css:1:1
+Module not found: Can't resolve 'tailwindcss'
+[31m[1m>[0m [90m1 |[0m @[36mimport[0m [32m"tailwindcss"[0m;
+  [90m  |[0m [31m[1m^[0m
+  [90m2 |[0m
+  [90m3 |[0m @theme {
+  [90m4 |[0m   --color-sidebar: #[35m1e2433[0m;
+
+
+
+Import trace:
+  Client Component Browser:
+    ./src/app/globals.css [Client Component Browser]
+    ./src/app/layout.tsx [Server Component]
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+    at <unknown> (./src/app/globals.css:1:1)
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
