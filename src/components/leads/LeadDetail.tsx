@@ -148,7 +148,7 @@ export default function LeadDetail({ lead, canEdit, canChangeStatus, canDelete, 
               <option value="closed">Closed</option>
             </select>
           )}
-          {canRequestInvoice && lead.status === "in_progress" && (
+          {canRequestInvoice && (lead.isCustomer || lead.status !== "closed") && (
             <Link href={`/invoices/request?leadId=${lead._id}`} style={{
               display: "inline-flex", alignItems: "center", gap: "6px",
               padding: "8px 16px", borderRadius: "8px", fontSize: "13px", fontWeight: 600,
