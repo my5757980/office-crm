@@ -9,6 +9,7 @@ interface Notification {
   read: boolean;
   createdAt: string;
   invoiceId?: string;
+  leadId?: string;
 }
 
 function timeAgo(dateStr: string) {
@@ -25,6 +26,7 @@ const typeIcon: Record<string, string> = {
   invoice_requested: "🔔",
   invoice_approved:  "✅",
   invoice_rejected:  "❌",
+  duplicate_lead:    "⚠️",
 };
 
 export default function NotificationDropdown({ notifications }: { notifications: Notification[] }) {
@@ -90,9 +92,15 @@ export default function NotificationDropdown({ notifications }: { notifications:
               textDecoration: "none",
             };
 
-            return n.invoiceId ? (
+            const href = n.invoiceId
+              ? `/invoices/${n.invoiceId}`
+              : n.leadId
+              ? `/leads/${n.leadId}`
+              : null;
+
+            return href ? (
               <li key={n._id}>
-                <Link href={`/invoices/${n.invoiceId}`} style={itemStyle}>{content}</Link>
+                <Link href={href} style={itemStyle}>{content}</Link>
               </li>
             ) : (
               <li key={n._id} style={itemStyle}>{content}</li>

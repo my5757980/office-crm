@@ -10,6 +10,7 @@ interface Notification {
   read: boolean;
   createdAt: string;
   invoiceId?: string;
+  leadId?: string;
 }
 
 export default function NotificationBell() {

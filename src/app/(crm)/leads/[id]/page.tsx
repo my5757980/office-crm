@@ -32,7 +32,7 @@ export default async function LeadDetailPage({
   const canChangeStatus   = ["admin", "manager"].includes(role);
   const canDelete         = ["admin", "manager"].includes(role);
   const canRequestInvoice = role === "user" && isOwner;
-  const canReassign       = role === "super_admin";
+  const canReassign       = role === "super_admin" && !!(lead.duplicateAttemptBy);
 
   const [messages, agents] = await Promise.all([
     Message.find({ leadId: id }).sort({ createdAt: 1 }).lean(),

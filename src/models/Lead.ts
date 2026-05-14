@@ -12,6 +12,7 @@ export interface ILead extends Document {
   status: "new" | "in_progress" | "closed" | "invoice_requested" | "invoiced";
   isCustomer: boolean;
   createdBy: mongoose.Types.ObjectId;
+  duplicateAttemptBy?: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -33,6 +34,7 @@ const LeadSchema = new Schema<ILead>(
     },
     isCustomer: { type: Boolean, default: false },
     createdBy: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
+    duplicateAttemptBy: { type: Schema.Types.ObjectId, ref: "User", default: null },
   },
   { timestamps: true }
 );
