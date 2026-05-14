@@ -70,6 +70,9 @@ export async function POST(request: NextRequest) {
     const owner = (existing.createdBy as { name?: string } | null)?.name ?? "another agent";
     const date  = new Date(existing.createdAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
 
+    // Mark the existing lead as having a duplicate attempt
+    await Lead.findByIdAndUpdate(existing._id, { duplicateAttemptBy: session.user.id });
+
     // Notify all Supervisors
     const supervisors = await User.find({ role: "super_admin" }, "_id").lean();
     if (supervisors.length > 0) {
