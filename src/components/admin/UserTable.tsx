@@ -31,10 +31,45 @@ const thStyle: React.CSSProperties = {
   whiteSpace: "nowrap",
 };
 
+// Roles whose passwords the current user can reset
+const RESET_ALLOWED: Record<string, string[]> = {
+  admin:   ["manager", "super_admin", "user"],
+  manager: ["super_admin", "user"],
+};
+
 export default function UserTable({ users: initialUsers, currentRole }: { users: User[]; currentRole: string }) {
   const [users, setUsers] = useState(initialUsers);
   const router = useRouter();
   const canEdit = ["admin", "manager"].includes(currentRole);
+
+  const [resetTarget, setResetTarget] = useState<User | null>(null);
+  const [newPwd, setNewPwd]           = useState("");
+  const [confirmPwd, setConfirmPwd]   = useState("");
+  const [pwdError, setPwdError]       = useState("");
+  const [pwdLoading, setPwdLoading]   = useState(false);
+  const [pwdDone, setPwdDone]         = useState(false);
+
+  const openResetModal = (user: User) => {
+    setResetTarget(user);
+    setNewPwd(""); setConfirmPwd(""); setPwdError(""); setPwdDone(false);
+  };
+
+  const closeResetModal = () => { setResetTarget(null); };
+
+  const handlePasswordReset = async () => {
+    if (newPwd.length < 6)           { setPwdError("Password must be at least 6 characters"); return; }
+    if (newPwd !== confirmPwd)        { setPwdError("Passwords do not match"); return; }
+    if (!resetTarget) return;
+    setPwdLoading(true); setPwdError("");
+    const res = await fetch(`/api/admin/users/${resetTarget._id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password: newPwd }),
+    });
+    setPwdLoading(false);
+    if (res.ok) { setPwdDone(true); }
+    else { const j = await res.json().catch(() => ({})); setPwdError(j.error ?? "Failed"); }
+  };
 
   const updateUser = async (id: string, updates: Partial<{ role: string; isActive: boolean }>) => {
     const res = await fetch(`/api/admin/users/${id}`, {
@@ -57,6 +92,86 @@ export default function UserTable({ users: initialUsers, currentRole }: { users:
   }
 
   return (
+    <div>
+      {/* Reset Password Modal */}
+      {resetTarget && (
+        <div style={{
+          position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          zIndex: 1000, padding: "16px",
+        }}>
+          <div style={{
+            background: "#fff", borderRadius: "12px", padding: "28px",
+            width: "100%", maxWidth: "380px",
+            boxShadow: "0 8px 32px rgba(0,0,0,0.18)",
+          }}>
+            {pwdDone ? (
+              <div style={{ textAlign: "center" }}>
+                <div style={{ fontSize: "36px", marginBottom: "12px" }}>✅</div>
+                <p style={{ fontWeight: 700, fontSize: "15px", color: "#1f2328" }}>Password Reset!</p>
+                <p style={{ fontSize: "13px", color: "#656d76", marginBottom: "20px" }}>
+                  {resetTarget.name}&apos;s password has been updated.
+                </p>
+                <button onClick={closeResetModal} style={{
+                  padding: "8px 24px", borderRadius: "8px", border: "none",
+                  background: "linear-gradient(135deg,#2563eb,#1d4ed8)",
+                  color: "#fff", fontWeight: 600, fontSize: "13px", cursor: "pointer",
+                }}>Close</button>
+              </div>
+            ) : (
+              <>
+                <h3 style={{ fontSize: "16px", fontWeight: 700, color: "#1f2328", marginBottom: "4px" }}>
+                  Reset Password
+                </h3>
+                <p style={{ fontSize: "13px", color: "#656d76", marginBottom: "20px" }}>
+                  Set new password for <strong>{resetTarget.name}</strong> ({resetTarget.email})
+                </p>
+                <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                  <div>
+                    <label style={{ fontSize: "12px", fontWeight: 600, color: "#1f2328", display: "block", marginBottom: "4px" }}>New Password</label>
+                    <input
+                      type="password" value={newPwd}
+                      onChange={e => setNewPwd(e.target.value)}
+                      placeholder="Min 6 characters"
+                      style={{ width: "100%", padding: "9px 12px", border: "1px solid #d0d7de", borderRadius: "8px", fontSize: "13px", boxSizing: "border-box" }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: "12px", fontWeight: 600, color: "#1f2328", display: "block", marginBottom: "4px" }}>Confirm Password</label>
+                    <input
+                      type="password" value={confirmPwd}
+                      onChange={e => setConfirmPwd(e.target.value)}
+                      placeholder="Repeat password"
+                      style={{ width: "100%", padding: "9px 12px", border: "1px solid #d0d7de", borderRadius: "8px", fontSize: "13px", boxSizing: "border-box" }}
+                    />
+                  </div>
+                  {pwdError && (
+                    <div style={{ fontSize: "12px", color: "#cf222e", background: "#ffebe9", padding: "8px 12px", borderRadius: "6px" }}>
+                      {pwdError}
+                    </div>
+                  )}
+                  <div style={{ display: "flex", gap: "8px", marginTop: "4px" }}>
+                    <button onClick={closeResetModal} style={{
+                      flex: 1, padding: "9px", borderRadius: "8px",
+                      border: "1px solid #d0d7de", background: "#f6f8fa",
+                      color: "#1f2328", fontWeight: 600, fontSize: "13px", cursor: "pointer",
+                    }}>Cancel</button>
+                    <button onClick={handlePasswordReset} disabled={pwdLoading} style={{
+                      flex: 1, padding: "9px", borderRadius: "8px", border: "none",
+                      background: pwdLoading ? "#93c5fd" : "linear-gradient(135deg,#2563eb,#1d4ed8)",
+                      color: "#fff", fontWeight: 600, fontSize: "13px",
+                      cursor: pwdLoading ? "not-allowed" : "pointer",
+                    }}>
+                      {pwdLoading ? "Saving…" : "Save Password"}
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
     <div style={{ overflowX: "auto" }}>
       <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
         <thead>
@@ -137,27 +252,44 @@ export default function UserTable({ users: initialUsers, currentRole }: { users:
                   {new Date(user.createdAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
                 </td>
                 <td style={{ padding: "13px 18px", textAlign: "right" }}>
-                  {canEdit && (
-                    <button
-                      onClick={() => updateUser(user._id, { isActive: !user.isActive })}
-                      style={{
-                        fontSize: "11px", fontWeight: 600,
-                        padding: "4px 12px", borderRadius: "6px",
-                        border: "none", cursor: "pointer",
-                        background: user.isActive ? "#ffebe9" : "#d1fae5",
-                        color: user.isActive ? "#cf222e" : "#065f46",
-                        transition: "all 150ms",
-                      }}
-                    >
-                      {user.isActive ? "Deactivate" : "Activate"}
-                    </button>
-                  )}
+                  <div style={{ display: "flex", gap: "6px", justifyContent: "flex-end", flexWrap: "wrap" }}>
+                    {canEdit && RESET_ALLOWED[currentRole]?.includes(user.role) && (
+                      <button
+                        onClick={() => openResetModal(user)}
+                        style={{
+                          fontSize: "11px", fontWeight: 600,
+                          padding: "4px 12px", borderRadius: "6px",
+                          border: "1px solid #d0d7de", cursor: "pointer",
+                          background: "#f6f8fa", color: "#1f2328",
+                          transition: "all 150ms",
+                        }}
+                      >
+                        Reset Password
+                      </button>
+                    )}
+                    {canEdit && (
+                      <button
+                        onClick={() => updateUser(user._id, { isActive: !user.isActive })}
+                        style={{
+                          fontSize: "11px", fontWeight: 600,
+                          padding: "4px 12px", borderRadius: "6px",
+                          border: "none", cursor: "pointer",
+                          background: user.isActive ? "#ffebe9" : "#d1fae5",
+                          color: user.isActive ? "#cf222e" : "#065f46",
+                          transition: "all 150ms",
+                        }}
+                      >
+                        {user.isActive ? "Deactivate" : "Activate"}
+                      </button>
+                    )}
+                  </div>
                 </td>
               </tr>
             );
           })}
         </tbody>
       </table>
+    </div>
     </div>
   );
 }
