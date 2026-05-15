@@ -41,6 +41,7 @@ interface UnitDetailProps {
   documents: Record<string, FileEntry[]>;
   role: string;
   receiptImage?: { data: string; filename: string; uploadedAt: string } | null;
+  coverFileId?: string | null;
 }
 
 function DataRow({ label, value }: { label: string; value: string | number }) {
@@ -58,29 +59,40 @@ function formatSize(bytes: number) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-export default function UnitDetail({ unit, documents: initialDocs, role, receiptImage }: UnitDetailProps) {
-  const canManage = ["admin", "manager", "super_admin"].includes(role);
+export default function UnitDetail({ unit, documents: initialDocs, role, receiptImage, coverFileId: initialCoverFileId }: UnitDetailProps) {
+  const canManage = ["manager", "super_admin"].includes(role);
+  const [coverFileId, setCoverFileId] = useState(initialCoverFileId ?? null);
   const [documents, setDocuments] = useState(initialDocs);
   const [uploading, setUploading] = useState<string | null>(null);
   const [deleting, setDeleting]   = useState<string | null>(null);
 
   const handleUpload = async (folder: string, e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = Array.from(e.target.files ?? []);
+    if (files.length === 0) return;
     setUploading(folder);
-    const form = new FormData();
-    form.append("file", file);
-    form.append("folder", folder);
-    const res = await fetch(`/api/units/${unit._id}/documents`, { method: "POST", body: form });
-    if (res.ok) {
-      const { file: newFile } = await res.json();
+    const newFiles: FileEntry[] = [];
+    for (const file of files) {
+      const form = new FormData();
+      form.append("file", file);
+      form.append("folder", folder);
+      const res = await fetch(`/api/units/${unit._id}/documents`, { method: "POST", body: form });
+      if (res.ok) {
+        const { file: newFile } = await res.json();
+        newFiles.push(newFile);
+        if (!coverFileId && file.type.startsWith("image/")) {
+          setCoverFileId(newFile._id);
+        }
+      } else {
+        const j = await res.json();
+        alert(j.error ?? "Upload failed");
+        break;
+      }
+    }
+    if (newFiles.length > 0) {
       setDocuments(prev => ({
         ...prev,
-        [folder]: [...(prev[folder] ?? []), newFile],
+        [folder]: [...(prev[folder] ?? []), ...newFiles],
       }));
-    } else {
-      const j = await res.json();
-      alert(j.error ?? "Upload failed");
     }
     setUploading(null);
     e.target.value = "";
@@ -91,10 +103,14 @@ export default function UnitDetail({ unit, documents: initialDocs, role, receipt
     setDeleting(fileId);
     const res = await fetch(`/api/units/${unit._id}/documents/${fileId}`, { method: "DELETE" });
     if (res.ok) {
-      setDocuments(prev => ({
-        ...prev,
-        [folder]: prev[folder].filter(f => f._id !== fileId),
-      }));
+      setDocuments(prev => {
+        const updated = { ...prev, [folder]: prev[folder].filter(f => f._id !== fileId) };
+        if (coverFileId === fileId) {
+          const firstImage = Object.values(updated).flat().find(f => f.mimetype.startsWith("image/"));
+          setCoverFileId(firstImage?._id ?? null);
+        }
+        return updated;
+      });
     } else {
       alert("Delete failed");
     }
@@ -123,7 +139,16 @@ export default function UnitDetail({ unit, documents: initialDocs, role, receipt
             background: "linear-gradient(135deg, #059669, #047857)",
             display: "flex", alignItems: "center", justifyContent: "center",
             fontSize: "22px", boxShadow: "0 4px 12px rgba(5,150,105,0.3)",
-          }}>🚗</div>
+            overflow: "hidden",
+          }}>
+            {coverFileId ? (
+              <img
+                src={`/api/units/${unit._id}/documents/${coverFileId}`}
+                alt="Cover"
+                style={{ width: "100%", height: "100%", objectFit: "cover" }}
+              />
+            ) : "🚗"}
+          </div>
           <div>
             <h2 style={{ fontSize: "18px", fontWeight: 700, color: "#1f2328" }}>
               {unit.year} {unit.make} {unit.carModel}
@@ -239,6 +264,7 @@ export default function UnitDetail({ unit, documents: initialDocs, role, receipt
                       <input
                         type="file"
                         accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx"
+                        multiple
                         onChange={e => handleUpload(folder, e)}
                         disabled={uploading !== null}
                         style={{ display: "none" }}

@@ -33,7 +33,7 @@ const navGroups = (role: string) => {
     {
       label: "Operations",
       items: [
-        { href: "/units", label: "Units", icon: IconUnit, show: ["manager", "super_admin"].includes(role) },
+        { href: "/units", label: "Units", icon: IconUnit, show: ["user", "manager", "super_admin"].includes(role) },
       ],
     },
     {

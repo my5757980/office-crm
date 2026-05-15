@@ -4,6 +4,7 @@ import dbConnect from "@/lib/db";
 import Unit from "@/models/Unit";
 import UnitFile from "@/models/UnitFile";
 import Payment from "@/models/Payment";
+import Invoice from "@/models/Invoice";
 import { DOCUMENT_FOLDERS } from "@/models/Unit";
 import UnitDetail from "@/components/units/UnitDetail";
 import TopBar from "@/components/layout/TopBar";
@@ -18,16 +19,22 @@ export default async function UnitDetailPage({
   const { id } = await params;
 
   const role = session!.user.role;
-  if (!["manager", "super_admin"].includes(role)) notFound();
+  if (!["user", "manager", "super_admin"].includes(role)) notFound();
 
   await dbConnect();
 
   const unit = await Unit.findById(id).populate("createdBy", "name").lean();
   if (!unit) notFound();
 
-  const [files, payment] = await Promise.all([
+  if (role === "user") {
+    const invoice = await Invoice.findById(unit.invoiceId).select("createdBy").lean();
+    if (!invoice || invoice.createdBy.toString() !== session!.user.id) notFound();
+  }
+
+  const [files, payment, coverFile] = await Promise.all([
     UnitFile.find({ unitId: id }).select("-data").lean(),
-    Payment.findById(unit.paymentId).select("receiptImage").lean(),
+    Payment.findOne({ invoiceId: unit.invoiceId, "receiptImage.data": { $exists: true } }).select("receiptImage").lean(),
+    UnitFile.findOne({ unitId: id, mimetype: /^image\// }).select("_id").lean(),
   ]);
 
   const documents: Record<string, typeof files> = {};
@@ -35,11 +42,10 @@ export default async function UnitDetailPage({
     documents[folder] = files.filter(f => f.folder === folder);
   }
 
-  const unitData  = JSON.parse(JSON.stringify(unit));
-  const docsData  = JSON.parse(JSON.stringify(documents));
-  const receiptImage = payment?.receiptImage
-    ? JSON.parse(JSON.stringify(payment.receiptImage))
-    : null;
+  const unitData     = JSON.parse(JSON.stringify(unit));
+  const docsData     = JSON.parse(JSON.stringify(documents));
+  const receiptImage = payment?.receiptImage ? JSON.parse(JSON.stringify(payment.receiptImage)) : null;
+  const coverFileId  = coverFile ? coverFile._id.toString() : null;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", flex: 1 }}>
@@ -58,7 +64,7 @@ export default async function UnitDetailPage({
           Back to Invoice
         </Link>
 
-        <UnitDetail unit={unitData} documents={docsData} role={role} receiptImage={receiptImage} />
+        <UnitDetail unit={unitData} documents={docsData} role={role} receiptImage={receiptImage} coverFileId={coverFileId} />
       </div>
     </div>
   );
