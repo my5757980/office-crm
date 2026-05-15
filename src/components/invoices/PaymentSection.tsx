@@ -13,6 +13,7 @@ interface Payment {
   recordedBy?: { name: string };
   createdAt: string;
   unitId?: string;
+  receiptImage?: { data: string; filename: string; uploadedAt: string };
 }
 
 interface PaymentSectionProps {
@@ -55,6 +56,8 @@ export default function PaymentSection({ invoiceId, role, invoiceCnfPrice }: Pay
     exchangeRate:   "",
     yenAmount:      "",
   });
+  const [receiptFile, setReceiptFile] = useState<{ data: string; filename: string } | null>(null);
+  const [receiptPreview, setReceiptPreview] = useState<string>("");
 
   const fetchPayments = async () => {
     setLoading(true);
@@ -88,9 +91,21 @@ export default function PaymentSection({ invoiceId, role, invoiceCnfPrice }: Pay
     setForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
+  const handleReceiptChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const base64 = reader.result as string;
+      setReceiptFile({ data: base64, filename: file.name });
+      setReceiptPreview(base64);
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleSubmit = async () => {
     setError("");
-    const body = {
+    const numericBody = {
       invoiceId,
       sellingPrice:   parseFloat(form.sellingPrice),
       amountReceived: parseFloat(form.amountReceived),
@@ -98,9 +113,11 @@ export default function PaymentSection({ invoiceId, role, invoiceCnfPrice }: Pay
       exchangeRate:   parseFloat(form.exchangeRate),
       yenAmount:      parseFloat(form.yenAmount),
     };
-    if (Object.values(body).some(v => v === "" || (typeof v === "number" && isNaN(v)))) {
+    if (Object.values(numericBody).some(v => v === "" || (typeof v === "number" && isNaN(v)))) {
       setError("Please fill all fields correctly."); return;
     }
+    const body: typeof numericBody & { receiptImage?: { data: string; filename: string } } = { ...numericBody };
+    if (receiptFile) body.receiptImage = receiptFile;
     setSaving(true);
     const res = await fetch("/api/payments", {
       method: "POST",
@@ -110,6 +127,8 @@ export default function PaymentSection({ invoiceId, role, invoiceCnfPrice }: Pay
     setSaving(false);
     if (res.ok) {
       setShowForm(false);
+      setReceiptFile(null);
+      setReceiptPreview("");
       setForm({ sellingPrice: invoiceCnfPrice?.toString() ?? "", amountReceived: "", receivedDate: new Date().toISOString().slice(0, 10), exchangeRate: "", yenAmount: "" });
       fetchPayments();
     } else {
@@ -191,6 +210,31 @@ export default function PaymentSection({ invoiceId, role, invoiceCnfPrice }: Pay
               <label style={labelStyle}>Yen Amount (¥)</label>
               <input name="yenAmount" type="number" value={form.yenAmount} onChange={handleChange} placeholder="e.g. 1162500" style={inputStyle} />
             </div>
+            <div>
+              <label style={labelStyle}>Receipt Image <span style={{ fontWeight: 400, color: "#8c959f" }}>(optional)</span></label>
+              <label style={{
+                display: "flex", alignItems: "center", gap: "8px",
+                padding: "9px 12px", border: "1px dashed #d0d7de", borderRadius: "8px",
+                fontSize: "13px", color: receiptFile ? "#1f2328" : "#8c959f",
+                cursor: "pointer", background: "#fafbfc",
+              }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+                  <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+                </svg>
+                {receiptFile ? receiptFile.filename : "Upload bank receipt…"}
+                <input type="file" accept="image/*" onChange={handleReceiptChange} style={{ display: "none" }} />
+              </label>
+              {receiptPreview && (
+                <div style={{ marginTop: "8px", position: "relative", display: "inline-block" }}>
+                  <img src={receiptPreview} alt="Receipt preview" style={{ maxHeight: "80px", maxWidth: "100%", borderRadius: "6px", border: "1px solid #d0d7de" }} />
+                  <button
+                    onClick={() => { setReceiptFile(null); setReceiptPreview(""); }}
+                    style={{ position: "absolute", top: "-6px", right: "-6px", width: "18px", height: "18px", borderRadius: "50%", border: "none", background: "#cf222e", color: "white", fontSize: "10px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+                  >✕</button>
+                </div>
+              )}
+            </div>
           </div>
           {error && (
             <div style={{ marginTop: "12px", fontSize: "12px", color: "#cf222e", background: "#ffebe9", padding: "8px 12px", borderRadius: "6px" }}>
@@ -249,7 +293,7 @@ export default function PaymentSection({ invoiceId, role, invoiceCnfPrice }: Pay
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
             <thead>
               <tr style={{ background: "#f6f8fa", borderBottom: "1px solid #d0d7de" }}>
-                {["#", "Date", "Selling Price", "Received", "Exchange Rate", "Yen Amount", "Recorded By", "Unit"].map(h => (
+                {["#", "Date", "Selling Price", "Received", "Exchange Rate", "Yen Amount", "Recorded By", "Receipt", "Unit"].map(h => (
                   <th key={h} style={{ padding: "9px 16px", fontSize: "11px", fontWeight: 700, color: "#656d76", textAlign: "left", whiteSpace: "nowrap", textTransform: "uppercase", letterSpacing: "0.05em" }}>{h}</th>
                 ))}
               </tr>
@@ -266,6 +310,13 @@ export default function PaymentSection({ invoiceId, role, invoiceCnfPrice }: Pay
                   <td style={{ padding: "11px 16px", color: "#656d76" }}>{p.exchangeRate}</td>
                   <td style={{ padding: "11px 16px", color: "#656d76" }}>¥{fmt(p.yenAmount)}</td>
                   <td style={{ padding: "11px 16px", color: "#656d76", fontSize: "12px" }}>{p.recordedBy?.name ?? "—"}</td>
+                  <td style={{ padding: "11px 16px" }}>
+                    {p.receiptImage?.data ? (
+                      <a href={p.receiptImage.data} target="_blank" rel="noopener noreferrer">
+                        <img src={p.receiptImage.data} alt="Receipt" style={{ height: "36px", width: "36px", objectFit: "cover", borderRadius: "4px", border: "1px solid #d0d7de" }} />
+                      </a>
+                    ) : <span style={{ fontSize: "12px", color: "#8c959f" }}>—</span>}
+                  </td>
                   <td style={{ padding: "11px 16px" }}>
                     {unitMap[p._id] ? (
                       <Link href={`/units/${unitMap[p._id]}`} style={{

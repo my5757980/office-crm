@@ -40,6 +40,7 @@ interface UnitDetailProps {
   };
   documents: Record<string, FileEntry[]>;
   role: string;
+  receiptImage?: { data: string; filename: string; uploadedAt: string } | null;
 }
 
 function DataRow({ label, value }: { label: string; value: string | number }) {
@@ -57,7 +58,7 @@ function formatSize(bytes: number) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-export default function UnitDetail({ unit, documents: initialDocs, role }: UnitDetailProps) {
+export default function UnitDetail({ unit, documents: initialDocs, role, receiptImage }: UnitDetailProps) {
   const canManage = ["admin", "manager", "super_admin"].includes(role);
   const [documents, setDocuments] = useState(initialDocs);
   const [uploading, setUploading] = useState<string | null>(null);
@@ -157,6 +158,42 @@ export default function UnitDetail({ unit, documents: initialDocs, role }: UnitD
           </div>
         </div>
       </div>
+
+      {/* Payment Receipt */}
+      {receiptImage?.data && (
+        <div style={cardStyle}>
+          <div style={{ padding: "14px 24px", borderBottom: "1px solid #d0d7de", background: "linear-gradient(135deg, #f6f8fa 0%, #eff6ff 100%)", display: "flex", alignItems: "center", gap: "10px" }}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/>
+            </svg>
+            <p style={{ fontSize: "13px", fontWeight: 700, color: "#1f2328" }}>Payment Receipt</p>
+          </div>
+          <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", alignItems: "flex-start", gap: "12px" }}>
+            <a href={receiptImage.data} target="_blank" rel="noopener noreferrer">
+              <img
+                src={receiptImage.data}
+                alt={receiptImage.filename}
+                style={{ maxWidth: "100%", maxHeight: "400px", objectFit: "contain", borderRadius: "8px", border: "1px solid #d0d7de", boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}
+              />
+            </a>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <span style={{ fontSize: "12px", color: "#656d76" }}>{receiptImage.filename}</span>
+              {receiptImage.uploadedAt && (
+                <span style={{ fontSize: "11px", color: "#8c959f" }}>
+                  · {new Date(receiptImage.uploadedAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
+                </span>
+              )}
+              <a
+                href={receiptImage.data}
+                download={receiptImage.filename}
+                style={{ fontSize: "11px", fontWeight: 600, padding: "3px 10px", borderRadius: "6px", background: "#eff6ff", color: "#2563eb", textDecoration: "none", border: "1px solid #bfdbfe" }}
+              >
+                Download
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Document Folders */}
       <div style={cardStyle}>

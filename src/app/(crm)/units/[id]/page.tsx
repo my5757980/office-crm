@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import dbConnect from "@/lib/db";
 import Unit from "@/models/Unit";
 import UnitFile from "@/models/UnitFile";
+import Payment from "@/models/Payment";
 import { DOCUMENT_FOLDERS } from "@/models/Unit";
 import UnitDetail from "@/components/units/UnitDetail";
 import TopBar from "@/components/layout/TopBar";
@@ -24,15 +25,21 @@ export default async function UnitDetailPage({
   const unit = await Unit.findById(id).populate("createdBy", "name").lean();
   if (!unit) notFound();
 
-  const files = await UnitFile.find({ unitId: id }).select("-data").lean();
+  const [files, payment] = await Promise.all([
+    UnitFile.find({ unitId: id }).select("-data").lean(),
+    Payment.findById(unit.paymentId).select("receiptImage").lean(),
+  ]);
 
   const documents: Record<string, typeof files> = {};
   for (const folder of DOCUMENT_FOLDERS) {
     documents[folder] = files.filter(f => f.folder === folder);
   }
 
-  const unitData = JSON.parse(JSON.stringify(unit));
-  const docsData = JSON.parse(JSON.stringify(documents));
+  const unitData  = JSON.parse(JSON.stringify(unit));
+  const docsData  = JSON.parse(JSON.stringify(documents));
+  const receiptImage = payment?.receiptImage
+    ? JSON.parse(JSON.stringify(payment.receiptImage))
+    : null;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", flex: 1 }}>
@@ -51,7 +58,7 @@ export default async function UnitDetailPage({
           Back to Invoice
         </Link>
 
-        <UnitDetail unit={unitData} documents={docsData} role={role} />
+        <UnitDetail unit={unitData} documents={docsData} role={role} receiptImage={receiptImage} />
       </div>
     </div>
   );

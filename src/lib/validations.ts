@@ -55,6 +55,10 @@ export const paymentSchema = z.object({
   receivedDate:   z.string().min(1, "Received date is required"),
   exchangeRate:   z.number().positive("Exchange rate must be positive"),
   yenAmount:      z.number().positive("Yen amount must be positive"),
+  receiptImage:   z.object({
+    data:     z.string(),
+    filename: z.string(),
+  }).optional(),
 });
 
 export const unitSchema = z.object({
