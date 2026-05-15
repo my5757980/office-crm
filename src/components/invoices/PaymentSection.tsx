@@ -46,7 +46,16 @@ export default function PaymentSection({ invoiceId, role, invoiceCnfPrice }: Pay
   const [saving, setSaving]       = useState(false);
   const [error, setError]         = useState("");
 
-  const [lightbox, setLightbox] = useState<{ data: string; filename: string } | null>(null);
+  const openInNewTab = (base64: string) => {
+    const [header, data] = base64.split(",");
+    const mime = header.match(/:(.*?);/)?.[1] ?? "image/jpeg";
+    const bytes = atob(data);
+    const arr = new Uint8Array(bytes.length);
+    for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
+    const url = URL.createObjectURL(new Blob([arr], { type: mime }));
+    window.open(url, "_blank");
+    setTimeout(() => URL.revokeObjectURL(url), 30000);
+  };
 
   const [form, setForm] = useState({
     sellingPrice:   invoiceCnfPrice?.toString() ?? "",
@@ -305,7 +314,7 @@ export default function PaymentSection({ invoiceId, role, invoiceCnfPrice }: Pay
                       <img
                         src={p.receiptImage.data}
                         alt="Receipt"
-                        onClick={() => setLightbox({ data: p.receiptImage!.data, filename: p.receiptImage!.filename })}
+                        onClick={() => openInNewTab(p.receiptImage!.data)}
                         style={{ height: "36px", width: "36px", objectFit: "cover", borderRadius: "4px", border: "1px solid #d0d7de", cursor: "pointer" }}
                       />
                     ) : <span style={{ fontSize: "12px", color: "#8c959f" }}>—</span>}
@@ -314,40 +323,6 @@ export default function PaymentSection({ invoiceId, role, invoiceCnfPrice }: Pay
               ))}
             </tbody>
           </table>
-        </div>
-      )}
-      {/* TT Lightbox */}
-      {lightbox && (
-        <div
-          onClick={() => setLightbox(null)}
-          style={{
-            position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            zIndex: 1000, padding: "24px",
-          }}
-        >
-          <div onClick={e => e.stopPropagation()} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "12px", maxWidth: "90vw" }}>
-            <img
-              src={lightbox.data}
-              alt={lightbox.filename}
-              style={{ maxWidth: "80vw", maxHeight: "80vh", objectFit: "contain", borderRadius: "8px", boxShadow: "0 8px 32px rgba(0,0,0,0.4)" }}
-            />
-            <div style={{ display: "flex", gap: "10px" }}>
-              <a
-                href={lightbox.data}
-                download={lightbox.filename}
-                style={{ padding: "8px 18px", borderRadius: "8px", background: "#2563eb", color: "white", fontSize: "13px", fontWeight: 600, textDecoration: "none" }}
-              >
-                Download
-              </a>
-              <button
-                onClick={() => setLightbox(null)}
-                style={{ padding: "8px 18px", borderRadius: "8px", background: "#f6f8fa", border: "1px solid #d0d7de", color: "#1f2328", fontSize: "13px", fontWeight: 600, cursor: "pointer" }}
-              >
-                Close
-              </button>
-            </div>
-          </div>
         </div>
       )}
     </div>
