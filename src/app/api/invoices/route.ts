@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
   }
 
-  const { leadId, consignee, unit, year, chassisNo, engineNo, color, m3Rate, exchangeRate, pushPrice, cnfPrice } = parsed.data;
+  const { leadId, consignee, unit, year, salesperson, fuel, transmission, chassisNo, engineNo, color, m3Rate, exchangeRate, pushPrice, cnfPrice, advancePercent } = parsed.data;
 
   const lead = await Lead.findById(leadId);
   if (!lead) return NextResponse.json({ error: "Lead not found" }, { status: 404 });
@@ -44,6 +44,9 @@ export async function POST(request: NextRequest) {
     consignee,
     unit,
     year,
+    salesperson,
+    fuel,
+    transmission,
     chassisNo,
     engineNo,
     color,
@@ -51,6 +54,7 @@ export async function POST(request: NextRequest) {
     exchangeRate,
     pushPrice,
     cnfPrice,
+    advancePercent,
   });
 
   await Lead.findByIdAndUpdate(leadId, { isCustomer: true });

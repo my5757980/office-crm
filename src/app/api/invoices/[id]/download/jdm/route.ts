@@ -3,6 +3,8 @@ import { auth } from "@/lib/auth";
 import dbConnect from "@/lib/db";
 import Invoice from "@/models/Invoice";
 import ExcelJS from "exceljs";
+import fs from "fs";
+import path from "path";
 
 const CAN_DOWNLOAD = ["super_admin"];
 
@@ -60,11 +62,19 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
   const date = new Date(inv.createdAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
   const invNo = `JDM-${String(id).slice(-5).toUpperCase()}`;
-  const half = inv.cnfPrice / 2;
+  const advPct     = inv.advancePercent ?? 50;
+  const advanceAmt = Math.round(inv.cnfPrice * advPct / 100);
+  const remaining  = inv.cnfPrice - advanceAmt;
 
   const unitParts = inv.unit.split(" ");
   const make  = unitParts[0] ?? inv.unit;
   const model = unitParts.slice(1).join(" ") || inv.unit;
+
+  const transmission = inv.transmission || "";
+  const fuel         = inv.fuel         || "";
+  const transFuel    = [transmission, fuel].filter(Boolean).join(" / ") || "—";
+
+  const jdmLogoBase64 = fs.readFileSync(path.join(process.cwd(), "public/images/jdm-logo.jpg")).toString("base64");
 
   const wb = new ExcelJS.Workbook();
   wb.creator = "SBK CRM";
@@ -80,11 +90,18 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     { width: 9.0 },  { width: 9.0 },  { width: 9.0 },  { width: 9.0 },
   ];
 
-  // ── R1-R2: blank ─────────────────────────────────────
+  // ── R1-R2: blank ─────────────────────────────────
   ws.getRow(1).height = 10;
   ws.getRow(2).height = 10;
 
-  // ── R3: Company name (A3:S3 merged) ─────────────────
+  // ── JDM Logo image (letterhead) ──────────────────
+  const logoImageId = wb.addImage({ base64: jdmLogoBase64, extension: "jpeg" });
+  ws.addImage(logoImageId, {
+    tl: { col: 0, row: 0 },
+    ext: { width: 420, height: 70 },
+  });
+
+  // ── R3: Company name (A3:S3 merged) ─────────────
   ws.mergeCells(3, 1, 3, 19);
   const r3 = ws.getCell(3, 1);
   r3.value = JDM.name;
@@ -101,7 +118,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   r4bank.font = { bold: true, size: 9 };
   ws.getRow(4).height = 15;
 
-  // ── R5-R10: Banking details (col U=21) ──────────────
+  // ── R5-R10: Banking details (col U=21) ──────────
   const bankLines = [
     `ACCOUNT NAME: ${JDM.accountName}`,
     `BANK NAME: ${JDM.bankName}`,
@@ -120,35 +137,33 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   // R7 also has C1:C14 merged (separator line)
   ws.mergeCells(7, 1, 7, 14);
 
-  // ── R10: CONSIGNEE + NOTIFY PARTY labels ─────────────
+  // ── R10: CONSIGNEE + NOTIFY PARTY labels ─────────
   lbl(ws, 10, 2, "CONSIGNEE:", 9);
   ws.getCell(10, 2).font = { bold: true, size: 9 };
   lbl(ws, 10, 8, "NOTIFY PARTY:", 9);
   ws.getCell(10, 8).font = { bold: true, size: 9 };
   ws.getRow(10).height = 18;
 
-  // ── R11: spacer ──────────────────────────────────────
+  // ── R11: spacer ──────────────────────────────────
   ws.getRow(11).height = 8;
 
-  // ── R12: NAME row ────────────────────────────────────
+  // ── R12: NAME row ────────────────────────────────
   lbl(ws, 12, 2, "NAME :", 9);
   ws.mergeCells(12, 3, 12, 5);
   const r12name = ws.getCell(12, 3);
   r12name.value = inv.consignee.name;
   r12name.font = { bold: true, size: 9 };
-  // Notify party
   ws.mergeCells(12, 8, 12, 9);
   lbl(ws, 12, 8, "NAME:", 9);
   ws.mergeCells(12, 10, 12, 14);
   lbl(ws, 12, 10, "SAME", 9);
-  // Date on right
   ws.mergeCells(12, 19, 12, 24);
   const r12date = ws.getCell(12, 19);
   r12date.value = `DATE:${date}`;
   r12date.font = { bold: true, size: 9 };
   ws.getRow(12).height = 15;
 
-  // ── R13: ADDRESS row ──────────────────────────────────
+  // ── R13: ADDRESS row ──────────────────────────────
   lbl(ws, 13, 2, "ADDRESS:", 9);
   ws.mergeCells(13, 3, 13, 5);
   lbl(ws, 13, 3, inv.consignee.address, 9);
@@ -162,13 +177,13 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   r13inv.font = { bold: true, size: 9 };
   ws.getRow(13).height = 15;
 
-  // ── R14: address line 2 ───────────────────────────────
+  // ── R14: address line 2 ───────────────────────────
   ws.mergeCells(14, 3, 14, 5);
   ws.mergeCells(14, 8, 14, 9);
   ws.mergeCells(14, 10, 14, 14);
   ws.getRow(14).height = 15;
 
-  // ── R15: PHONE ────────────────────────────────────────
+  // ── R15: PHONE ────────────────────────────────────
   lbl(ws, 15, 2, "PHONE:", 9);
   ws.mergeCells(15, 3, 15, 5);
   lbl(ws, 15, 3, inv.consignee.phone, 9);
@@ -176,7 +191,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   ws.mergeCells(15, 10, 15, 14);
   ws.getRow(15).height = 15;
 
-  // ── R16: POD ─────────────────────────────────────────
+  // ── R16: POD ─────────────────────────────────────
   lbl(ws, 16, 2, "POD:", 9);
   ws.mergeCells(16, 3, 16, 5);
   lbl(ws, 16, 3, inv.consignee.port, 9);
@@ -184,24 +199,28 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   ws.mergeCells(16, 10, 16, 14);
   ws.getRow(16).height = 15;
 
-  // ── R17: COUNTRY ─────────────────────────────────────
+  // ── R17: COUNTRY ─────────────────────────────────
   lbl(ws, 17, 2, "COUNTRY :", 9);
   ws.mergeCells(17, 3, 17, 5);
   lbl(ws, 17, 3, inv.consignee.country, 9);
   ws.getRow(17).height = 15;
 
-  // ── R18: spacer ──────────────────────────────────────
+  // ── R18: spacer ──────────────────────────────────
   ws.mergeCells(18, 2, 18, 5);
   ws.mergeCells(18, 8, 18, 13);
   ws.getRow(18).height = 8;
 
-  // ── R19: Vehicle table header ─────────────────────────
+  // ── R19: Vehicle table header ─────────────────────
+  // Cols: 2=No, 3-4=MAKE, 5-6=MODEL, 7-9=CHASSIS, 10-12=YEAR,
+  //       13-14=COLOR, 15-16=ENGINE SIZE, 17-18=TRANS & FUEL,
+  //       19=QTY, 20=CNF$, 21=TOTAL AMOUNT $
   ws.mergeCells(19, 3, 19, 4);
   ws.mergeCells(19, 5, 19, 6);
   ws.mergeCells(19, 7, 19, 9);
   ws.mergeCells(19, 10, 19, 12);
   ws.mergeCells(19, 13, 19, 14);
   ws.mergeCells(19, 15, 19, 16);
+  ws.mergeCells(19, 17, 19, 18);
   hdr(ws, 19, 2,  "No.");
   hdr(ws, 19, 3,  "MAKE");
   hdr(ws, 19, 5,  "MODEL");
@@ -209,12 +228,13 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   hdr(ws, 19, 10, "YEAR");
   hdr(ws, 19, 13, "COLOR");
   hdr(ws, 19, 15, "ENGINE SIZE");
-  hdr(ws, 19, 17, "QTY");
-  hdr(ws, 19, 18, "CNF$");
-  hdr(ws, 19, 19, "TOTAL AMOUNT $");
+  hdr(ws, 19, 17, "TRANS & FUEL");
+  hdr(ws, 19, 19, "QTY");
+  hdr(ws, 19, 20, "CNF$");
+  hdr(ws, 19, 21, "TOTAL AMOUNT $");
   ws.getRow(19).height = 18;
 
-  // Helper: apply data row merge+border structure
+  // Helper: apply vehicle data row merge+border structure
   function applyDataRowFormat(r: number) {
     ws.mergeCells(r, 3, r, 4);
     ws.mergeCells(r, 5, r, 6);
@@ -222,51 +242,53 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     ws.mergeCells(r, 10, r, 12);
     ws.mergeCells(r, 13, r, 14);
     ws.mergeCells(r, 15, r, 16);
-    [2, 3, 5, 7, 10, 13, 15, 17, 18, 19].forEach(c => border(ws.getCell(r, c)));
+    ws.mergeCells(r, 17, r, 18);
+    [2, 3, 5, 7, 10, 13, 15, 17, 19, 20, 21].forEach(c => border(ws.getCell(r, c)));
     ws.getRow(r).height = 18;
   }
 
-  // ── R20: blank formatted row ─────────────────────────
+  // ── R20: blank formatted row ─────────────────────
   applyDataRowFormat(20);
 
-  // ── R21: vehicle data ─────────────────────────────────
+  // ── R21: vehicle data ─────────────────────────────
   applyDataRowFormat(21);
-  dat(ws, 21, 2,  "1",           { bold: true, align: "center" });
+  dat(ws, 21, 2,  "1",          { bold: true, align: "center" });
   dat(ws, 21, 3,  make);
   dat(ws, 21, 5,  model);
   dat(ws, 21, 7,  inv.chassisNo);
   dat(ws, 21, 10, inv.year ?? "");
   dat(ws, 21, 13, inv.color);
   dat(ws, 21, 15, inv.engineNo);
-  dat(ws, 21, 17, 1,             { align: "center" });
-  dat(ws, 21, 18, inv.cnfPrice,  { numFmt: "#,##0" });
-  dat(ws, 21, 19, inv.cnfPrice,  { numFmt: "#,##0" });
+  dat(ws, 21, 17, transFuel);
+  dat(ws, 21, 19, 1,            { align: "center" });
+  dat(ws, 21, 20, inv.cnfPrice, { numFmt: "#,##0" });
+  dat(ws, 21, 21, inv.cnfPrice, { numFmt: "#,##0" });
 
-  // ── R22-R30: empty formatted rows ────────────────────
+  // ── R22-R30: empty formatted rows ────────────────
   for (let r = 22; r <= 30; r++) applyDataRowFormat(r);
 
-  // ── R31: separator row ────────────────────────────────
+  // ── R31: separator row ────────────────────────────
   applyDataRowFormat(31);
 
-  // ── R32-R34: totals ───────────────────────────────────
+  // ── R32-R34: totals ───────────────────────────────
   function totalRow(r: number, label: string, val: number) {
     ws.mergeCells(r, 3, r, 4);
     ws.mergeCells(r, 5, r, 6);
     ws.mergeCells(r, 7, r, 9);
     ws.mergeCells(r, 10, r, 12);
     ws.mergeCells(r, 13, r, 14);
-    ws.mergeCells(r, 15, r, 17);
+    ws.mergeCells(r, 15, r, 19);   // label spans ENGINE+TRANS&FUEL+QTY
     const lc = ws.getCell(r, 15);
     lc.value = label;
     lc.font = { bold: true, size: 9 };
     lc.alignment = { horizontal: "right", vertical: "middle" };
     border(lc);
-    const uc = ws.getCell(r, 18);
+    const uc = ws.getCell(r, 20); // US$
     uc.value = "US$";
     uc.font = { bold: true, size: 9 };
     uc.alignment = { horizontal: "center", vertical: "middle" };
     border(uc);
-    const vc = ws.getCell(r, 19);
+    const vc = ws.getCell(r, 21); // value
     vc.value = val;
     vc.font = { bold: true, size: 9 };
     vc.alignment = { horizontal: "right", vertical: "middle" };
@@ -276,8 +298,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     ws.getRow(r).height = 16;
   }
 
-  totalRow(32, "50% ADVANCE PAYMENT", half);
-  totalRow(33, "BALANCE",             half);
+  totalRow(32, `${advPct}% ADVANCE PAYMENT`, advanceAmt);
+  totalRow(33, "BALANCE",                    remaining);
 
   // R34: Special Notes + TOTAL SALES PRICE
   ws.mergeCells(34, 2, 34, 14);
@@ -285,18 +307,18 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   r34note.value = "Special Notes and Instructions";
   r34note.font = { bold: true, size: 9 };
   border(r34note);
-  ws.mergeCells(34, 15, 34, 17);
+  ws.mergeCells(34, 15, 34, 19);   // label
   const r34lbl = ws.getCell(34, 15);
   r34lbl.value = "TOTAL SALES PRICE";
   r34lbl.font = { bold: true, size: 9 };
   r34lbl.alignment = { horizontal: "right", vertical: "middle" };
   border(r34lbl);
-  const r34us = ws.getCell(34, 18);
+  const r34us = ws.getCell(34, 20); // US$
   r34us.value = "US$";
   r34us.font = { bold: true, size: 9 };
   r34us.alignment = { horizontal: "center", vertical: "middle" };
   border(r34us);
-  const r34val = ws.getCell(34, 19);
+  const r34val = ws.getCell(34, 21); // value
   r34val.value = inv.cnfPrice;
   r34val.font = { bold: true, size: 9 };
   r34val.alignment = { horizontal: "right", vertical: "middle" };
@@ -304,7 +326,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   border(r34val);
   ws.getRow(34).height = 16;
 
-  // ── R35-R42: Notes ────────────────────────────────────
+  // ── R35-R42: Notes ────────────────────────────────
   const notes: [number, string, boolean][] = [
     [35, "Shipping:", true],
     [36, "=>  After receiving deposit/payment original Bill of Lading will be released once full payment is received.", false],
@@ -316,7 +338,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     [42, "=>  This is a computer generated invoice and requires no signature.", false],
   ];
   notes.forEach(([r, text, bold]) => {
-    ws.mergeCells(r, 2, r, 19);
+    ws.mergeCells(r, 2, r, 21);
     const c = ws.getCell(r, 2);
     c.value = text;
     c.font = { bold, size: 8 };

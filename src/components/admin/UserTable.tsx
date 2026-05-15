@@ -49,12 +49,52 @@ export default function UserTable({ users: initialUsers, currentRole }: { users:
   const [pwdLoading, setPwdLoading]   = useState(false);
   const [pwdDone, setPwdDone]         = useState(false);
 
+  // Transfer state
+  const [transferSource, setTransferSource] = useState<User | null>(null);
+  const [transferToId, setTransferToId]     = useState("");
+  const [transferLoading, setTransferLoading] = useState(false);
+  const [transferResult, setTransferResult] = useState<{ from: string; to: string; leads: number; invoices: number; units: number } | null>(null);
+  const [transferError, setTransferError]   = useState("");
+
   const openResetModal = (user: User) => {
     setResetTarget(user);
     setNewPwd(""); setConfirmPwd(""); setPwdError(""); setPwdDone(false);
   };
 
   const closeResetModal = () => { setResetTarget(null); };
+
+  const openTransferModal = (user: User) => {
+    setTransferSource(user);
+    setTransferToId("");
+    setTransferError("");
+    setTransferResult(null);
+  };
+
+  const closeTransferModal = () => { setTransferSource(null); };
+
+  const handleTransfer = async () => {
+    if (!transferToId) { setTransferError("Please select a target agent"); return; }
+    if (!transferSource) return;
+    setTransferLoading(true); setTransferError("");
+    const res = await fetch("/api/admin/transfer-leads", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ fromUserId: transferSource._id, toUserId: transferToId }),
+    });
+    setTransferLoading(false);
+    if (res.ok) {
+      const j = await res.json();
+      setTransferResult({
+        from: j.from, to: j.to,
+        leads: j.transferred.leads,
+        invoices: j.transferred.invoices,
+        units: j.transferred.units,
+      });
+    } else {
+      const j = await res.json().catch(() => ({}));
+      setTransferError(j.error ?? "Transfer failed");
+    }
+  };
 
   const handlePasswordReset = async () => {
     if (newPwd.length < 6)           { setPwdError("Password must be at least 6 characters"); return; }
@@ -172,6 +212,110 @@ export default function UserTable({ users: initialUsers, currentRole }: { users:
         </div>
       )}
 
+    {/* Transfer Data Modal */}
+    {transferSource && (
+      <div style={{
+        position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        zIndex: 1000, padding: "16px",
+      }}>
+        <div style={{
+          background: "#fff", borderRadius: "12px", padding: "28px",
+          width: "100%", maxWidth: "420px",
+          boxShadow: "0 8px 32px rgba(0,0,0,0.18)",
+        }}>
+          {transferResult ? (
+            <div style={{ textAlign: "center" }}>
+              <div style={{ fontSize: "40px", marginBottom: "12px" }}>✅</div>
+              <p style={{ fontWeight: 700, fontSize: "15px", color: "#1f2328", marginBottom: "6px" }}>Transfer Complete!</p>
+              <p style={{ fontSize: "13px", color: "#656d76", marginBottom: "16px" }}>
+                All data moved from <strong>{transferResult.from}</strong> to <strong>{transferResult.to}</strong>
+              </p>
+              <div style={{ background: "#f6f8fa", borderRadius: "8px", padding: "14px 16px", marginBottom: "20px", textAlign: "left" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "8px", textAlign: "center" }}>
+                  {[
+                    { label: "Leads",    val: transferResult.leads },
+                    { label: "Invoices", val: transferResult.invoices },
+                    { label: "Units",    val: transferResult.units },
+                  ].map(({ label, val }) => (
+                    <div key={label} style={{ background: "#fff", borderRadius: "6px", padding: "10px 6px", border: "1px solid #d0d7de" }}>
+                      <div style={{ fontSize: "20px", fontWeight: 700, color: "#1d4ed8" }}>{val}</div>
+                      <div style={{ fontSize: "11px", color: "#656d76", marginTop: "2px" }}>{label}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <button onClick={closeTransferModal} style={{
+                padding: "8px 24px", borderRadius: "8px", border: "none",
+                background: "linear-gradient(135deg,#2563eb,#1d4ed8)",
+                color: "#fff", fontWeight: 600, fontSize: "13px", cursor: "pointer",
+              }}>Close</button>
+            </div>
+          ) : (
+            <>
+              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "18px" }}>
+                <div>
+                  <h3 style={{ fontSize: "16px", fontWeight: 700, color: "#1f2328", marginBottom: "4px" }}>Transfer Agent Data</h3>
+                  <p style={{ fontSize: "13px", color: "#656d76" }}>
+                    Move all leads, invoices &amp; units from <strong>{transferSource.name}</strong> to another agent
+                  </p>
+                </div>
+              </div>
+
+              <div style={{ background: "#fff8f0", border: "1px solid #fdba74", borderRadius: "8px", padding: "10px 14px", marginBottom: "18px", fontSize: "12px", color: "#92400e" }}>
+                This will reassign <strong>all</strong> leads, invoices, and units created by {transferSource.name} to the selected agent. This action can be reversed by transferring back.
+              </div>
+
+              <div style={{ marginBottom: "16px" }}>
+                <label style={{ fontSize: "12px", fontWeight: 600, color: "#1f2328", display: "block", marginBottom: "6px" }}>
+                  Transfer to Agent
+                </label>
+                <select
+                  value={transferToId}
+                  onChange={e => setTransferToId(e.target.value)}
+                  style={{
+                    width: "100%", padding: "9px 12px", border: "1px solid #d0d7de",
+                    borderRadius: "8px", fontSize: "13px", color: "#1f2328",
+                    background: "#fff", outline: "none", boxSizing: "border-box",
+                  }}
+                >
+                  <option value="">— Select agent —</option>
+                  {users
+                    .filter(u => u.role === "user" && u._id !== transferSource._id && u.isActive)
+                    .map(u => (
+                      <option key={u._id} value={u._id}>{u.name} ({u.email})</option>
+                    ))
+                  }
+                </select>
+              </div>
+
+              {transferError && (
+                <div style={{ fontSize: "12px", color: "#cf222e", background: "#ffebe9", padding: "8px 12px", borderRadius: "6px", marginBottom: "14px" }}>
+                  {transferError}
+                </div>
+              )}
+
+              <div style={{ display: "flex", gap: "8px" }}>
+                <button onClick={closeTransferModal} style={{
+                  flex: 1, padding: "9px", borderRadius: "8px",
+                  border: "1px solid #d0d7de", background: "#f6f8fa",
+                  color: "#1f2328", fontWeight: 600, fontSize: "13px", cursor: "pointer",
+                }}>Cancel</button>
+                <button onClick={handleTransfer} disabled={transferLoading} style={{
+                  flex: 1, padding: "9px", borderRadius: "8px", border: "none",
+                  background: transferLoading ? "#fbbf24" : "linear-gradient(135deg,#f59e0b,#d97706)",
+                  color: "#fff", fontWeight: 600, fontSize: "13px",
+                  cursor: transferLoading ? "not-allowed" : "pointer",
+                }}>
+                  {transferLoading ? "Transferring…" : "Transfer All Data"}
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    )}
+
     <div style={{ overflowX: "auto" }}>
       <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
         <thead>
@@ -253,6 +397,20 @@ export default function UserTable({ users: initialUsers, currentRole }: { users:
                 </td>
                 <td style={{ padding: "13px 18px", textAlign: "right" }}>
                   <div style={{ display: "flex", gap: "6px", justifyContent: "flex-end", flexWrap: "wrap" }}>
+                    {canEdit && user.role === "user" && (
+                      <button
+                        onClick={() => openTransferModal(user)}
+                        style={{
+                          fontSize: "11px", fontWeight: 600,
+                          padding: "4px 12px", borderRadius: "6px",
+                          border: "1px solid #fdba74", cursor: "pointer",
+                          background: "#fff7ed", color: "#92400e",
+                          transition: "all 150ms",
+                        }}
+                      >
+                        Transfer Data
+                      </button>
+                    )}
                     {canEdit && RESET_ALLOWED[currentRole]?.includes(user.role) && (
                       <button
                         onClick={() => openResetModal(user)}

@@ -71,8 +71,10 @@ export default function InvoiceRequestForm({ leadId, defaultConsignee, onSubmit 
   } = useForm<InvoiceRequestFormData>({ resolver: zodResolver(invoiceRequestSchema) as any, defaultValues: {
     leadId,
     consignee: defaultConsignee,
-    unit: "", year: "", chassisNo: "", engineNo: "", color: "",
+    unit: "", year: "", salesperson: "", fuel: "", transmission: "",
+    chassisNo: "", engineNo: "", color: "",
     m3Rate: undefined, exchangeRate: undefined, pushPrice: undefined, cnfPrice: undefined,
+    advancePercent: 50,
   }});
 
   return (
@@ -120,6 +122,17 @@ export default function InvoiceRequestForm({ leadId, defaultConsignee, onSubmit 
           <Field label="Engine Number" required error={errors.engineNo?.message}>
             <input {...register("engineNo")} style={inputStyle} placeholder="Engine No." {...focusHandlers} />
           </Field>
+          <Field label="Transmission" error={errors.transmission?.message}>
+            <input {...register("transmission")} style={inputStyle} placeholder="e.g. AT / MT" {...focusHandlers} />
+          </Field>
+          <Field label="Fuel Type" error={errors.fuel?.message}>
+            <input {...register("fuel")} style={inputStyle} placeholder="e.g. Petrol / Diesel" {...focusHandlers} />
+          </Field>
+          <div style={{ gridColumn: "span 2" }}>
+            <Field label="Sales Person" error={errors.salesperson?.message}>
+              <input {...register("salesperson")} style={inputStyle} placeholder="Sales person name" {...focusHandlers} />
+            </Field>
+          </div>
         </div>
       </section>
 
@@ -137,6 +150,9 @@ export default function InvoiceRequestForm({ leadId, defaultConsignee, onSubmit 
           </Field>
           <Field label="CNF Price" required error={errors.cnfPrice?.message}>
             <input {...register("cnfPrice", { valueAsNumber: true })} type="number" step="0.01" style={inputStyle} placeholder="0.00" {...focusHandlers} />
+          </Field>
+          <Field label="Advance Payment %" required error={errors.advancePercent?.message}>
+            <input {...register("advancePercent", { valueAsNumber: true })} type="number" min="1" max="100" style={inputStyle} placeholder="e.g. 50" {...focusHandlers} />
           </Field>
         </div>
       </section>

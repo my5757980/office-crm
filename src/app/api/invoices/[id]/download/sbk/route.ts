@@ -2,8 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import dbConnect from "@/lib/db";
 import Invoice from "@/models/Invoice";
+import fs from "fs";
+import path from "path";
 import {
-  Document, Packer, Paragraph, Table, TableRow, TableCell, TextRun,
+  Document, Packer, Paragraph, Table, TableRow, TableCell, TextRun, ImageRun,
   AlignmentType, WidthType, BorderStyle, VerticalMergeType,
 } from "docx";
 
@@ -138,15 +140,22 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const inv = await Invoice.findById(id).lean();
   if (!inv) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
+  const logoBuffer  = fs.readFileSync(path.join(process.cwd(), "public/images/sbk-logo.jpg"));
+  const stampBuffer = fs.readFileSync(path.join(process.cwd(), "public/images/sbk-stamp.jpg"));
+
   const date   = new Date(inv.createdAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
-  // DOCUMENT NO: SBK + zero-padded sequential part
   const docNo  = `K-${new Date(inv.createdAt).getFullYear().toString().slice(2)}-${String(id).slice(-5).toUpperCase()}`;
   const invNo  = `SBK${String(id).slice(-5).toUpperCase()}`;
-  const half   = inv.cnfPrice / 2;
-  const words  = amountToWords(inv.cnfPrice);
+  const advPct     = inv.advancePercent ?? 50;
+  const advanceAmt = Math.round(inv.cnfPrice * advPct / 100);
+  const remaining  = inv.cnfPrice - advanceAmt;
+  const words      = amountToWords(inv.cnfPrice);
 
   const vehicleYearLine = inv.year ? inv.year : "—";
   const engineLine      = inv.engineNo || "—";
+  const salesPerson  = inv.salesperson  || "TBA";
+  const transmission = inv.transmission || "TBA";
+  const fuel         = inv.fuel         || "TBA";
 
   const doc = new Document({
     sections: [{
@@ -154,6 +163,16 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
         page: { margin: { top: 600, bottom: 600, left: 720, right: 720 } },
       },
       children: [
+        // ── Company logo ─────────────────────────────────────────────────────
+        new Paragraph({
+          alignment: AlignmentType.LEFT,
+          spacing: { after: 20, before: 0 },
+          children: [new ImageRun({
+            data: logoBuffer,
+            transformation: { width: 210, height: 73 },
+            type: "jpg",
+          })],
+        }),
         // ── Header paragraphs ────────────────────────────────────────────────
         hdrPara("SBK Global Auto Trading FZC LLC", { size: 16, color: "1F497D", after: 20 }),
         hdrPara(SBK_INFO.addr1, { size: 8, color: "C00000", after: 20 }),
@@ -195,7 +214,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
               { lines: ["Port"], colSpan: 2 },
               { lines: [inv.consignee.port], colSpan: 4 },
               { lines: ["SALES PERSON"] },
-              { lines: [": TBA"], colSpan: 2 },
+              { lines: [`: ${salesPerson}`], colSpan: 2 },
               { lines: [`PORT OF UNLOADING\t: ${inv.consignee.port}`], colSpan: 3 },
             ),
             // R4: Country | SHIPMENT TYPE | ETD
@@ -239,7 +258,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
             row(
               { lines: ["Same as consignee"], bold: true, colSpan: 6 },
               { lines: [""], colSpan: 3 },
-              { lines: ["PAYMENT TERMS\t: 50% (Advance Payment)"], bold: true, colSpan: 3, shade: "BFBFBF" },
+              { lines: [`PAYMENT TERMS\t: ${advPct}% (Advance Payment)`], bold: true, colSpan: 3, shade: "BFBFBF" },
             ),
             // R10: Same as consignee | empty(C6-C8) | CURRENCY
             row(
@@ -267,7 +286,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
               { lines: [""] },
               { lines: [inv.unit] },
               { lines: [vehicleYearLine, engineLine] },
-              { lines: ["TBA", "TBA"], colSpan: 2 },
+              { lines: [transmission, fuel], colSpan: 2 },
               { lines: ["1"] },
               { lines: [fmt(inv.cnfPrice)] },
               { lines: [fmt(inv.cnfPrice)] },
@@ -285,8 +304,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
               empty(),
               empty(3),
               empty(4),
-              { lines: ["50% Amount"], bold: true, colSpan: 3 },
-              { lines: [fmt(half)], bold: true },
+              { lines: [`${advPct}% Amount`], bold: true, colSpan: 3 },
+              { lines: [fmt(advanceAmt)], bold: true },
             ),
             // R16: Remaining Balance (shaded)
             row(
@@ -294,7 +313,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
               empty(3),
               empty(4),
               { lines: ["Remaining Balance"], bold: true, colSpan: 3, shade: "BFBFBF" },
-              { lines: [fmt(half)], bold: true, shade: "BFBFBF" },
+              { lines: [fmt(remaining)], bold: true, shade: "BFBFBF" },
             ),
             // R17: TOTAL AMOUNT VALUE IN WORDS
             row(
@@ -360,11 +379,31 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
               empty(2),
               empty(4),
             ),
-            // R27: Signature
-            row({
-              lines: ["SM Khurram Rashid", "Director International Sales"],
-              colSpan: 12,
-              size: 9,
+            // R27: Signature with official stamp
+            new TableRow({
+              children: [new TableCell({
+                columnSpan: 12,
+                borders: ALL_BORDERS,
+                margins: { top: 30, bottom: 30, left: 80, right: 80 },
+                children: [
+                  new Paragraph({
+                    spacing: { after: 0, before: 0 },
+                    children: [new ImageRun({
+                      data: stampBuffer,
+                      transformation: { width: 98, height: 96 },
+                      type: "jpg",
+                    })],
+                  }),
+                  new Paragraph({
+                    spacing: { after: 0, before: 0 },
+                    children: [new TextRun({ text: "SM Khurram Rashid", size: 9 * 2, font: "Calibri" })],
+                  }),
+                  new Paragraph({
+                    spacing: { after: 0, before: 0 },
+                    children: [new TextRun({ text: "Director International Sales", size: 9 * 2, font: "Calibri" })],
+                  }),
+                ],
+              })],
             }),
           ],
         }),
