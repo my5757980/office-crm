@@ -4,7 +4,6 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 interface UnitFormProps {
-  paymentId: string;
   invoiceId: string;
 }
 
@@ -27,7 +26,7 @@ const FUEL         = ["Petrol", "Diesel", "Hybrid", "Electric", "CNG"];
 const TRANSMISSION = ["Automatic", "Manual", "CVT"];
 const STEERING     = ["RHD", "LHD"];
 
-export default function UnitForm({ paymentId, invoiceId }: UnitFormProps) {
+export default function UnitForm({ invoiceId }: UnitFormProps) {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
   const [error, setError]   = useState("");
@@ -45,7 +44,6 @@ export default function UnitForm({ paymentId, invoiceId }: UnitFormProps) {
   const handleSubmit = async () => {
     setError("");
     const body = {
-      paymentId,
       invoiceId,
       make:         form.make.trim(),
       carModel:     form.carModel.trim(),

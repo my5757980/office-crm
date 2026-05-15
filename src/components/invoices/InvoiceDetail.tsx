@@ -2,9 +2,11 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import InvoiceStatusBadge from "./InvoiceStatusBadge";
 
 interface InvoiceDetailProps {
+  unitId?: string | null;
   invoice: {
     _id: string;
     status: string;
@@ -38,7 +40,7 @@ function InfoRow({ label, value }: { label: string; value?: string | number }) {
   );
 }
 
-export default function InvoiceDetail({ invoice, role }: InvoiceDetailProps) {
+export default function InvoiceDetail({ invoice, role, unitId }: InvoiceDetailProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [rejectModal, setRejectModal] = useState(false);
@@ -298,6 +300,48 @@ export default function InvoiceDetail({ invoice, role }: InvoiceDetailProps) {
                 </svg>
                 Mark as Sent
               </button>
+            )}
+
+            {["manager", "super_admin"].includes(role) && (
+              unitId ? (
+                <Link
+                  href={`/units/${unitId}`}
+                  style={{
+                    display: "inline-flex", alignItems: "center", gap: "6px",
+                    padding: "7px 14px", borderRadius: "8px",
+                    fontSize: "13px", fontWeight: 600,
+                    color: "white", background: "linear-gradient(135deg, #059669, #047857)",
+                    border: "none", textDecoration: "none",
+                    boxShadow: "0 2px 8px rgba(5,150,105,0.3)",
+                    transition: "all 150ms",
+                  }}
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="1" y="3" width="15" height="13" rx="2"/>
+                    <path d="M16 8l4 4-4 4"/>
+                    <path d="M21 12H7"/>
+                  </svg>
+                  View Unit
+                </Link>
+              ) : (
+                <Link
+                  href={`/units/new?invoiceId=${invoice._id}`}
+                  style={{
+                    display: "inline-flex", alignItems: "center", gap: "6px",
+                    padding: "7px 14px", borderRadius: "8px",
+                    fontSize: "13px", fontWeight: 600,
+                    color: "white", background: "linear-gradient(135deg, #059669, #047857)",
+                    border: "none", textDecoration: "none",
+                    boxShadow: "0 2px 8px rgba(5,150,105,0.3)",
+                    transition: "all 150ms",
+                  }}
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                  </svg>
+                  Add Unit
+                </Link>
+              )
             )}
 
             {["admin", "manager"].includes(role) && (

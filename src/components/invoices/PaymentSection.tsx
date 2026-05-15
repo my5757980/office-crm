@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 
 interface Payment {
   _id: string;
@@ -47,8 +46,6 @@ export default function PaymentSection({ invoiceId, role, invoiceCnfPrice }: Pay
   const [saving, setSaving]       = useState(false);
   const [error, setError]         = useState("");
 
-  const [unitMap, setUnitMap] = useState<Record<string, string>>({});
-
   const [form, setForm] = useState({
     sellingPrice:   invoiceCnfPrice?.toString() ?? "",
     amountReceived: "",
@@ -65,21 +62,8 @@ export default function PaymentSection({ invoiceId, role, invoiceCnfPrice }: Pay
     if (res.ok) {
       const data = await res.json();
       setPayments(data.payments);
-      fetchUnits(data.payments);
     }
     setLoading(false);
-  };
-
-  const fetchUnits = async (pmts: Payment[]) => {
-    const map: Record<string, string> = {};
-    await Promise.all(pmts.map(async (p) => {
-      const res = await fetch(`/api/payments/${p._id}`);
-      if (res.ok) {
-        const data = await res.json();
-        if (data.unit) map[p._id] = data.unit._id;
-      }
-    }));
-    setUnitMap(map);
   };
 
   useEffect(() => { fetchPayments(); }, [invoiceId]);
@@ -297,7 +281,7 @@ export default function PaymentSection({ invoiceId, role, invoiceCnfPrice }: Pay
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
             <thead>
               <tr style={{ background: "#f6f8fa", borderBottom: "1px solid #d0d7de" }}>
-                {["#", "Date", "Selling Price", "Received", "Exchange Rate", "Yen Amount", "Recorded By", "Receipt", "Unit"].map(h => (
+                {["#", "Date", "Selling Price", "Received", "Exchange Rate", "Yen Amount", "Recorded By", "Receipt"].map(h => (
                   <th key={h} style={{ padding: "9px 16px", fontSize: "11px", fontWeight: 700, color: "#656d76", textAlign: "left", whiteSpace: "nowrap", textTransform: "uppercase", letterSpacing: "0.05em" }}>{h}</th>
                 ))}
               </tr>
@@ -319,20 +303,6 @@ export default function PaymentSection({ invoiceId, role, invoiceCnfPrice }: Pay
                       <a href={p.receiptImage.data} target="_blank" rel="noopener noreferrer">
                         <img src={p.receiptImage.data} alt="Receipt" style={{ height: "36px", width: "36px", objectFit: "cover", borderRadius: "4px", border: "1px solid #d0d7de" }} />
                       </a>
-                    ) : <span style={{ fontSize: "12px", color: "#8c959f" }}>—</span>}
-                  </td>
-                  <td style={{ padding: "11px 16px" }}>
-                    {unitMap[p._id] ? (
-                      <Link href={`/units/${unitMap[p._id]}`} style={{
-                        fontSize: "11px", fontWeight: 600, padding: "4px 10px", borderRadius: "6px",
-                        background: "#d1fae5", color: "#065f46", textDecoration: "none",
-                      }}>View Unit</Link>
-                    ) : canAdd ? (
-                      <Link href={`/units/new?paymentId=${p._id}&invoiceId=${invoiceId}`} style={{
-                        fontSize: "11px", fontWeight: 600, padding: "4px 10px", borderRadius: "6px",
-                        background: "#eff6ff", color: "#2563eb", textDecoration: "none",
-                        border: "1px solid #bfdbfe",
-                      }}>+ Add Unit</Link>
                     ) : <span style={{ fontSize: "12px", color: "#8c959f" }}>—</span>}
                   </td>
                 </tr>

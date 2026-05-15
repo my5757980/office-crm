@@ -7,15 +7,15 @@ import Link from "next/link";
 export default async function NewUnitPage({
   searchParams,
 }: {
-  searchParams: Promise<{ paymentId?: string; invoiceId?: string }>;
+  searchParams: Promise<{ invoiceId?: string }>;
 }) {
   const session = await auth();
   const role = session!.user.role;
 
   if (!["manager", "super_admin"].includes(role)) redirect("/dashboard");
 
-  const { paymentId, invoiceId } = await searchParams;
-  if (!paymentId || !invoiceId) redirect("/invoices");
+  const { invoiceId } = await searchParams;
+  if (!invoiceId) redirect("/invoices");
 
   return (
     <div style={{ display: "flex", flexDirection: "column", flex: 1 }}>
@@ -43,7 +43,7 @@ export default async function NewUnitPage({
             <p style={{ fontSize: "12px", color: "#8c959f", marginTop: "2px" }}>Enter vehicle details for this payment</p>
           </div>
           <div style={{ padding: "24px" }}>
-            <UnitForm paymentId={paymentId} invoiceId={invoiceId} />
+            <UnitForm invoiceId={invoiceId} />
           </div>
         </div>
       </div>

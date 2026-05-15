@@ -18,9 +18,9 @@ export async function POST(request: NextRequest) {
   if (!parsed.success)
     return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
 
-  const existing = await Unit.findOne({ paymentId: parsed.data.paymentId });
+  const existing = await Unit.findOne({ invoiceId: parsed.data.invoiceId });
   if (existing)
-    return NextResponse.json({ error: "Unit already exists for this payment" }, { status: 409 });
+    return NextResponse.json({ error: "Unit already exists for this invoice" }, { status: 409 });
 
   const unit = await Unit.create({ ...parsed.data, createdBy: session.user.id });
   return NextResponse.json({ unit }, { status: 201 });
