@@ -66,6 +66,52 @@ export default function UnitDetail({ unit, documents: initialDocs, role, receipt
   const [uploading, setUploading] = useState<string | null>(null);
   const [deleting, setDeleting]   = useState<string | null>(null);
 
+  const [isEditing, setIsEditing] = useState(false);
+  const [saving, setSaving]       = useState(false);
+  const [saveError, setSaveError] = useState("");
+  const [editForm, setEditForm]   = useState({
+    make: unit.make, carModel: unit.carModel, year: unit.year.toString(),
+    color: unit.color, chassis: unit.chassis, engineCC: unit.engineCC.toString(),
+    drive: unit.drive, fuel: unit.fuel, mileage: unit.mileage.toString(),
+    transmission: unit.transmission, steering: unit.steering,
+    doors: unit.doors.toString(), seats: unit.seats.toString(), location: unit.location,
+  });
+  const [display, setDisplay] = useState(unit);
+
+  const setF = (k: string, v: string) => setEditForm(prev => ({ ...prev, [k]: v }));
+
+  const handleSave = async () => {
+    setSaveError(""); setSaving(true);
+    const body = {
+      make: editForm.make.trim(), carModel: editForm.carModel.trim(),
+      year: parseInt(editForm.year), color: editForm.color.trim(),
+      chassis: editForm.chassis.trim(), engineCC: parseInt(editForm.engineCC),
+      drive: editForm.drive, fuel: editForm.fuel,
+      mileage: parseInt(editForm.mileage), transmission: editForm.transmission,
+      steering: editForm.steering, doors: parseInt(editForm.doors),
+      seats: parseInt(editForm.seats), location: editForm.location.trim(),
+    };
+    const res = await fetch(`/api/units/${unit._id}`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    setSaving(false);
+    if (res.ok) {
+      setDisplay(prev => ({ ...prev, ...body }));
+      setIsEditing(false);
+    } else {
+      const j = await res.json();
+      setSaveError(j.error ?? "Failed to save");
+    }
+  };
+
+  const inputS: React.CSSProperties = {
+    width: "100%", padding: "6px 10px", border: "1px solid #d0d7de",
+    borderRadius: "6px", fontSize: "13px", color: "#1f2328",
+    boxSizing: "border-box", outline: "none", background: "#fff",
+  };
+  const selectS: React.CSSProperties = { ...inputS, cursor: "pointer" };
+
   const handleUpload = async (folder: string, e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []);
     if (files.length === 0) return;
@@ -132,54 +178,144 @@ export default function UnitDetail({ unit, documents: initialDocs, role, receipt
         <div style={{
           padding: "20px 24px", borderBottom: "1px solid #d0d7de",
           background: "linear-gradient(135deg, #f6f8fa 0%, #eff6ff 100%)",
-          display: "flex", alignItems: "center", gap: "16px",
+          display: "flex", alignItems: "center", justifyContent: "space-between", gap: "16px",
         }}>
-          <div style={{
-            width: "48px", height: "48px", borderRadius: "10px", flexShrink: 0,
-            background: "linear-gradient(135deg, #059669, #047857)",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            fontSize: "22px", boxShadow: "0 4px 12px rgba(5,150,105,0.3)",
-            overflow: "hidden",
-          }}>
-            {coverFileId ? (
-              <img
-                src={`/api/units/${unit._id}/documents/${coverFileId}`}
-                alt="Cover"
-                style={{ width: "100%", height: "100%", objectFit: "cover" }}
-              />
-            ) : "🚗"}
+          <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+            <div style={{
+              width: "48px", height: "48px", borderRadius: "10px", flexShrink: 0,
+              background: "linear-gradient(135deg, #059669, #047857)",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              fontSize: "22px", boxShadow: "0 4px 12px rgba(5,150,105,0.3)",
+              overflow: "hidden",
+            }}>
+              {coverFileId ? (
+                <img
+                  src={`/api/units/${unit._id}/documents/${coverFileId}`}
+                  alt="Cover"
+                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                />
+              ) : "🚗"}
+            </div>
+            <div>
+              <h2 style={{ fontSize: "18px", fontWeight: 700, color: "#1f2328" }}>
+                {display.year} {display.make} {display.carModel}
+              </h2>
+              <p style={{ fontSize: "12px", color: "#8c959f", marginTop: "4px" }}>
+                Chassis: <strong style={{ color: "#656d76" }}>{display.chassis}</strong>
+                {unit.createdBy && ` · Added by ${unit.createdBy.name}`}
+                {" · "}{new Date(unit.createdAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
+              </p>
+            </div>
           </div>
-          <div>
-            <h2 style={{ fontSize: "18px", fontWeight: 700, color: "#1f2328" }}>
-              {unit.year} {unit.make} {unit.carModel}
-            </h2>
-            <p style={{ fontSize: "12px", color: "#8c959f", marginTop: "4px" }}>
-              Chassis: <strong style={{ color: "#656d76" }}>{unit.chassis}</strong>
-              {unit.createdBy && ` · Added by ${unit.createdBy.name}`}
-              {" · "}{new Date(unit.createdAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
-            </p>
-          </div>
+          {canManage && !isEditing && (
+            <button onClick={() => setIsEditing(true)} style={{
+              display: "inline-flex", alignItems: "center", gap: "6px",
+              padding: "7px 14px", borderRadius: "8px", fontSize: "13px", fontWeight: 600,
+              color: "#1f2328", background: "#ffffff", border: "1px solid #d0d7de",
+              cursor: "pointer", flexShrink: 0,
+            }}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
+                <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+              </svg>
+              Edit
+            </button>
+          )}
+          {canManage && isEditing && (
+            <div style={{ display: "flex", gap: "8px", flexShrink: 0 }}>
+              <button onClick={() => { setIsEditing(false); setSaveError(""); }} style={{
+                padding: "7px 14px", borderRadius: "8px", fontSize: "13px", fontWeight: 600,
+                color: "#656d76", background: "#f6f8fa", border: "1px solid #d0d7de", cursor: "pointer",
+              }}>Cancel</button>
+              <button onClick={handleSave} disabled={saving} style={{
+                padding: "7px 14px", borderRadius: "8px", fontSize: "13px", fontWeight: 600,
+                color: "white", background: saving ? "#93c5fd" : "linear-gradient(135deg, #2563eb, #1d4ed8)",
+                border: "none", cursor: saving ? "not-allowed" : "pointer",
+              }}>{saving ? "Saving…" : "Save"}</button>
+            </div>
+          )}
         </div>
+        {saveError && (
+          <div style={{ margin: "0 24px 12px", padding: "8px 12px", background: "#ffebe9", borderRadius: "6px", fontSize: "12px", color: "#cf222e" }}>
+            {saveError}
+          </div>
+        )}
 
         {/* Details Grid */}
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr" }}>
           <div style={{ padding: "20px 24px", borderRight: "1px solid #f0f2f4" }}>
-            <p style={{ fontSize: "11px", fontWeight: 700, color: "#8c959f", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "4px" }}>Vehicle Info</p>
-            <DataRow label="Make / Model" value={`${unit.make} ${unit.carModel}`} />
-            <DataRow label="Year"         value={unit.year} />
-            <DataRow label="Color"        value={unit.color} />
-            <DataRow label="Chassis"      value={unit.chassis} />
-            <DataRow label="Location"     value={unit.location} />
+            <p style={{ fontSize: "11px", fontWeight: 700, color: "#8c959f", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "8px" }}>Vehicle Info</p>
+            {isEditing ? (
+              <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+                  <div><label style={{ fontSize: "11px", color: "#8c959f", fontWeight: 600, display: "block", marginBottom: "3px" }}>MAKE</label><input value={editForm.make} onChange={e => setF("make", e.target.value)} style={inputS} /></div>
+                  <div><label style={{ fontSize: "11px", color: "#8c959f", fontWeight: 600, display: "block", marginBottom: "3px" }}>MODEL</label><input value={editForm.carModel} onChange={e => setF("carModel", e.target.value)} style={inputS} /></div>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+                  <div><label style={{ fontSize: "11px", color: "#8c959f", fontWeight: 600, display: "block", marginBottom: "3px" }}>YEAR</label><input type="number" value={editForm.year} onChange={e => setF("year", e.target.value)} style={inputS} /></div>
+                  <div><label style={{ fontSize: "11px", color: "#8c959f", fontWeight: 600, display: "block", marginBottom: "3px" }}>COLOR</label><input value={editForm.color} onChange={e => setF("color", e.target.value)} style={inputS} /></div>
+                </div>
+                <div><label style={{ fontSize: "11px", color: "#8c959f", fontWeight: 600, display: "block", marginBottom: "3px" }}>CHASSIS</label><input value={editForm.chassis} onChange={e => setF("chassis", e.target.value)} style={inputS} /></div>
+                <div><label style={{ fontSize: "11px", color: "#8c959f", fontWeight: 600, display: "block", marginBottom: "3px" }}>LOCATION</label><input value={editForm.location} onChange={e => setF("location", e.target.value)} style={inputS} /></div>
+              </div>
+            ) : (
+              <>
+                <DataRow label="Make / Model" value={`${display.make} ${display.carModel}`} />
+                <DataRow label="Year"         value={display.year} />
+                <DataRow label="Color"        value={display.color} />
+                <DataRow label="Chassis"      value={display.chassis} />
+                <DataRow label="Location"     value={display.location} />
+              </>
+            )}
           </div>
           <div style={{ padding: "20px 24px" }}>
-            <p style={{ fontSize: "11px", fontWeight: 700, color: "#8c959f", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "4px" }}>Specifications</p>
-            <DataRow label="Engine CC"    value={`${unit.engineCC.toLocaleString()} cc`} />
-            <DataRow label="Drive"        value={unit.drive} />
-            <DataRow label="Fuel"         value={unit.fuel} />
-            <DataRow label="Mileage"      value={`${unit.mileage.toLocaleString()} km`} />
-            <DataRow label="Transmission" value={unit.transmission} />
-            <DataRow label="Steering"     value={unit.steering} />
-            <DataRow label="Doors / Seats" value={`${unit.doors} doors · ${unit.seats} seats`} />
+            <p style={{ fontSize: "11px", fontWeight: 700, color: "#8c959f", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "8px" }}>Specifications</p>
+            {isEditing ? (
+              <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+                  <div><label style={{ fontSize: "11px", color: "#8c959f", fontWeight: 600, display: "block", marginBottom: "3px" }}>ENGINE CC</label><input type="number" value={editForm.engineCC} onChange={e => setF("engineCC", e.target.value)} style={inputS} /></div>
+                  <div><label style={{ fontSize: "11px", color: "#8c959f", fontWeight: 600, display: "block", marginBottom: "3px" }}>MILEAGE (km)</label><input type="number" value={editForm.mileage} onChange={e => setF("mileage", e.target.value)} style={inputS} /></div>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+                  <div><label style={{ fontSize: "11px", color: "#8c959f", fontWeight: 600, display: "block", marginBottom: "3px" }}>DOORS</label><input type="number" value={editForm.doors} onChange={e => setF("doors", e.target.value)} style={inputS} /></div>
+                  <div><label style={{ fontSize: "11px", color: "#8c959f", fontWeight: 600, display: "block", marginBottom: "3px" }}>SEATS</label><input type="number" value={editForm.seats} onChange={e => setF("seats", e.target.value)} style={inputS} /></div>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+                  <div><label style={{ fontSize: "11px", color: "#8c959f", fontWeight: 600, display: "block", marginBottom: "3px" }}>DRIVE</label>
+                    <select value={editForm.drive} onChange={e => setF("drive", e.target.value)} style={selectS}>
+                      {["2WD","4WD","AWD"].map(o => <option key={o}>{o}</option>)}
+                    </select>
+                  </div>
+                  <div><label style={{ fontSize: "11px", color: "#8c959f", fontWeight: 600, display: "block", marginBottom: "3px" }}>FUEL</label>
+                    <select value={editForm.fuel} onChange={e => setF("fuel", e.target.value)} style={selectS}>
+                      {["Petrol","Diesel","Hybrid","Electric","CNG"].map(o => <option key={o}>{o}</option>)}
+                    </select>
+                  </div>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+                  <div><label style={{ fontSize: "11px", color: "#8c959f", fontWeight: 600, display: "block", marginBottom: "3px" }}>TRANSMISSION</label>
+                    <select value={editForm.transmission} onChange={e => setF("transmission", e.target.value)} style={selectS}>
+                      {["Automatic","Manual","CVT"].map(o => <option key={o}>{o}</option>)}
+                    </select>
+                  </div>
+                  <div><label style={{ fontSize: "11px", color: "#8c959f", fontWeight: 600, display: "block", marginBottom: "3px" }}>STEERING</label>
+                    <select value={editForm.steering} onChange={e => setF("steering", e.target.value)} style={selectS}>
+                      {["RHD","LHD"].map(o => <option key={o}>{o}</option>)}
+                    </select>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <>
+                <DataRow label="Engine CC"     value={`${display.engineCC.toLocaleString()} cc`} />
+                <DataRow label="Drive"         value={display.drive} />
+                <DataRow label="Fuel"          value={display.fuel} />
+                <DataRow label="Mileage"       value={`${display.mileage.toLocaleString()} km`} />
+                <DataRow label="Transmission"  value={display.transmission} />
+                <DataRow label="Steering"      value={display.steering} />
+                <DataRow label="Doors / Seats" value={`${display.doors} doors · ${display.seats} seats`} />
+              </>
+            )}
           </div>
         </div>
       </div>
