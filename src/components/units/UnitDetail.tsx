@@ -28,6 +28,17 @@ interface FileEntry {
   uploadedAt: string;
 }
 
+interface PaymentRow {
+  _id: string;
+  sellingPrice: number;
+  amountReceived: number;
+  receivedDate: string;
+  exchangeRate?: number;
+  yenAmount?: number;
+  recordedBy?: { name: string };
+  receiptImage?: { data: string; filename: string; uploadedAt: string };
+}
+
 interface UnitDetailProps {
   unit: {
     _id: string;
@@ -40,8 +51,13 @@ interface UnitDetailProps {
   };
   documents: Record<string, FileEntry[]>;
   role: string;
-  receiptImages?: { data: string; filename: string; uploadedAt: string; receivedDate: string; index: number }[];
+  payments?: PaymentRow[];
+  invoiceCnfPrice?: number;
   coverFileId?: string | null;
+}
+
+function fmt(n: number) {
+  return n.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 }
 
 function DataRow({ label, value }: { label: string; value: string | number }) {
@@ -59,7 +75,7 @@ function formatSize(bytes: number) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-export default function UnitDetail({ unit, documents: initialDocs, role, receiptImages, coverFileId: initialCoverFileId }: UnitDetailProps) {
+export default function UnitDetail({ unit, documents: initialDocs, role, payments, invoiceCnfPrice, coverFileId: initialCoverFileId }: UnitDetailProps) {
   const canManage = ["manager", "super_admin"].includes(role);
   const [coverFileId, setCoverFileId] = useState(initialCoverFileId ?? null);
   const [documents, setDocuments] = useState(initialDocs);
@@ -165,6 +181,9 @@ export default function UnitDetail({ unit, documents: initialDocs, role, receipt
   };
 
   const isImage = (mimetype: string) => mimetype.startsWith("image/");
+
+  const totalReceived = (payments ?? []).reduce((s, p) => s + p.amountReceived, 0);
+  const balance       = (invoiceCnfPrice ?? 0) - totalReceived;
 
   const cardStyle: React.CSSProperties = {
     background: "#ffffff", border: "1px solid #d0d7de",
@@ -321,9 +340,10 @@ export default function UnitDetail({ unit, documents: initialDocs, role, receipt
         </div>
       </div>
 
-      {/* Payment TT — same format as PaymentSection */}
-      {receiptImages && receiptImages.length > 0 && (
+      {/* Payments — exact same format as PaymentSection */}
+      {payments && payments.length > 0 && (
         <div style={cardStyle}>
+          {/* Header */}
           <div style={{
             padding: "14px 24px", borderBottom: "1px solid #d0d7de",
             background: "linear-gradient(135deg, #f6f8fa 0%, #eff6ff 100%)",
@@ -333,31 +353,72 @@ export default function UnitDetail({ unit, documents: initialDocs, role, receipt
               <rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/>
             </svg>
             <p style={{ fontSize: "13px", fontWeight: 700, color: "#1f2328" }}>
-              Payment TT ({receiptImages.length})
+              Payments ({payments.length})
             </p>
+            {invoiceCnfPrice && (
+              <span style={{
+                fontSize: "11px", fontWeight: 600, padding: "2px 8px", borderRadius: "20px",
+                background: balance <= 0 ? "#d1fae5" : "#fef3c7",
+                color: balance <= 0 ? "#065f46" : "#92400e",
+              }}>
+                {balance <= 0 ? "Fully Paid" : `Balance: $${fmt(balance)}`}
+              </span>
+            )}
           </div>
+
+          {/* Summary Row */}
+          {invoiceCnfPrice && (
+            <div style={{
+              display: "grid", gridTemplateColumns: "repeat(3, 1fr)",
+              padding: "12px 24px", background: "#f6f8fa", borderBottom: "1px solid #d0d7de", gap: "8px",
+            }}>
+              <div style={{ textAlign: "center" }}>
+                <p style={{ fontSize: "10px", color: "#8c959f", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em" }}>Invoice Total</p>
+                <p style={{ fontSize: "16px", fontWeight: 700, color: "#1f2328" }}>${fmt(invoiceCnfPrice)}</p>
+              </div>
+              <div style={{ textAlign: "center" }}>
+                <p style={{ fontSize: "10px", color: "#8c959f", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em" }}>Total Received</p>
+                <p style={{ fontSize: "16px", fontWeight: 700, color: "#059669" }}>${fmt(totalReceived)}</p>
+              </div>
+              <div style={{ textAlign: "center" }}>
+                <p style={{ fontSize: "10px", color: "#8c959f", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em" }}>Balance</p>
+                <p style={{ fontSize: "16px", fontWeight: 700, color: balance > 0 ? "#d97706" : "#059669" }}>
+                  ${fmt(Math.abs(balance))}{balance > 0 ? " due" : " clear"}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Payments Table */}
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
             <thead>
               <tr style={{ background: "#f6f8fa", borderBottom: "1px solid #d0d7de" }}>
-                {["#", "Date", "TT Receipt"].map(h => (
+                {["#", "Date", "Selling Price", "Received", "Exchange Rate", "Yen Amount", "Recorded By", "Receipt"].map(h => (
                   <th key={h} style={{ padding: "9px 16px", fontSize: "11px", fontWeight: 700, color: "#656d76", textAlign: "left", whiteSpace: "nowrap", textTransform: "uppercase", letterSpacing: "0.05em" }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {receiptImages.map((img, i) => (
-                <tr key={i} style={{ borderBottom: i < receiptImages.length - 1 ? "1px solid #f0f2f4" : "none" }}>
-                  <td style={{ padding: "11px 16px", color: "#8c959f", fontWeight: 600 }}>{img.index ?? i + 1}</td>
-                  <td style={{ padding: "11px 16px", whiteSpace: "nowrap", color: "#1f2328" }}>
-                    {img.receivedDate ? new Date(img.receivedDate).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "—"}
+              {payments.map((p, i) => (
+                <tr key={p._id} style={{ borderBottom: i < payments.length - 1 ? "1px solid #f0f2f4" : "none" }}>
+                  <td style={{ padding: "11px 16px", color: "#8c959f", fontWeight: 600 }}>{i + 1}</td>
+                  <td style={{ padding: "11px 16px", whiteSpace: "nowrap" }}>
+                    {new Date(p.receivedDate).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
                   </td>
+                  <td style={{ padding: "11px 16px", fontWeight: 600, color: "#1f2328" }}>${fmt(p.sellingPrice)}</td>
+                  <td style={{ padding: "11px 16px", fontWeight: 700, color: "#059669" }}>${fmt(p.amountReceived)}</td>
+                  <td style={{ padding: "11px 16px", color: "#656d76" }}>{p.exchangeRate ?? "—"}</td>
+                  <td style={{ padding: "11px 16px", color: "#656d76" }}>{p.yenAmount != null ? `¥${fmt(p.yenAmount)}` : "—"}</td>
+                  <td style={{ padding: "11px 16px", color: "#656d76", fontSize: "12px" }}>{p.recordedBy?.name ?? "—"}</td>
                   <td style={{ padding: "11px 16px" }}>
-                    <img
-                      src={img.data}
-                      alt="TT Receipt"
-                      onClick={() => setLightbox({ data: img.data, filename: img.filename })}
-                      style={{ height: "36px", width: "36px", objectFit: "cover", borderRadius: "4px", border: "1px solid #d0d7de", cursor: "pointer" }}
-                    />
+                    {p.receiptImage?.data ? (
+                      <img
+                        src={p.receiptImage.data}
+                        alt="Receipt"
+                        onClick={() => setLightbox({ data: p.receiptImage!.data, filename: p.receiptImage!.filename })}
+                        style={{ height: "36px", width: "36px", objectFit: "cover", borderRadius: "4px", border: "1px solid #d0d7de", cursor: "pointer" }}
+                      />
+                    ) : <span style={{ fontSize: "12px", color: "#8c959f" }}>—</span>}
                   </td>
                 </tr>
               ))}

@@ -26,14 +26,19 @@ export default async function UnitDetailPage({
   const unit = await Unit.findById(id).populate("createdBy", "name").lean();
   if (!unit) notFound();
 
+  const invoice = await Invoice.findById(unit.invoiceId).select("createdBy cnfPrice").lean();
+
   if (role === "user") {
-    const invoice = await Invoice.findById(unit.invoiceId).select("createdBy").lean();
     if (!invoice || invoice.createdBy.toString() !== session!.user.id) notFound();
   }
 
   const [files, payments, coverFile] = await Promise.all([
     UnitFile.find({ unitId: id }).select("-data").lean(),
-    Payment.find({ invoiceId: unit.invoiceId, "receiptImage.data": { $exists: true } }).select("receiptImage receivedDate").sort({ receivedDate: 1 }).lean(),
+    Payment.find({ invoiceId: unit.invoiceId })
+      .select("receiptImage receivedDate sellingPrice amountReceived exchangeRate yenAmount recordedBy")
+      .populate("recordedBy", "name")
+      .sort({ receivedDate: 1 })
+      .lean(),
     UnitFile.findOne({ unitId: id, mimetype: /^image\// }).select("_id").lean(),
   ]);
 
@@ -42,12 +47,11 @@ export default async function UnitDetailPage({
     documents[folder] = files.filter(f => f.folder === folder);
   }
 
-  const unitData      = JSON.parse(JSON.stringify(unit));
-  const docsData      = JSON.parse(JSON.stringify(documents));
-  const receiptImages = JSON.parse(JSON.stringify(
-    payments.map((p, i) => ({ ...p.receiptImage, receivedDate: p.receivedDate, index: i + 1 }))
-  ));
-  const coverFileId   = coverFile ? coverFile._id.toString() : null;
+  const unitData        = JSON.parse(JSON.stringify(unit));
+  const docsData        = JSON.parse(JSON.stringify(documents));
+  const paymentsData    = JSON.parse(JSON.stringify(payments));
+  const coverFileId     = coverFile ? coverFile._id.toString() : null;
+  const invoiceCnfPrice = invoice?.cnfPrice ?? undefined;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", flex: 1 }}>
@@ -66,7 +70,7 @@ export default async function UnitDetailPage({
           Back to Invoice
         </Link>
 
-        <UnitDetail unit={unitData} documents={docsData} role={role} receiptImages={receiptImages} coverFileId={coverFileId} />
+        <UnitDetail unit={unitData} documents={docsData} role={role} payments={paymentsData} invoiceCnfPrice={invoiceCnfPrice} coverFileId={coverFileId} />
       </div>
     </div>
   );
