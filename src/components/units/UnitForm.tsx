@@ -26,6 +26,49 @@ const FUEL         = ["Petrol", "Diesel", "Hybrid", "Electric", "CNG"];
 const TRANSMISSION = ["Automatic", "Manual", "CVT"];
 const STEERING     = ["RHD", "LHD"];
 
+interface FieldProps {
+  label: string;
+  name: string;
+  type?: string;
+  placeholder?: string;
+  value: string;
+  onChange: (name: string, value: string) => void;
+}
+
+function Field({ label, name, type = "text", placeholder = "", value, onChange }: FieldProps) {
+  return (
+    <div>
+      <label style={labelStyle}>{label}</label>
+      <input
+        type={type}
+        value={value}
+        onChange={e => onChange(name, e.target.value)}
+        placeholder={placeholder}
+        style={inputStyle}
+      />
+    </div>
+  );
+}
+
+interface SelectFieldProps {
+  label: string;
+  name: string;
+  options: string[];
+  value: string;
+  onChange: (name: string, value: string) => void;
+}
+
+function SelectField({ label, name, options, value, onChange }: SelectFieldProps) {
+  return (
+    <div>
+      <label style={labelStyle}>{label}</label>
+      <select value={value} onChange={e => onChange(name, e.target.value)} style={selectStyle}>
+        {options.map(o => <option key={o} value={o}>{o}</option>)}
+      </select>
+    </div>
+  );
+}
+
 export default function UnitForm({ invoiceId }: UnitFormProps) {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
@@ -82,39 +125,18 @@ export default function UnitForm({ invoiceId }: UnitFormProps) {
     }
   };
 
-  const Field = ({ label, name, type = "text", placeholder = "" }: { label: string; name: string; type?: string; placeholder?: string }) => (
-    <div>
-      <label style={labelStyle}>{label}</label>
-      <input
-        type={type} value={(form as Record<string, string>)[name]}
-        onChange={e => set(name, e.target.value)}
-        placeholder={placeholder}
-        style={inputStyle}
-      />
-    </div>
-  );
-
-  const Select = ({ label, name, options }: { label: string; name: string; options: string[] }) => (
-    <div>
-      <label style={labelStyle}>{label}</label>
-      <select value={(form as Record<string, string>)[name]} onChange={e => set(name, e.target.value)} style={selectStyle}>
-        {options.map(o => <option key={o} value={o}>{o}</option>)}
-      </select>
-    </div>
-  );
-
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
       {/* Vehicle Identity */}
       <div>
         <p style={{ fontSize: "11px", fontWeight: 700, color: "#8c959f", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "12px" }}>Vehicle Identity</p>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "14px" }}>
-          <Field label="Make" name="make" placeholder="e.g. Toyota" />
-          <Field label="Model" name="carModel" placeholder="e.g. Land Cruiser 200" />
-          <Field label="Year" name="year" type="number" placeholder="e.g. 2022" />
-          <Field label="Color" name="color" placeholder="e.g. White" />
-          <Field label="Chassis No." name="chassis" placeholder="e.g. JTF0001234567890" />
-          <Field label="Location (Yard)" name="location" placeholder="e.g. Osaka Yard" />
+          <Field label="Make"            name="make"     value={form.make}     onChange={set} placeholder="e.g. Toyota" />
+          <Field label="Model"           name="carModel" value={form.carModel} onChange={set} placeholder="e.g. Land Cruiser 200" />
+          <Field label="Year"            name="year"     value={form.year}     onChange={set} type="number" placeholder="e.g. 2022" />
+          <Field label="Color"           name="color"    value={form.color}    onChange={set} placeholder="e.g. White" />
+          <Field label="Chassis No."     name="chassis"  value={form.chassis}  onChange={set} placeholder="e.g. JTF0001234567890" />
+          <Field label="Location (Yard)" name="location" value={form.location} onChange={set} placeholder="e.g. Osaka Yard" />
         </div>
       </div>
 
@@ -122,14 +144,14 @@ export default function UnitForm({ invoiceId }: UnitFormProps) {
       <div>
         <p style={{ fontSize: "11px", fontWeight: 700, color: "#8c959f", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "12px" }}>Technical Specifications</p>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "14px" }}>
-          <Field label="Engine CC" name="engineCC" type="number" placeholder="e.g. 4500" />
-          <Field label="Mileage (km)" name="mileage" type="number" placeholder="e.g. 45000" />
-          <Field label="Doors" name="doors" type="number" placeholder="4" />
-          <Field label="Seats" name="seats" type="number" placeholder="5" />
-          <Select label="Drive" name="drive" options={DRIVE} />
-          <Select label="Fuel" name="fuel" options={FUEL} />
-          <Select label="Transmission" name="transmission" options={TRANSMISSION} />
-          <Select label="Steering" name="steering" options={STEERING} />
+          <Field       label="Engine CC"    name="engineCC"    value={form.engineCC}    onChange={set} type="number" placeholder="e.g. 4500" />
+          <Field       label="Mileage (km)" name="mileage"     value={form.mileage}     onChange={set} type="number" placeholder="e.g. 45000" />
+          <Field       label="Doors"        name="doors"       value={form.doors}       onChange={set} type="number" placeholder="4" />
+          <Field       label="Seats"        name="seats"       value={form.seats}       onChange={set} type="number" placeholder="5" />
+          <SelectField label="Drive"        name="drive"       value={form.drive}       onChange={set} options={DRIVE} />
+          <SelectField label="Fuel"         name="fuel"        value={form.fuel}        onChange={set} options={FUEL} />
+          <SelectField label="Transmission" name="transmission" value={form.transmission} onChange={set} options={TRANSMISSION} />
+          <SelectField label="Steering"     name="steering"    value={form.steering}    onChange={set} options={STEERING} />
         </div>
       </div>
 
