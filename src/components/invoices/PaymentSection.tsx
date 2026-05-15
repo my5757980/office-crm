@@ -45,6 +45,20 @@ export default function PaymentSection({ invoiceId, role, invoiceCnfPrice }: Pay
   const [showForm, setShowForm]   = useState(false);
   const [saving, setSaving]       = useState(false);
   const [error, setError]         = useState("");
+  const [deleting, setDeleting]   = useState<string | null>(null);
+
+  const handleDelete = async (paymentId: string) => {
+    if (!confirm("Delete this payment? The TT image will also be removed.")) return;
+    setDeleting(paymentId);
+    const res = await fetch(`/api/payments/${paymentId}`, { method: "DELETE" });
+    if (res.ok) {
+      setPayments(prev => prev.filter(p => p._id !== paymentId));
+    } else {
+      const j = await res.json();
+      alert(j.error ?? "Delete failed");
+    }
+    setDeleting(null);
+  };
 
   const openInNewTab = (base64: string) => {
     const [header, data] = base64.split(",");
@@ -292,7 +306,7 @@ export default function PaymentSection({ invoiceId, role, invoiceCnfPrice }: Pay
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
             <thead>
               <tr style={{ background: "#f6f8fa", borderBottom: "1px solid #d0d7de" }}>
-                {["#", "Date", "Selling Price", "Received", "Exchange Rate", "Yen Amount", "Recorded By", "Receipt"].map(h => (
+                {["#", "Date", "Selling Price", "Received", "Exchange Rate", "Yen Amount", "Recorded By", "Receipt", ...(canAdd ? [""] : [])].map(h => (
                   <th key={h} style={{ padding: "9px 16px", fontSize: "11px", fontWeight: 700, color: "#656d76", textAlign: "left", whiteSpace: "nowrap", textTransform: "uppercase", letterSpacing: "0.05em" }}>{h}</th>
                 ))}
               </tr>
@@ -319,6 +333,23 @@ export default function PaymentSection({ invoiceId, role, invoiceCnfPrice }: Pay
                       />
                     ) : <span style={{ fontSize: "12px", color: "#8c959f" }}>—</span>}
                   </td>
+                  {canAdd && (
+                    <td style={{ padding: "11px 16px" }}>
+                      <button
+                        onClick={() => handleDelete(p._id)}
+                        disabled={deleting === p._id}
+                        style={{
+                          padding: "4px 10px", borderRadius: "6px", border: "none",
+                          background: deleting === p._id ? "#f6f8fa" : "#ffebe9",
+                          color: "#cf222e", fontSize: "11px", fontWeight: 600,
+                          cursor: deleting === p._id ? "not-allowed" : "pointer",
+                          opacity: deleting === p._id ? 0.5 : 1,
+                        }}
+                      >
+                        {deleting === p._id ? "…" : "Delete"}
+                      </button>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
