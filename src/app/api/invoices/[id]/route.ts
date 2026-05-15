@@ -57,7 +57,7 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
     const customerName = (invoice.leadId as unknown as { customerName: string })?.customerName ?? "";
     await Notification.create({
       userId: invoice.createdBy,
-      message: `Your invoice for ${customerName} has been approved`,
+      message: `Your invoice for ${customerName} has been approved.`,
       type: "invoice_approved",
       invoiceId: invoice._id,
     });
@@ -71,7 +71,7 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
     const customerName = (invoice.leadId as unknown as { customerName: string })?.customerName ?? "";
     await Notification.create({
       userId: invoice.createdBy,
-      message: `Your invoice for ${customerName} has been rejected${rejectionNote ? `: ${rejectionNote}` : ""}`,
+      message: `Your invoice for ${customerName} has been rejected${rejectionNote ? `. Reason: ${rejectionNote}` : "."}`,
       type: "invoice_rejected",
       invoiceId: invoice._id,
     });
@@ -84,7 +84,7 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
     const customerName = (invoice.leadId as unknown as { customerName: string })?.customerName ?? "";
     await Notification.create({
       userId:    invoice.createdBy,
-      message:   `Aapki invoice approve ho gayi aur client "${customerName}" ko bhej di gayi`,
+      message:   `Your invoice for ${customerName} has been approved and sent to the client.`,
       type:      "invoice_approved",
       invoiceId: invoice._id,
     });
