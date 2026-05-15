@@ -53,8 +53,8 @@ export const paymentSchema = z.object({
   sellingPrice:   z.number().positive("Selling price must be positive"),
   amountReceived: z.number().positive("Amount received must be positive"),
   receivedDate:   z.string().min(1, "Received date is required"),
-  exchangeRate:   z.number().positive("Exchange rate must be positive"),
-  yenAmount:      z.number().positive("Yen amount must be positive"),
+  exchangeRate:   z.number().positive("Exchange rate must be positive").optional(),
+  yenAmount:      z.number().positive("Yen amount must be positive").optional(),
   receiptImage:   z.object({
     data:     z.string(),
     filename: z.string(),

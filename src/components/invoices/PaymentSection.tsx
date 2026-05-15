@@ -8,8 +8,8 @@ interface Payment {
   sellingPrice: number;
   amountReceived: number;
   receivedDate: string;
-  exchangeRate: number;
-  yenAmount: number;
+  exchangeRate?: number;
+  yenAmount?: number;
   recordedBy?: { name: string };
   createdAt: string;
   unitId?: string;
@@ -105,18 +105,22 @@ export default function PaymentSection({ invoiceId, role, invoiceCnfPrice }: Pay
 
   const handleSubmit = async () => {
     setError("");
-    const numericBody = {
-      invoiceId,
-      sellingPrice:   parseFloat(form.sellingPrice),
-      amountReceived: parseFloat(form.amountReceived),
-      receivedDate:   form.receivedDate,
-      exchangeRate:   parseFloat(form.exchangeRate),
-      yenAmount:      parseFloat(form.yenAmount),
-    };
-    if (Object.values(numericBody).some(v => v === "" || (typeof v === "number" && isNaN(v)))) {
-      setError("Please fill all fields correctly."); return;
+    const sellingPrice   = parseFloat(form.sellingPrice);
+    const amountReceived = parseFloat(form.amountReceived);
+    if (!form.receivedDate || isNaN(sellingPrice) || isNaN(amountReceived)) {
+      setError("Please fill Selling Price, Amount Received, and Date."); return;
     }
-    const body: typeof numericBody & { receiptImage?: { data: string; filename: string } } = { ...numericBody };
+    const body: {
+      invoiceId: string;
+      sellingPrice: number;
+      amountReceived: number;
+      receivedDate: string;
+      exchangeRate?: number;
+      yenAmount?: number;
+      receiptImage?: { data: string; filename: string };
+    } = { invoiceId, sellingPrice, amountReceived, receivedDate: form.receivedDate };
+    if (form.exchangeRate.trim() !== "") body.exchangeRate = parseFloat(form.exchangeRate);
+    if (form.yenAmount.trim()    !== "") body.yenAmount    = parseFloat(form.yenAmount);
     if (receiptFile) body.receiptImage = receiptFile;
     setSaving(true);
     const res = await fetch("/api/payments", {
@@ -307,8 +311,8 @@ export default function PaymentSection({ invoiceId, role, invoiceCnfPrice }: Pay
                   </td>
                   <td style={{ padding: "11px 16px", fontWeight: 600, color: "#1f2328" }}>${fmt(p.sellingPrice)}</td>
                   <td style={{ padding: "11px 16px", fontWeight: 700, color: "#059669" }}>${fmt(p.amountReceived)}</td>
-                  <td style={{ padding: "11px 16px", color: "#656d76" }}>{p.exchangeRate}</td>
-                  <td style={{ padding: "11px 16px", color: "#656d76" }}>¥{fmt(p.yenAmount)}</td>
+                  <td style={{ padding: "11px 16px", color: "#656d76" }}>{p.exchangeRate ?? "—"}</td>
+                  <td style={{ padding: "11px 16px", color: "#656d76" }}>{p.yenAmount != null ? `¥${fmt(p.yenAmount)}` : "—"}</td>
                   <td style={{ padding: "11px 16px", color: "#656d76", fontSize: "12px" }}>{p.recordedBy?.name ?? "—"}</td>
                   <td style={{ padding: "11px 16px" }}>
                     {p.receiptImage?.data ? (

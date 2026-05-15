@@ -5,8 +5,8 @@ export interface IPayment extends Document {
   sellingPrice: number;
   amountReceived: number;
   receivedDate: Date;
-  exchangeRate: number;
-  yenAmount: number;
+  exchangeRate?: number;
+  yenAmount?: number;
   recordedBy: mongoose.Types.ObjectId;
   receiptImage?: { data: string; filename: string; uploadedAt: Date };
   createdAt: Date;
@@ -18,8 +18,8 @@ const PaymentSchema = new Schema<IPayment>(
     sellingPrice:   { type: Number, required: true },
     amountReceived: { type: Number, required: true },
     receivedDate:   { type: Date,   required: true },
-    exchangeRate:   { type: Number, required: true },
-    yenAmount:      { type: Number, required: true },
+    exchangeRate:   { type: Number },
+    yenAmount:      { type: Number },
     recordedBy:     { type: Schema.Types.ObjectId, ref: "User", required: true },
     receiptImage:   {
       data:       { type: String },
