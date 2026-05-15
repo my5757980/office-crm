@@ -2,21 +2,33 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import dbConnect from "@/lib/db";
 import Unit from "@/models/Unit";
+import Invoice from "@/models/Invoice";
 import TopBar from "@/components/layout/TopBar";
 import Link from "next/link";
 
 export default async function UnitsPage() {
   const session = await auth();
   const role = session!.user.role;
-  if (!["manager", "super_admin"].includes(role)) redirect("/dashboard");
+  if (!["user", "manager", "super_admin"].includes(role)) redirect("/dashboard");
 
   await dbConnect();
 
-  const units = await Unit.find({})
-    .populate("invoiceId", "cnfPrice")
-    .populate("createdBy", "name")
-    .sort({ createdAt: -1 })
-    .lean();
+  let units;
+  if (role === "user") {
+    const myInvoices = await Invoice.find({ createdBy: session!.user.id }).select("_id").lean();
+    const invoiceIds = myInvoices.map(i => i._id);
+    units = await Unit.find({ invoiceId: { $in: invoiceIds } })
+      .populate("invoiceId", "cnfPrice")
+      .populate("createdBy", "name")
+      .sort({ createdAt: -1 })
+      .lean();
+  } else {
+    units = await Unit.find({})
+      .populate("invoiceId", "cnfPrice")
+      .populate("createdBy", "name")
+      .sort({ createdAt: -1 })
+      .lean();
+  }
 
   const unitsData = JSON.parse(JSON.stringify(units));
 
