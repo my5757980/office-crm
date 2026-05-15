@@ -40,7 +40,7 @@ interface UnitDetailProps {
   };
   documents: Record<string, FileEntry[]>;
   role: string;
-  receiptImages?: { data: string; filename: string; uploadedAt: string }[];
+  receiptImages?: { data: string; filename: string; uploadedAt: string; receivedDate: string; index: number }[];
   coverFileId?: string | null;
 }
 
@@ -66,6 +66,7 @@ export default function UnitDetail({ unit, documents: initialDocs, role, receipt
   const [uploading, setUploading] = useState<string | null>(null);
   const [deleting, setDeleting]   = useState<string | null>(null);
 
+  const [lightbox, setLightbox]   = useState<{ data: string; filename: string } | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving]       = useState(false);
   const [saveError, setSaveError] = useState("");
@@ -320,48 +321,84 @@ export default function UnitDetail({ unit, documents: initialDocs, role, receipt
         </div>
       </div>
 
-      {/* Payment TT Images */}
+      {/* Payment TT — same format as PaymentSection */}
       {receiptImages && receiptImages.length > 0 && (
         <div style={cardStyle}>
-          <div style={{ padding: "14px 24px", borderBottom: "1px solid #d0d7de", background: "linear-gradient(135deg, #f6f8fa 0%, #eff6ff 100%)", display: "flex", alignItems: "center", gap: "10px" }}>
+          <div style={{
+            padding: "14px 24px", borderBottom: "1px solid #d0d7de",
+            background: "linear-gradient(135deg, #f6f8fa 0%, #eff6ff 100%)",
+            display: "flex", alignItems: "center", gap: "10px",
+          }}>
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/>
             </svg>
             <p style={{ fontSize: "13px", fontWeight: 700, color: "#1f2328" }}>
-              Payment TT {receiptImages.length > 1 ? `(${receiptImages.length})` : ""}
+              Payment TT ({receiptImages.length})
             </p>
           </div>
-          <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: "20px" }}>
-            {receiptImages.map((img, i) => (
-              <div key={i} style={{ display: "flex", flexDirection: "column", gap: "10px", paddingBottom: i < receiptImages.length - 1 ? "20px" : "0", borderBottom: i < receiptImages.length - 1 ? "1px solid #f0f2f4" : "none" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                  <span style={{ fontSize: "11px", fontWeight: 700, color: "#8c959f", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                    TT {receiptImages.length > 1 ? `#${i + 1}` : ""}
-                  </span>
-                  {img.uploadedAt && (
-                    <span style={{ fontSize: "11px", color: "#8c959f" }}>
-                      · {new Date(img.uploadedAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
-                    </span>
-                  )}
-                  {role !== "user" && (
-                    <a
-                      href={img.data}
-                      download={img.filename}
-                      style={{ fontSize: "11px", fontWeight: 600, padding: "3px 10px", borderRadius: "6px", background: "#eff6ff", color: "#2563eb", textDecoration: "none", border: "1px solid #bfdbfe" }}
-                    >
-                      Download
-                    </a>
-                  )}
-                </div>
-                <a href={img.data} target="_blank" rel="noopener noreferrer">
-                  <img
-                    src={img.data}
-                    alt={img.filename}
-                    style={{ maxWidth: "100%", maxHeight: "400px", objectFit: "contain", borderRadius: "8px", border: "1px solid #d0d7de", boxShadow: "0 2px 8px rgba(0,0,0,0.06)", display: "block" }}
-                  />
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
+            <thead>
+              <tr style={{ background: "#f6f8fa", borderBottom: "1px solid #d0d7de" }}>
+                {["#", "Date", "TT Receipt"].map(h => (
+                  <th key={h} style={{ padding: "9px 16px", fontSize: "11px", fontWeight: 700, color: "#656d76", textAlign: "left", whiteSpace: "nowrap", textTransform: "uppercase", letterSpacing: "0.05em" }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {receiptImages.map((img, i) => (
+                <tr key={i} style={{ borderBottom: i < receiptImages.length - 1 ? "1px solid #f0f2f4" : "none" }}>
+                  <td style={{ padding: "11px 16px", color: "#8c959f", fontWeight: 600 }}>{img.index ?? i + 1}</td>
+                  <td style={{ padding: "11px 16px", whiteSpace: "nowrap", color: "#1f2328" }}>
+                    {img.receivedDate ? new Date(img.receivedDate).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "—"}
+                  </td>
+                  <td style={{ padding: "11px 16px" }}>
+                    <img
+                      src={img.data}
+                      alt="TT Receipt"
+                      onClick={() => setLightbox({ data: img.data, filename: img.filename })}
+                      style={{ height: "36px", width: "36px", objectFit: "cover", borderRadius: "4px", border: "1px solid #d0d7de", cursor: "pointer" }}
+                    />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* TT Lightbox */}
+      {lightbox && (
+        <div
+          onClick={() => setLightbox(null)}
+          style={{
+            position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            zIndex: 1000, padding: "24px",
+          }}
+        >
+          <div onClick={e => e.stopPropagation()} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "12px", maxWidth: "90vw" }}>
+            <img
+              src={lightbox.data}
+              alt={lightbox.filename}
+              style={{ maxWidth: "80vw", maxHeight: "80vh", objectFit: "contain", borderRadius: "8px", boxShadow: "0 8px 32px rgba(0,0,0,0.4)" }}
+            />
+            <div style={{ display: "flex", gap: "10px" }}>
+              {role !== "user" && (
+                <a
+                  href={lightbox.data}
+                  download={lightbox.filename}
+                  style={{ padding: "8px 18px", borderRadius: "8px", background: "#2563eb", color: "white", fontSize: "13px", fontWeight: 600, textDecoration: "none" }}
+                >
+                  Download
                 </a>
-              </div>
-            ))}
+              )}
+              <button
+                onClick={() => setLightbox(null)}
+                style={{ padding: "8px 18px", borderRadius: "8px", background: "#f6f8fa", border: "1px solid #d0d7de", color: "#1f2328", fontSize: "13px", fontWeight: 600, cursor: "pointer" }}
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}

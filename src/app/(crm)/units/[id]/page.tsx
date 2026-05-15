@@ -44,7 +44,9 @@ export default async function UnitDetailPage({
 
   const unitData      = JSON.parse(JSON.stringify(unit));
   const docsData      = JSON.parse(JSON.stringify(documents));
-  const receiptImages = JSON.parse(JSON.stringify(payments.map(p => p.receiptImage)));
+  const receiptImages = JSON.parse(JSON.stringify(
+    payments.map((p, i) => ({ ...p.receiptImage, receivedDate: p.receivedDate, index: i + 1 }))
+  ));
   const coverFileId   = coverFile ? coverFile._id.toString() : null;
 
   return (
