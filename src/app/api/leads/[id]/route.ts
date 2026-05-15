@@ -8,9 +8,9 @@ import Notification from "@/models/Notification";
 type RouteContext = { params: Promise<{ id: string }> };
 
 const CAN_VIEW_ALL     = ["admin", "manager", "super_admin"];
-const CAN_EDIT_DETAILS = ["super_admin"];
-const CAN_CHANGE_STATUS = ["admin", "manager"];
-const CAN_DELETE       = ["admin", "manager"];
+const CAN_EDIT_DETAILS  = ["super_admin"];
+const CAN_CHANGE_STATUS = ["super_admin", "manager"];
+const CAN_DELETE        = ["manager", "admin"];
 
 async function checkViewAccess(leadId: string, userId: string, role: string) {
   const lead = await Lead.findById(leadId);

@@ -29,10 +29,10 @@ export default async function LeadDetailPage({
   if (!canViewAll && !isOwner) notFound();
 
   const canEdit           = role === "super_admin";
-  const canChangeStatus   = ["admin", "manager"].includes(role);
-  const canDelete         = ["admin", "manager"].includes(role);
+  const canChangeStatus   = ["super_admin", "manager"].includes(role);
+  const canDelete         = ["manager", "admin"].includes(role);
   const canRequestInvoice = role === "user" && isOwner;
-  const canReassign       = role === "super_admin" && !!(lead.duplicateAttemptBy);
+  const canReassign       = ["super_admin", "manager"].includes(role);
 
   const [messages, agents] = await Promise.all([
     Message.find({ leadId: id }).sort({ createdAt: 1 }).lean(),

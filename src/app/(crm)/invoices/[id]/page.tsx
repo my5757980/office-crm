@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import dbConnect from "@/lib/db";
 import Invoice from "@/models/Invoice";
 import InvoiceDetail from "@/components/invoices/InvoiceDetail";
+import PaymentSection from "@/components/invoices/PaymentSection";
 import TopBar from "@/components/layout/TopBar";
 import Link from "next/link";
 
@@ -55,6 +56,14 @@ export default async function InvoiceDetailPage({
         </Link>
 
         <InvoiceDetail invoice={invoice} role={role} />
+
+        {["admin", "manager", "super_admin"].includes(role) && (
+          <PaymentSection
+            invoiceId={id}
+            role={role}
+            invoiceCnfPrice={raw.cnfPrice}
+          />
+        )}
       </div>
     </div>
   );

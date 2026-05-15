@@ -31,6 +31,12 @@ const navGroups = (role: string) => {
       ],
     },
     {
+      label: "Operations",
+      items: [
+        { href: "/units", label: "Units", icon: IconUnit, show: ["manager", "super_admin"].includes(role) },
+      ],
+    },
+    {
       label: "Admin",
       items: [
         { href: "/admin/users", label: "Users", icon: IconUsers, show: ["admin", "manager", "super_admin"].includes(role) },
@@ -124,6 +130,23 @@ export default function Sidebar({ role }: SidebarProps) {
             <p style={{ fontSize: "11px", color: roleInfo.color, fontWeight: 500 }}>● Online</p>
           </div>
         </div>
+        {role === "manager" && (
+          <button
+            onClick={() => { window.location.href = "/api/backup"; }}
+            style={{
+              display: "flex", alignItems: "center", gap: "10px",
+              width: "100%", padding: "7px 10px", border: "none",
+              borderRadius: "6px", background: "transparent",
+              fontSize: "13px", color: "#8c959f", cursor: "pointer",
+              transition: "all 150ms", marginBottom: "2px",
+            }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "#161b22"; (e.currentTarget as HTMLElement).style.color = "#3fb950"; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "transparent"; (e.currentTarget as HTMLElement).style.color = "#8c959f"; }}
+          >
+            <IconBackup />
+            Database Backup
+          </button>
+        )}
         <button
           onClick={() => signOut({ callbackUrl: "/login" })}
           style={{
@@ -160,8 +183,14 @@ function IconLeads({ active }: { active: boolean }) {
 function IconUsers({ active }: { active: boolean }) {
   return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={active ? "#e6edf3" : "#656d76"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>;
 }
+function IconUnit({ active }: { active: boolean }) {
+  return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={active ? "#e6edf3" : "#656d76"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 4v4h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>;
+}
 function IconKey({ active }: { active: boolean }) {
   return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={active ? "#e6edf3" : "#656d76"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 11-7.778 7.778 5.5 5.5 0 017.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4" /></svg>;
+}
+function IconBackup() {
+  return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/><line x1="12" y1="12" x2="12" y2="18"/><polyline points="9 15 12 18 15 15"/></svg>;
 }
 function IconLogout() {
   return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" /></svg>;
