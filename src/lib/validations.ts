@@ -62,7 +62,7 @@ export const paymentSchema = z.object({
 });
 
 export const unitSchema = z.object({
-  paymentId:    z.string().min(1, "Payment ID is required"),
+  paymentId:    z.string().optional(),
   invoiceId:    z.string().min(1, "Invoice ID is required"),
   make:         z.string().min(1, "Make is required"),
   carModel:     z.string().min(1, "Model is required"),

@@ -12,7 +12,7 @@ export const DOCUMENT_FOLDERS = [
 export type DocumentFolder = (typeof DOCUMENT_FOLDERS)[number];
 
 export interface IUnit extends Document {
-  paymentId: mongoose.Types.ObjectId;
+  paymentId?: mongoose.Types.ObjectId;
   invoiceId:  mongoose.Types.ObjectId;
   make:        string;
   carModel:    string;
@@ -34,7 +34,7 @@ export interface IUnit extends Document {
 
 const UnitSchema = new Schema<IUnit>(
   {
-    paymentId:    { type: Schema.Types.ObjectId, ref: "Payment", required: true, index: true },
+    paymentId:    { type: Schema.Types.ObjectId, ref: "Payment", index: true },
     invoiceId:    { type: Schema.Types.ObjectId, ref: "Invoice", required: true, index: true },
     make:         { type: String, required: true, trim: true },
     carModel:     { type: String, required: true, trim: true },

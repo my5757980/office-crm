@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { notFound } from "next/navigation";
 import dbConnect from "@/lib/db";
 import Invoice from "@/models/Invoice";
+import Unit from "@/models/Unit";
 import InvoiceDetail from "@/components/invoices/InvoiceDetail";
 import PaymentSection from "@/components/invoices/PaymentSection";
 import TopBar from "@/components/layout/TopBar";
@@ -31,7 +32,9 @@ export default async function InvoiceDetailPage({
 
   if (!isElevated && !isOwner) notFound();
 
+  const existingUnit = await Unit.findOne({ invoiceId: id }).select("_id").lean();
   const invoice = JSON.parse(JSON.stringify(raw));
+  const unitId = existingUnit ? existingUnit._id.toString() : null;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", flex: 1 }}>
@@ -55,7 +58,7 @@ export default async function InvoiceDetailPage({
           Back to Invoices
         </Link>
 
-        <InvoiceDetail invoice={invoice} role={role} />
+        <InvoiceDetail invoice={invoice} role={role} unitId={unitId} />
 
         {["admin", "manager", "super_admin"].includes(role) && (
           <PaymentSection
