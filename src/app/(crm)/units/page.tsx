@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import dbConnect from "@/lib/db";
 import Unit from "@/models/Unit";
+import UnitFile from "@/models/UnitFile";
 import Invoice from "@/models/Invoice";
 import TopBar from "@/components/layout/TopBar";
 import Link from "next/link";
@@ -28,6 +29,18 @@ export default async function UnitsPage() {
       .populate("createdBy", "name")
       .sort({ createdAt: -1 })
       .lean();
+  }
+
+  const unitIds = units.map(u => u._id);
+  const coverFiles = await UnitFile.find({
+    unitId: { $in: unitIds },
+    mimetype: /^image\//,
+  }).select("unitId _id").sort({ uploadedAt: 1 }).lean();
+
+  const coverMap: Record<string, string> = {};
+  for (const f of coverFiles) {
+    const key = f.unitId.toString();
+    if (!coverMap[key]) coverMap[key] = (f._id as { toString(): string }).toString();
   }
 
   const unitsData = JSON.parse(JSON.stringify(units));
@@ -64,15 +77,23 @@ export default async function UnitsPage() {
                   _id: string; make: string; carModel: string; year: number;
                   chassis: string; color: string; drive: string; fuel: string;
                   mileage: number; location: string; createdBy?: { name: string };
-                }, i: number) => (
+                }, i: number) => {
+                  const coverId = coverMap[u._id];
+                  return (
                   <tr key={u._id} style={{ borderBottom: i < unitsData.length - 1 ? "1px solid #f0f2f4" : "none" }}>
                     <td style={{ padding: "12px 16px" }}>
                       <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                         <div style={{
-                          width: "32px", height: "32px", borderRadius: "8px", flexShrink: 0,
-                          background: "linear-gradient(135deg, #059669, #047857)",
+                          width: "40px", height: "40px", borderRadius: "8px", flexShrink: 0,
+                          background: coverId ? "transparent" : "linear-gradient(135deg, #059669, #047857)",
                           display: "flex", alignItems: "center", justifyContent: "center", fontSize: "14px",
-                        }}>🚗</div>
+                          overflow: "hidden",
+                        }}>
+                          {coverId
+                            ? <img src={`/api/units/${u._id}/documents/${coverId}`} alt="cover" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                            : "🚗"
+                          }
+                        </div>
                         <div>
                           <p style={{ fontWeight: 600, color: "#1f2328" }}>{u.year} {u.make} {u.carModel}</p>
                         </div>
@@ -92,7 +113,8 @@ export default async function UnitsPage() {
                       }}>View</Link>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           )}
