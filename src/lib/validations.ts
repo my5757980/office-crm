@@ -48,8 +48,38 @@ export const invoiceRequestSchema = z.object({
 });
 
 
+export const paymentSchema = z.object({
+  invoiceId:      z.string().min(1, "Invoice ID is required"),
+  sellingPrice:   z.number().positive("Selling price must be positive"),
+  amountReceived: z.number().positive("Amount received must be positive"),
+  receivedDate:   z.string().min(1, "Received date is required"),
+  exchangeRate:   z.number().positive("Exchange rate must be positive"),
+  yenAmount:      z.number().positive("Yen amount must be positive"),
+});
+
+export const unitSchema = z.object({
+  paymentId:    z.string().min(1, "Payment ID is required"),
+  invoiceId:    z.string().min(1, "Invoice ID is required"),
+  make:         z.string().min(1, "Make is required"),
+  carModel:     z.string().min(1, "Model is required"),
+  year:         z.number().int().min(1900).max(2100),
+  color:        z.string().min(1, "Color is required"),
+  chassis:      z.string().min(1, "Chassis is required"),
+  engineCC:     z.number().positive("Engine CC must be positive"),
+  drive:        z.string().min(1, "Drive is required"),
+  fuel:         z.string().min(1, "Fuel is required"),
+  mileage:      z.number().min(0, "Mileage cannot be negative"),
+  transmission: z.string().min(1, "Transmission is required"),
+  steering:     z.string().min(1, "Steering is required"),
+  doors:        z.number().int().min(1).max(10),
+  seats:        z.number().int().min(1).max(20),
+  location:     z.string().min(1, "Location is required"),
+});
+
 export type LeadFormData = z.infer<typeof leadSchema>;
 export type MessageFormData = z.infer<typeof messageSchema>;
 export type UserFormData = z.infer<typeof userSchema>;
 export type LoginFormData = z.infer<typeof loginSchema>;
 export type InvoiceRequestFormData = z.infer<typeof invoiceRequestSchema>;
+export type PaymentFormData = z.infer<typeof paymentSchema>;
+export type UnitFormData = z.infer<typeof unitSchema>;

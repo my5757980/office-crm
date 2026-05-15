@@ -1,0 +1,58 @@
+import { auth } from "@/lib/auth";
+import { notFound } from "next/navigation";
+import dbConnect from "@/lib/db";
+import Unit from "@/models/Unit";
+import UnitFile from "@/models/UnitFile";
+import { DOCUMENT_FOLDERS } from "@/models/Unit";
+import UnitDetail from "@/components/units/UnitDetail";
+import TopBar from "@/components/layout/TopBar";
+import Link from "next/link";
+
+export default async function UnitDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const session = await auth();
+  const { id } = await params;
+
+  const role = session!.user.role;
+  if (!["manager", "super_admin"].includes(role)) notFound();
+
+  await dbConnect();
+
+  const unit = await Unit.findById(id).populate("createdBy", "name").lean();
+  if (!unit) notFound();
+
+  const files = await UnitFile.find({ unitId: id }).select("-data").lean();
+
+  const documents: Record<string, typeof files> = {};
+  for (const folder of DOCUMENT_FOLDERS) {
+    documents[folder] = files.filter(f => f.folder === folder);
+  }
+
+  const unitData = JSON.parse(JSON.stringify(unit));
+  const docsData = JSON.parse(JSON.stringify(documents));
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", flex: 1 }}>
+      <TopBar />
+      <div style={{ flex: 1, padding: "24px", display: "flex", flexDirection: "column", gap: "16px", background: "#f6f8fa" }}>
+        <Link
+          href={`/invoices/${unit.invoiceId}`}
+          style={{
+            display: "inline-flex", alignItems: "center", gap: "6px",
+            fontSize: "13px", fontWeight: 500, color: "#656d76", textDecoration: "none",
+          }}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="19" y1="12" x2="5" y2="12" /><polyline points="12 19 5 12 12 5" />
+          </svg>
+          Back to Invoice
+        </Link>
+
+        <UnitDetail unit={unitData} documents={docsData} role={role} />
+      </div>
+    </div>
+  );
+}

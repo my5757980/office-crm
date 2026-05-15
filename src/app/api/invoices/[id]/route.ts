@@ -98,8 +98,8 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
 export async function DELETE(request: NextRequest, { params }: RouteContext) {
   const session = await auth();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (!["admin", "manager"].includes(session.user.role)) {
-    return NextResponse.json({ error: "Forbidden — only Admin/Manager can delete invoices" }, { status: 403 });
+  if (!["manager", "admin"].includes(session.user.role)) {
+    return NextResponse.json({ error: "Forbidden — only Manager/Admin can delete invoices" }, { status: 403 });
   }
 
   await dbConnect();
