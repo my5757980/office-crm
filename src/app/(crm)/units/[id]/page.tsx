@@ -31,9 +31,9 @@ export default async function UnitDetailPage({
     if (!invoice || invoice.createdBy.toString() !== session!.user.id) notFound();
   }
 
-  const [files, payment, coverFile] = await Promise.all([
+  const [files, payments, coverFile] = await Promise.all([
     UnitFile.find({ unitId: id }).select("-data").lean(),
-    Payment.findOne({ invoiceId: unit.invoiceId, "receiptImage.data": { $exists: true } }).select("receiptImage").lean(),
+    Payment.find({ invoiceId: unit.invoiceId, "receiptImage.data": { $exists: true } }).select("receiptImage receivedDate").sort({ receivedDate: 1 }).lean(),
     UnitFile.findOne({ unitId: id, mimetype: /^image\// }).select("_id").lean(),
   ]);
 
@@ -42,10 +42,10 @@ export default async function UnitDetailPage({
     documents[folder] = files.filter(f => f.folder === folder);
   }
 
-  const unitData     = JSON.parse(JSON.stringify(unit));
-  const docsData     = JSON.parse(JSON.stringify(documents));
-  const receiptImage = payment?.receiptImage ? JSON.parse(JSON.stringify(payment.receiptImage)) : null;
-  const coverFileId  = coverFile ? coverFile._id.toString() : null;
+  const unitData      = JSON.parse(JSON.stringify(unit));
+  const docsData      = JSON.parse(JSON.stringify(documents));
+  const receiptImages = JSON.parse(JSON.stringify(payments.map(p => p.receiptImage)));
+  const coverFileId   = coverFile ? coverFile._id.toString() : null;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", flex: 1 }}>
@@ -64,7 +64,7 @@ export default async function UnitDetailPage({
           Back to Invoice
         </Link>
 
-        <UnitDetail unit={unitData} documents={docsData} role={role} receiptImage={receiptImage} coverFileId={coverFileId} />
+        <UnitDetail unit={unitData} documents={docsData} role={role} receiptImages={receiptImages} coverFileId={coverFileId} />
       </div>
     </div>
   );
