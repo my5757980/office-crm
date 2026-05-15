@@ -18,11 +18,18 @@ export async function POST(request: NextRequest) {
   if (!parsed.success)
     return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
 
-  const payment = await Payment.create({
+  const paymentData: Record<string, unknown> = {
     ...parsed.data,
     receivedDate: new Date(parsed.data.receivedDate),
     recordedBy: session.user.id,
-  });
+  };
+  if (parsed.data.receiptImage) {
+    paymentData.receiptImage = {
+      ...parsed.data.receiptImage,
+      uploadedAt: new Date(),
+    };
+  }
+  const payment = await Payment.create(paymentData);
 
   return NextResponse.json({ payment }, { status: 201 });
 }
