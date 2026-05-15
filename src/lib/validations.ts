@@ -38,13 +38,17 @@ export const invoiceRequestSchema = z.object({
   }),
   unit:         z.string().min(1, "Unit/Make is required"),
   year:         z.string().optional().default(""),
+  salesperson:  z.string().optional().default(""),
+  fuel:         z.string().optional().default(""),
+  transmission: z.string().optional().default(""),
   chassisNo:    z.string().min(1, "Chassis number is required"),
   engineNo:     z.string().min(1, "Engine number is required"),
   color:        z.string().min(1, "Color is required"),
   m3Rate:       z.number().positive("M3 rate must be positive"),
   exchangeRate: z.number().positive("Exchange rate must be positive"),
   pushPrice:    z.number().positive("Push price must be positive"),
-  cnfPrice:     z.number().positive("CNF price must be positive"),
+  cnfPrice:       z.number().positive("CNF price must be positive"),
+  advancePercent: z.number().min(1, "Min 1%").max(100, "Max 100%").default(50),
 });
 
 

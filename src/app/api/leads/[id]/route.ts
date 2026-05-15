@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import dbConnect from "@/lib/db";
 import Lead from "@/models/Lead";
+import Invoice from "@/models/Invoice";
+import Unit from "@/models/Unit";
 import Message from "@/models/Message";
 import Notification from "@/models/Notification";
 
@@ -61,12 +63,18 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
   if ("reassignTo" in body) {
     if (!CAN_EDIT_DETAILS.includes(session.user.role))
       return NextResponse.json({ error: "Forbidden — only Supervisor can reassign" }, { status: 403 });
-    // Same owner ya different — dono case mein notification clear karo
-    updates.createdBy = body.reassignTo;
-    await Notification.updateMany(
-      { leadId: id, type: "duplicate_lead" },
-      { $set: { read: true } }
-    );
+
+    const newAgentId = body.reassignTo;
+    updates.createdBy = newAgentId;
+
+    // Cascade: invoices aur units bhi same agent ko do
+    const leadInvoices = await Invoice.find({ leadId: id }).select("_id").lean();
+    const invoiceIds   = leadInvoices.map(i => i._id);
+    await Promise.all([
+      Invoice.updateMany({ leadId: id },                        { $set: { createdBy: newAgentId } }),
+      Unit.updateMany(   { invoiceId: { $in: invoiceIds } },    { $set: { createdBy: newAgentId } }),
+      Notification.updateMany({ leadId: id, type: "duplicate_lead" }, { $set: { read: true } }),
+    ]);
   }
 
   // Detail edit — sirf Supervisor

@@ -16,10 +16,14 @@ export interface IInvoice extends Document {
   engineNo: string;
   color: string;
   year?: string;
+  salesperson?: string;
+  fuel?: string;
+  transmission?: string;
   m3Rate: number;
   exchangeRate: number;
   pushPrice: number;
   cnfPrice: number;
+  advancePercent: number;
   status: "pending" | "approved" | "rejected" | "sent";
   rejectionNote?: string;
   uploadedPdf?: { data: string; filename: string; uploadedAt: Date };
@@ -44,10 +48,14 @@ const InvoiceSchema = new Schema<IInvoice>(
     engineNo:     { type: String, required: true, trim: true },
     color:        { type: String, required: true, trim: true },
     year:         { type: String, trim: true, default: "" },
+    salesperson:  { type: String, trim: true, default: "" },
+    fuel:         { type: String, trim: true, default: "" },
+    transmission: { type: String, trim: true, default: "" },
     m3Rate:       { type: Number, required: true },
     exchangeRate: { type: Number, required: true },
     pushPrice:    { type: Number, required: true },
-    cnfPrice:     { type: Number, required: true },
+    cnfPrice:       { type: Number, required: true },
+    advancePercent: { type: Number, required: true, default: 50 },
     status: {
       type: String,
       enum: ["pending", "approved", "rejected", "sent"],
