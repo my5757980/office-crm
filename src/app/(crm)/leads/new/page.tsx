@@ -62,13 +62,13 @@ export default function NewLeadPage() {
             </svg>
             <div>
               <p style={{ fontSize: "13px", fontWeight: 700, color: "#c2410c", marginBottom: "4px" }}>
-                Ye client pehle se registered hai
+                This client is already registered
               </p>
               <p style={{ fontSize: "13px", color: "#7c2d12" }}>
-                Phone <strong>{duplicate.phone}</strong> pehle se <strong>{duplicate.ownerName}</strong> ke paas hai — added on {duplicate.ownerDate}.
+                Phone <strong>{duplicate.phone}</strong> is already registered under <strong>{duplicate.ownerName}</strong> — added on {duplicate.ownerDate}.
               </p>
               <p style={{ fontSize: "12px", color: "#9a3412", marginTop: "6px" }}>
-                Supervisor ko notify kar diya gaya hai. Apne supervisor se baat karo reassignment ke liye.
+                Your supervisor has been notified. Please contact your supervisor for reassignment.
               </p>
             </div>
           </div>

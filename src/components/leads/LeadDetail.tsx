@@ -57,8 +57,8 @@ export default function LeadDetail({ lead, canEdit, canChangeStatus, canDelete, 
     if (!agentId) return;
     const isSameOwner = agentId === lead.createdBy._id;
     const msg = isSameOwner
-      ? `Lead "${lead.contactPerson}" ${lead.createdBy.name} ke paas hi rakhni hai?`
-      : `Lead "${lead.contactPerson}" reassign karna chahte ho?`;
+      ? `Keep lead "${lead.contactPerson}" assigned to ${lead.createdBy.name}?`
+      : `Reassign lead "${lead.contactPerson}" to a different agent?`;
     if (!confirm(msg)) return;
     setReassigning(true);
     const res = await fetch(`/api/leads/${lead._id}`, {
