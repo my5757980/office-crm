@@ -81,8 +81,8 @@ export default function InvoiceDetail({ invoice, role, unitId }: InvoiceDetailPr
       const a = document.createElement("a");
       a.href = url;
       a.download = type === "sbk"
-        ? `SBK-Invoice-${invoice._id.slice(-5).toUpperCase()}.docx`
-        : `JDM-Invoice-${invoice._id.slice(-5).toUpperCase()}.xlsx`;
+        ? `SBK-Invoice-${invoice._id.slice(-5).toUpperCase()}.pdf`
+        : `JDM-Invoice-${invoice._id.slice(-5).toUpperCase()}.pdf`;
       a.click();
       URL.revokeObjectURL(url);
     } finally { setDlLoading(null); }
