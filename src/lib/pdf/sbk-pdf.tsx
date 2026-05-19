@@ -140,16 +140,18 @@ function SBKDocument({ inv, logoUrl, stampUrl }: {
     <Document>
       <Page size="A4" style={s.page}>
 
-        {/* Logo */}
-        <Image src={logoUrl} style={{ width: 150, height: 52, marginBottom: 4 }} />
-
-        {/* Header */}
-        <Text style={s.hdr1}>SBK Global Auto Trading FZC LLC</Text>
-        <Text style={s.hdr2}>{SBK.addr1}</Text>
-        <Text style={s.hdr2}>{SBK.addr2}</Text>
-        <Text style={s.hdr2}>{SBK.web}</Text>
-        <Text style={s.hdr2}>{SBK.email}</Text>
-        <Text style={[s.hdr2, { marginBottom: 5 }]}>{SBK.phone}</Text>
+        {/* Header — logo left, company info right */}
+        <View style={{ flexDirection: "row", alignItems: "flex-start", marginBottom: 5 }}>
+          <Image src={logoUrl} style={{ width: 180, height: 63, marginRight: 16, flexShrink: 0 }} />
+          <View style={{ flex: 1 }}>
+            <Text style={s.hdr1}>SBK Global Auto Trading FZC LLC</Text>
+            <Text style={s.hdr2}>{SBK.addr1}</Text>
+            <Text style={s.hdr2}>{SBK.addr2}</Text>
+            <Text style={s.hdr2}>{SBK.web}</Text>
+            <Text style={s.hdr2}>{SBK.email}</Text>
+            <Text style={s.hdr2}>{SBK.phone}</Text>
+          </View>
+        </View>
 
         {/* R0: CONSIGNEE | DATE | HAULER */}
         <Row>
@@ -306,7 +308,7 @@ function SBKDocument({ inv, logoUrl, stampUrl }: {
 
         {/* R18: PERFORMA INVOICE */}
         <Row>
-          <Cell w={cw(0,9)} bold>{`PERFORMA INVOICE : ${invNo}`}</Cell>
+          <Cell w={cw(0,9)} bold>{`PROFORMA INVOICE : ${invNo}`}</Cell>
           <Cell w={cw(9,3)}></Cell>
         </Row>
 
