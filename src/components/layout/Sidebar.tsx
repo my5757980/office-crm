@@ -37,6 +37,12 @@ const navGroups = (role: string) => {
       ],
     },
     {
+      label: "Reports",
+      items: [
+        { href: "/reports", label: "Reports", icon: IconReport, show: ["manager", "super_admin"].includes(role) },
+      ],
+    },
+    {
       label: "Admin",
       items: [
         { href: "/admin/users", label: "Users", icon: IconUsers, show: ["admin", "manager", "super_admin"].includes(role) },
@@ -185,6 +191,9 @@ function IconUsers({ active }: { active: boolean }) {
 }
 function IconUnit({ active }: { active: boolean }) {
   return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={active ? "#e6edf3" : "#656d76"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="1" y="3" width="15" height="13" rx="2"/><path d="M16 8h4l3 4v4h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>;
+}
+function IconReport({ active }: { active: boolean }) {
+  return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={active ? "#e6edf3" : "#656d76"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>;
 }
 function IconKey({ active }: { active: boolean }) {
   return <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={active ? "#e6edf3" : "#656d76"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 11-7.778 7.778 5.5 5.5 0 017.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4" /></svg>;
