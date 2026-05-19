@@ -7,8 +7,17 @@ import Unit from "@/models/Unit";
 
 type AggRow = { userId: string; name: string; count: number };
 
-function getRange(type: string): { start: Date; end: Date; label: string } {
+function getRange(type: string, from?: string | null, to?: string | null): { start: Date; end: Date; label: string } {
   const now = new Date();
+
+  if (type === "custom" && from && to) {
+    const start = new Date(from);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(to);
+    end.setHours(23, 59, 59, 999);
+    const fmt = (d: Date) => d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+    return { start, end, label: `${fmt(start)} — ${fmt(end)}` };
+  }
 
   if (type === "daily") {
     const start = new Date(now);
@@ -19,7 +28,7 @@ function getRange(type: string): { start: Date; end: Date; label: string } {
   }
 
   if (type === "weekly") {
-    const day = now.getDay(); // 0=Sun,1=Mon,...
+    const day = now.getDay();
     const diffToMon = day === 0 ? -6 : 1 - day;
     const mon = new Date(now);
     mon.setDate(now.getDate() + diffToMon);
@@ -57,12 +66,18 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const type = req.nextUrl.searchParams.get("type") ?? "daily";
-  if (!["daily", "weekly", "monthly"].includes(type))
+  if (!["daily", "weekly", "monthly", "custom"].includes(type))
     return NextResponse.json({ error: "Invalid type" }, { status: 400 });
+
+  const from = req.nextUrl.searchParams.get("from");
+  const to   = req.nextUrl.searchParams.get("to");
+
+  if (type === "custom" && (!from || !to))
+    return NextResponse.json({ error: "from and to dates required for custom range" }, { status: 400 });
 
   await dbConnect();
 
-  const { start, end, label } = getRange(type);
+  const { start, end, label } = getRange(type, from, to);
 
   const [leadRows, invoiceRows, unitRows] = await Promise.all([
     aggregate(Lead    as Parameters<typeof aggregate>[0], start, end),
@@ -70,7 +85,6 @@ export async function GET(req: NextRequest) {
     aggregate(Unit    as Parameters<typeof aggregate>[0], start, end),
   ]);
 
-  // merge by userId
   const map = new Map<string, { name: string; leads: number; invoices: number; units: number }>();
 
   const ensure = (userId: string, name: string) => {
