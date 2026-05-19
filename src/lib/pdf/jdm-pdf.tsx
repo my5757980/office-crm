@@ -24,13 +24,13 @@ export interface JDMInvData {
   createdAt: Date | string;
 }
 
-// ── vehicle table column widths (pt) — 11 cols summing to 523 ─────────────────
-// No. | MAKE | MODEL | CHASSIS | YEAR | COLOR | ENGINE | TRANS&FUEL | QTY | CNF$ | TOTAL
-const JW = [25, 45, 45, 65, 35, 40, 45, 65, 25, 62, 71];
+// ── vehicle table column widths (pt) — 10 cols summing to 523 ────────────────
+// No. | MAKE | MODEL | CHASSIS | YEAR | COLOR | ENGINE SIZE | QTY | CNF$ | TOTAL
+const JW = [25, 45, 45, 65, 35, 40, 110, 25, 62, 71];
 const LEFT_W   = JW[0]+JW[1]+JW[2]+JW[3]+JW[4]+JW[5]; // 255 — No. through COLOR
-const LABEL_W  = JW[6]+JW[7]+JW[8];                    // 135 — ENGINE through QTY
-const USD_W    = JW[9];                                 //  62 — CNF$
-const VAL_W    = JW[10];                                //  71 — TOTAL
+const LABEL_W  = JW[6]+JW[7];                          // 135 — ENGINE + QTY
+const USD_W    = JW[8];                                 //  62 — CNF$
+const VAL_W    = JW[9];                                 //  71 — TOTAL
 
 const JDM = {
   name:       "JDM TRADING CO. LTD",
@@ -113,7 +113,8 @@ function JDMDocument({ inv, logoUrl }: { inv: JDMInvData; logoUrl: string }) {
 
   const transmission = inv.transmission || "";
   const fuel         = inv.fuel         || "";
-  const transFuel    = [transmission, fuel].filter(Boolean).join(" / ") || "—";
+  const transFuel    = [transmission, fuel].filter(Boolean).join(" / ");
+  const engineCell   = [inv.engineNo, transFuel].filter(Boolean).join(" / ") || "";
 
   const fmt = (n: number) =>
     n.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
@@ -211,10 +212,9 @@ function JDMDocument({ inv, logoUrl }: { inv: JDMInvData; logoUrl: string }) {
           <HdrCell w={JW[4]}>YEAR</HdrCell>
           <HdrCell w={JW[5]}>COLOR</HdrCell>
           <HdrCell w={JW[6]}>ENGINE SIZE</HdrCell>
-          <HdrCell w={JW[7]}>TRANS & FUEL</HdrCell>
-          <HdrCell w={JW[8]}>QTY</HdrCell>
-          <HdrCell w={JW[9]}>CNF$</HdrCell>
-          <HdrCell w={JW[10]}>TOTAL AMOUNT $</HdrCell>
+          <HdrCell w={JW[7]}>QTY</HdrCell>
+          <HdrCell w={JW[8]}>CNF$</HdrCell>
+          <HdrCell w={JW[9]}>TOTAL AMOUNT $</HdrCell>
         </Row>
 
         {/* Blank row */}
@@ -230,11 +230,10 @@ function JDMDocument({ inv, logoUrl }: { inv: JDMInvData; logoUrl: string }) {
           <Cell w={JW[3]}>{inv.chassisNo}</Cell>
           <Cell w={JW[4]}>{inv.year ?? ""}</Cell>
           <Cell w={JW[5]}>{inv.color}</Cell>
-          <Cell w={JW[6]}>{inv.engineNo ?? ""}</Cell>
-          <Cell w={JW[7]}>{transFuel}</Cell>
-          <Cell w={JW[8]}>1</Cell>
+          <Cell w={JW[6]}>{engineCell}</Cell>
+          <Cell w={JW[7]}>1</Cell>
+          <Cell w={JW[8]} right>{fmt(inv.cnfPrice)}</Cell>
           <Cell w={JW[9]} right>{fmt(inv.cnfPrice)}</Cell>
-          <Cell w={JW[10]} right>{fmt(inv.cnfPrice)}</Cell>
         </Row>
 
         {/* Empty filler rows */}
