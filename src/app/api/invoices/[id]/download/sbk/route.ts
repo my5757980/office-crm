@@ -158,21 +158,10 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const headerTable = new Table({
     width: { size: 100, type: WidthType.PERCENTAGE },
     borders: { top: NONE, bottom: NONE, left: NONE, right: NONE, insideH: NONE, insideV: NONE },
-    columnWidths: [2000, 8790],
+    columnWidths: [8790, 2000],
     rows: [
       new TableRow({
         children: [
-          new TableCell({
-            borders: NO_BORDERS,
-            children: [
-              new Paragraph({
-                spacing: { after: 0 },
-                children: [
-                  new ImageRun({ data: logoBuffer, transformation: { width: 120, height: 100 }, type: "jpg" }),
-                ],
-              }),
-            ],
-          }),
           new TableCell({
             borders: NO_BORDERS,
             children: [
@@ -182,6 +171,18 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
               hdrPara(SBK_INFO.web,   { size: 8, color: "C00000", after: 20 }),
               hdrPara(SBK_INFO.email, { size: 8, color: "C00000", after: 20 }),
               hdrPara(SBK_INFO.phone, { size: 8, color: "C00000", after: 0 }),
+            ],
+          }),
+          new TableCell({
+            borders: NO_BORDERS,
+            children: [
+              new Paragraph({
+                alignment: AlignmentType.RIGHT,
+                spacing: { after: 0 },
+                children: [
+                  new ImageRun({ data: logoBuffer, transformation: { width: 140, height: 110 }, type: "jpg" }),
+                ],
+              }),
             ],
           }),
         ],
@@ -210,9 +211,9 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
             row({ lines: ["Phone"], colSpan: 2 }, { lines: [inv.consignee.phone], colSpan: 4 }, { lines: ["INCOTERM"] }, { lines: [": C&F"], colSpan: 2 }, { lines: [`COUNTRY\t: ${inv.consignee.country}`], colSpan: 3 }),
             row({ lines: ["Email"], colSpan: 2 }, { lines: ["—"], colSpan: 4 }, empty(1), empty(2), empty(3)),
             row({ lines: ["NOTIFY PARTY :"], bold: true, colSpan: 6 }, empty(1), empty(2), empty(3)),
-            row({ lines: ["Same as consignee"], bold: true, colSpan: 6 }, empty(3), empty(3)),
-            row({ lines: ["Same as consignee"], bold: true, colSpan: 6 }, empty(3), { lines: [`PAYMENT TERMS\t: ${advPct}% (Advance Payment)`], bold: true, colSpan: 3, shade: "BFBFBF" }),
-            row({ lines: ["Same as consignee"], bold: true, colSpan: 6 }, empty(3), { lines: ["CURRENCY\t: US$"], bold: true, colSpan: 3 }),
+            row({ lines: ["Same as consignee"], bold: true, colSpan: 12 }),
+            row(empty(9), { lines: [`PAYMENT TERMS\t: ${advPct}% (Advance Payment)`], bold: true, colSpan: 3, shade: "BFBFBF" }),
+            row(empty(9), { lines: ["CURRENCY\t: US$"], bold: true, colSpan: 3 }),
             row(
               { lines: ["S.No"],                            bold: true, shade: "BFBFBF" },
               { lines: ["Chassis No. (STOCK ID)","ORIGIN"], bold: true, shade: "BFBFBF", colSpan: 3 },
@@ -239,7 +240,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
             row(empty(), empty(3), empty(4), { lines: [`${advPct}% Amount`], bold: true, colSpan: 3 }, { lines: [fmt(advanceAmt)], bold: true }),
             row(empty(), empty(3), empty(4), { lines: ["Remaining Balance"], bold: true, colSpan: 3, shade: "BFBFBF" }, { lines: [fmt(remaining)], bold: true, shade: "BFBFBF" }),
             row({ lines: [`TOTAL AMOUNT VALUE IN WORDS : ${words} US DOLLARS ONLY`], bold: true, colSpan: 9 }, empty(3)),
-            row({ lines: [`PROFORMA INVOICE : ${invNo}`], bold: true, colSpan: 9 }, empty(3)),
+            row({ lines: [`INVOICE : ${invNo}`], bold: true, colSpan: 9 }, empty(3)),
             row({ lines: ["", "SHIPPER'S BANK DETAILS:"], bold: true, colSpan: 8 }, { lines: SBK_INFO.remarks.split("\n"), colSpan: 4, vMerge: "restart" }),
             row({ lines: ["ACCOUNT:"],  bold: true, colSpan: 3 }, { lines: [SBK_INFO.bankAccount], bold: true, colSpan: 3 }, empty(2), { lines: [""], colSpan: 4, vMerge: "continue" }),
             row({ lines: ["BANK:"],     bold: true, colSpan: 3 }, { lines: [SBK_INFO.bankName],    bold: true, colSpan: 3 }, empty(2), { lines: [""], colSpan: 4, vMerge: "continue" }),
@@ -248,17 +249,35 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
             row({ lines: ["IBAN:"],     bold: true, colSpan: 3 }, { lines: [SBK_INFO.iban],        bold: true, colSpan: 3 }, empty(2), { lines: [""], colSpan: 4, vMerge: "continue" }),
             row({ lines: ["ACCOUNT NO:"], bold: true, colSpan: 3 }, { lines: [SBK_INFO.accountNo], bold: true, colSpan: 3 }, empty(2), empty(4)),
             row({ lines: ["SWIFT CODE:"], bold: true, colSpan: 3 }, { lines: [SBK_INFO.swift],     bold: true, colSpan: 3 }, empty(2), empty(4)),
-            row({ lines: ["SM Khurram Rashid", "Director International Sales"], colSpan: 12, size: 9 }),
+            new TableRow({
+              children: [
+                new TableCell({
+                  columnSpan: 6,
+                  borders: ALL_BORDERS,
+                  margins: { top: 30, bottom: 30, left: 80, right: 80 },
+                  children: [new Paragraph({ spacing: { before: 0, after: 0 }, children: [] })],
+                }),
+                new TableCell({
+                  columnSpan: 6,
+                  borders: ALL_BORDERS,
+                  margins: { top: 30, bottom: 30, left: 80, right: 80 },
+                  children: [
+                    new Paragraph({
+                      alignment: AlignmentType.RIGHT,
+                      spacing: { before: 0, after: 0 },
+                      children: [
+                        new ImageRun({ data: stampBuffer, transformation: { width: 100, height: 100 }, type: "jpg" }),
+                      ],
+                    }),
+                  ],
+                }),
+              ],
+            }),
+            row(empty(6), { lines: [salesPerson, "Director International Sales"], bold: true, colSpan: 6 }),
           ],
         }),
 
-        new Paragraph({ children: [] }),
-        new Paragraph({
-          spacing: { after: 40 },
-          children: [
-            new ImageRun({ data: stampBuffer, transformation: { width: 80, height: 80 }, type: "jpg" }),
-          ],
-        }),
+        new Paragraph({ spacing: { after: 40 }, children: [] }),
         new Paragraph({ spacing: { after: 0 }, children: [new TextRun({ text: "Terms and Conditions:", font: "Calibri" })] }),
         ...TERMS.map(t => termPara(t)),
       ],
