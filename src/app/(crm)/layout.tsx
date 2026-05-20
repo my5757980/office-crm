@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Sidebar from "@/components/layout/Sidebar";
+import ChatWidget from "@/components/chat/ChatWidget";
 
 export default async function CRMLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
@@ -15,6 +16,7 @@ export default async function CRMLayout({ children }: { children: React.ReactNod
       >
         {children}
       </main>
+      <ChatWidget myId={session.user.id} />
     </div>
   );
 }
