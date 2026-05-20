@@ -61,6 +61,11 @@ function withFocus(style: React.CSSProperties) {
   };
 }
 
+function cleanPhone(raw: string): string {
+  const digits = raw.replace(/\D/g, "");
+  return digits ? "+" + digits : "";
+}
+
 export default function LeadForm({ defaultValues, onSubmit, submitLabel = "Save Lead" }: {
   defaultValues?: Partial<LeadFormData>;
   onSubmit: (data: LeadFormData) => Promise<void>;
@@ -107,7 +112,14 @@ export default function LeadForm({ defaultValues, onSubmit, submitLabel = "Save 
           <input {...register("contactPerson")} style={inputStyle} placeholder="John Smith" {...withFocus(inputStyle)} />
         </Field>
         <Field label="Phone Number" required error={errors.phone?.message}>
-          <input {...register("phone")} type="tel" style={inputStyle} placeholder="+1 234 567 8900" {...withFocus(inputStyle)} />
+          <input
+            {...register("phone")}
+            onChange={e => setValue("phone", cleanPhone(e.target.value), { shouldValidate: true })}
+            type="tel"
+            style={inputStyle}
+            placeholder="+971501234567"
+            {...withFocus(inputStyle)}
+          />
         </Field>
         <Field label="Email Address" error={errors.email?.message}>
           <input {...register("email")} type="email" style={inputStyle} placeholder="contact@company.com" {...withFocus(inputStyle)} />
