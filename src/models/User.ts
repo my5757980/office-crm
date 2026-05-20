@@ -6,6 +6,7 @@ export interface IUser extends Document {
   password: string;
   role: "user" | "admin" | "manager" | "super_admin";
   isActive: boolean;
+  lastSeen: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -21,6 +22,7 @@ const UserSchema = new Schema<IUser>(
       required: true,
     },
     isActive: { type: Boolean, default: true },
+    lastSeen: { type: Date, default: null },
   },
   { timestamps: true }
 );
