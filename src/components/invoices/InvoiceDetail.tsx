@@ -16,10 +16,14 @@ interface InvoiceDetailProps {
     chassisNo: string;
     engineNo: string;
     color: string;
+    salesperson?: string;
+    fuel?: string;
+    transmission?: string;
     m3Rate: number;
     exchangeRate: number;
     pushPrice: number;
     cnfPrice: number;
+    advancePercent?: number;
     createdAt: string;
     consignee: { name: string; address: string; phone: string; country: string; port: string };
     leadId?: { customerName: string; contactPerson: string } | null;
@@ -58,14 +62,14 @@ export default function InvoiceDetail({ invoice, role, unitId }: InvoiceDetailPr
     engineNo: invoice.engineNo ?? "",
     color: invoice.color ?? "",
     year: invoice.year ?? "",
-    salesperson: (invoice as { salesperson?: string }).salesperson ?? "",
-    fuel: (invoice as { fuel?: string }).fuel ?? "",
-    transmission: (invoice as { transmission?: string }).transmission ?? "",
+    salesperson: invoice.salesperson ?? "",
+    fuel: invoice.fuel ?? "",
+    transmission: invoice.transmission ?? "",
     m3Rate: String(invoice.m3Rate ?? ""),
     exchangeRate: String(invoice.exchangeRate ?? ""),
     pushPrice: String(invoice.pushPrice ?? ""),
     cnfPrice: String(invoice.cnfPrice ?? ""),
-    advancePercent: String((invoice as { advancePercent?: number }).advancePercent ?? 50),
+    advancePercent: String(invoice.advancePercent ?? 50),
     consigneeName: invoice.consignee.name ?? "",
     consigneePhone: invoice.consignee.phone ?? "",
     consigneeAddress: invoice.consignee.address ?? "",
