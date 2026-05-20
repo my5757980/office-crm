@@ -26,7 +26,6 @@ export async function GET(req: NextRequest) {
     ],
   })
     .sort({ createdAt: 1 })
-    .limit(100)
     .lean();
 
   return NextResponse.json(messages.map(m => ({
