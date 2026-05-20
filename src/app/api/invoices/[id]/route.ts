@@ -47,6 +47,36 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
   const body = await request.json();
   const { action, rejectionNote } = body as { action: string; rejectionNote?: string };
 
+  if (action === "edit") {
+    const {
+      unit, chassisNo, engineNo, color, year, salesperson, fuel, transmission,
+      m3Rate, exchangeRate, pushPrice, cnfPrice, advancePercent,
+      consigneeName, consigneePhone, consigneeAddress, consigneeCountry, consigneePort,
+    } = body as Record<string, string | number>;
+
+    if (unit !== undefined)         invoice.unit         = String(unit).trim();
+    if (chassisNo !== undefined)    invoice.chassisNo    = String(chassisNo).trim();
+    if (engineNo !== undefined)     invoice.engineNo     = String(engineNo).trim();
+    if (color !== undefined)        invoice.color        = String(color).trim();
+    if (year !== undefined)         invoice.year         = String(year).trim();
+    if (salesperson !== undefined)  invoice.salesperson  = String(salesperson).trim();
+    if (fuel !== undefined)         invoice.fuel         = String(fuel).trim();
+    if (transmission !== undefined) invoice.transmission = String(transmission).trim();
+    if (m3Rate !== undefined)       invoice.m3Rate       = Number(m3Rate);
+    if (exchangeRate !== undefined) invoice.exchangeRate = Number(exchangeRate);
+    if (pushPrice !== undefined)    invoice.pushPrice    = Number(pushPrice);
+    if (cnfPrice !== undefined)     invoice.cnfPrice     = Number(cnfPrice);
+    if (advancePercent !== undefined) invoice.advancePercent = Number(advancePercent);
+    if (consigneeName !== undefined)    invoice.consignee.name    = String(consigneeName).trim();
+    if (consigneePhone !== undefined)   invoice.consignee.phone   = String(consigneePhone).trim();
+    if (consigneeAddress !== undefined) invoice.consignee.address = String(consigneeAddress).trim();
+    if (consigneeCountry !== undefined) invoice.consignee.country = String(consigneeCountry).trim();
+    if (consigneePort !== undefined)    invoice.consignee.port    = String(consigneePort).trim();
+
+    await invoice.save();
+    return NextResponse.json({ ok: true });
+  }
+
   if (action === "approve") {
     if (invoice.status !== "pending") {
       return NextResponse.json({ error: "Only pending invoices can be approved" }, { status: 400 });
