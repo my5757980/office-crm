@@ -259,7 +259,7 @@ export default function ChatWidget({ myId }: { myId: string }) {
                       }}>
                         {m.text}
                       </div>
-                      <span style={{ fontSize: "10px", color: "#8c959f", marginTop: "2px", paddingHorizontal: "4px" }}>
+                      <span style={{ fontSize: "10px", color: "#8c959f", marginTop: "2px", paddingLeft: "4px", paddingRight: "4px" }}>
                         {fmtTime(m.createdAt)}
                       </span>
                     </div>

@@ -157,7 +157,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
   const headerTable = new Table({
     width: { size: 100, type: WidthType.PERCENTAGE },
-    borders: { top: NONE, bottom: NONE, left: NONE, right: NONE, insideH: NONE, insideV: NONE },
+    borders: { top: NONE, bottom: NONE, left: NONE, right: NONE, insideHorizontal: NONE, insideVertical: NONE },
     columnWidths: [8790, 2000],
     rows: [
       new TableRow({
