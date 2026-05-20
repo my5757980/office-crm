@@ -42,6 +42,5 @@ const LeadSchema = new Schema<ILead>(
 LeadSchema.index({ country: 1 });
 LeadSchema.index({ createdAt: -1 });
 
-if (mongoose.models.Lead) delete (mongoose.models as Record<string, unknown>).Lead;
-const Lead = mongoose.model<ILead>("Lead", LeadSchema);
+const Lead = mongoose.models.Lead || mongoose.model<ILead>("Lead", LeadSchema);
 export default Lead;
