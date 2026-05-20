@@ -50,6 +50,41 @@ export default function InvoiceDetail({ invoice, role, unitId }: InvoiceDetailPr
   const [uploading, setUploading] = useState(false);
   const [uploadedPdf, setUploadedPdf] = useState(invoice.uploadedPdf ?? null);
 
+  const [editModal, setEditModal] = useState(false);
+  const [editSaving, setEditSaving] = useState(false);
+  const [editFields, setEditFields] = useState({
+    unit: invoice.unit ?? "",
+    chassisNo: invoice.chassisNo ?? "",
+    engineNo: invoice.engineNo ?? "",
+    color: invoice.color ?? "",
+    year: invoice.year ?? "",
+    salesperson: (invoice as { salesperson?: string }).salesperson ?? "",
+    fuel: (invoice as { fuel?: string }).fuel ?? "",
+    transmission: (invoice as { transmission?: string }).transmission ?? "",
+    m3Rate: String(invoice.m3Rate ?? ""),
+    exchangeRate: String(invoice.exchangeRate ?? ""),
+    pushPrice: String(invoice.pushPrice ?? ""),
+    cnfPrice: String(invoice.cnfPrice ?? ""),
+    advancePercent: String((invoice as { advancePercent?: number }).advancePercent ?? 50),
+    consigneeName: invoice.consignee.name ?? "",
+    consigneePhone: invoice.consignee.phone ?? "",
+    consigneeAddress: invoice.consignee.address ?? "",
+    consigneeCountry: invoice.consignee.country ?? "",
+    consigneePort: invoice.consignee.port ?? "",
+  });
+
+  const handleEditSave = async () => {
+    setEditSaving(true);
+    const res = await fetch(`/api/invoices/${invoice._id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "edit", ...editFields }),
+    });
+    if (res.ok) { setEditModal(false); router.refresh(); }
+    else { const j = await res.json(); alert(j.error ?? "Save failed"); }
+    setEditSaving(false);
+  };
+
   const handlePdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -190,6 +225,26 @@ export default function InvoiceDetail({ invoice, role, unitId }: InvoiceDetailPr
               </svg>
               Print
             </button>
+
+            {role === "super_admin" && (
+              <button
+                onClick={() => setEditModal(true)}
+                style={{
+                  display: "inline-flex", alignItems: "center", gap: "6px",
+                  padding: "7px 14px", borderRadius: "8px",
+                  fontSize: "13px", fontWeight: 600,
+                  color: "#0550ae", background: "#dbeafe",
+                  border: "1px solid #bfdbfe", cursor: "pointer",
+                  transition: "all 150ms",
+                }}
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
+                  <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                </svg>
+                Edit Invoice
+              </button>
+            )}
 
             {role === "super_admin" && ["approved", "sent"].includes(invoice.status) && (
               <>
@@ -507,6 +562,151 @@ export default function InvoiceDetail({ invoice, role, unitId }: InvoiceDetailPr
               Invoice PDF not uploaded yet.
             </div>
           )}
+        </div>
+      )}
+
+      {/* Edit Modal */}
+      {editModal && (
+        <div className="no-print" style={{
+          position: "fixed", inset: 0,
+          background: "rgba(0,0,0,0.5)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          zIndex: 50, padding: "16px",
+        }}>
+          <div style={{
+            background: "#ffffff", border: "1px solid #d0d7de",
+            borderRadius: "12px", width: "100%", maxWidth: "600px",
+            maxHeight: "90vh", overflowY: "auto",
+            boxShadow: "0 20px 60px rgba(0,0,0,0.15)",
+          }}>
+            {/* Modal header */}
+            <div style={{ padding: "20px 24px", borderBottom: "1px solid #d0d7de", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <h3 style={{ fontSize: "15px", fontWeight: 700, color: "#1f2328" }}>Edit Invoice</h3>
+              <button onClick={() => setEditModal(false)} style={{ background: "none", border: "none", cursor: "pointer", color: "#8c959f", padding: "4px" }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </button>
+            </div>
+
+            <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: "20px" }}>
+              {/* Vehicle Details */}
+              <div>
+                <p style={{ fontSize: "11px", fontWeight: 700, color: "#8c959f", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "12px" }}>Vehicle Details</p>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                  {([
+                    ["unit",         "Unit / Make"],
+                    ["chassisNo",    "Chassis No."],
+                    ["engineNo",     "Engine No."],
+                    ["color",        "Color"],
+                    ["year",         "Year"],
+                    ["salesperson",  "Salesperson"],
+                    ["fuel",         "Fuel Type"],
+                    ["transmission", "Transmission"],
+                  ] as [keyof typeof editFields, string][]).map(([key, label]) => (
+                    <label key={key} style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                      <span style={{ fontSize: "11px", fontWeight: 600, color: "#656d76" }}>{label}</span>
+                      <input
+                        value={editFields[key]}
+                        onChange={e => setEditFields(f => ({ ...f, [key]: e.target.value }))}
+                        style={{
+                          padding: "8px 10px", borderRadius: "6px",
+                          border: "1px solid #d0d7de", fontSize: "13px",
+                          outline: "none", color: "#1f2328",
+                        }}
+                        onFocus={e => { e.target.style.borderColor = "#2563eb"; e.target.style.boxShadow = "0 0 0 3px rgba(37,99,235,0.12)"; }}
+                        onBlur={e => { e.target.style.borderColor = "#d0d7de"; e.target.style.boxShadow = "none"; }}
+                      />
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Consignee */}
+              <div>
+                <p style={{ fontSize: "11px", fontWeight: 700, color: "#8c959f", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "12px" }}>Consignee</p>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                  {([
+                    ["consigneeName",    "Name"],
+                    ["consigneePhone",   "Phone"],
+                    ["consigneeCountry", "Country"],
+                    ["consigneePort",    "Port"],
+                    ["consigneeAddress", "Address"],
+                  ] as [keyof typeof editFields, string][]).map(([key, label]) => (
+                    <label key={key} style={{ display: "flex", flexDirection: "column", gap: "4px", gridColumn: key === "consigneeAddress" ? "1 / -1" : undefined }}>
+                      <span style={{ fontSize: "11px", fontWeight: 600, color: "#656d76" }}>{label}</span>
+                      <input
+                        value={editFields[key]}
+                        onChange={e => setEditFields(f => ({ ...f, [key]: e.target.value }))}
+                        style={{
+                          padding: "8px 10px", borderRadius: "6px",
+                          border: "1px solid #d0d7de", fontSize: "13px",
+                          outline: "none", color: "#1f2328",
+                        }}
+                        onFocus={e => { e.target.style.borderColor = "#2563eb"; e.target.style.boxShadow = "0 0 0 3px rgba(37,99,235,0.12)"; }}
+                        onBlur={e => { e.target.style.borderColor = "#d0d7de"; e.target.style.boxShadow = "none"; }}
+                      />
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Pricing */}
+              <div>
+                <p style={{ fontSize: "11px", fontWeight: 700, color: "#8c959f", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "12px" }}>Pricing</p>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                  {([
+                    ["m3Rate",         "M3 Rate"],
+                    ["exchangeRate",   "Exchange Rate"],
+                    ["pushPrice",      "Push Price"],
+                    ["cnfPrice",       "CNF Price"],
+                    ["advancePercent", "Advance %"],
+                  ] as [keyof typeof editFields, string][]).map(([key, label]) => (
+                    <label key={key} style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                      <span style={{ fontSize: "11px", fontWeight: 600, color: "#656d76" }}>{label}</span>
+                      <input
+                        type="number"
+                        value={editFields[key]}
+                        onChange={e => setEditFields(f => ({ ...f, [key]: e.target.value }))}
+                        style={{
+                          padding: "8px 10px", borderRadius: "6px",
+                          border: "1px solid #d0d7de", fontSize: "13px",
+                          outline: "none", color: "#1f2328",
+                        }}
+                        onFocus={e => { e.target.style.borderColor = "#2563eb"; e.target.style.boxShadow = "0 0 0 3px rgba(37,99,235,0.12)"; }}
+                        onBlur={e => { e.target.style.borderColor = "#d0d7de"; e.target.style.boxShadow = "none"; }}
+                      />
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Modal footer */}
+            <div style={{ padding: "16px 24px", borderTop: "1px solid #d0d7de", display: "flex", justifyContent: "flex-end", gap: "8px" }}>
+              <button
+                onClick={() => setEditModal(false)}
+                style={{
+                  padding: "8px 16px", borderRadius: "8px", fontSize: "13px", fontWeight: 600,
+                  color: "#656d76", background: "#f6f8fa", border: "1px solid #d0d7de", cursor: "pointer",
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleEditSave}
+                disabled={editSaving}
+                style={{
+                  padding: "8px 20px", borderRadius: "8px", fontSize: "13px", fontWeight: 600,
+                  color: "white", background: "#2563eb", border: "none",
+                  cursor: editSaving ? "not-allowed" : "pointer",
+                  opacity: editSaving ? 0.7 : 1,
+                }}
+              >
+                {editSaving ? "Saving…" : "Save Changes"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
