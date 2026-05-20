@@ -2,9 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import dbConnect from "@/lib/db";
 import Invoice from "@/models/Invoice";
+import fs from "fs";
+import path from "path";
 import {
   Document, Packer, Paragraph, Table, TableRow, TableCell, TextRun,
-  AlignmentType, WidthType, BorderStyle, VerticalMergeType,
+  AlignmentType, WidthType, BorderStyle, VerticalMergeType, ImageRun,
 } from "docx";
 
 const CAN_DOWNLOAD = ["super_admin"];
@@ -147,18 +149,54 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const yearLine     = inv.year         || "—";
   const engineLine   = inv.engineNo     || "—";
 
+  const logoBuffer  = fs.readFileSync(path.join(process.cwd(), "public", "images", "sbk-logo.jpg"));
+  const stampBuffer = fs.readFileSync(path.join(process.cwd(), "public", "images", "sbk-stamp.jpg"));
+
+  const NONE = { style: BorderStyle.NONE, size: 0, color: "auto" };
+  const NO_BORDERS = { top: NONE, bottom: NONE, left: NONE, right: NONE };
+
+  const headerTable = new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    borders: { top: NONE, bottom: NONE, left: NONE, right: NONE, insideH: NONE, insideV: NONE },
+    columnWidths: [2000, 8790],
+    rows: [
+      new TableRow({
+        children: [
+          new TableCell({
+            borders: NO_BORDERS,
+            children: [
+              new Paragraph({
+                spacing: { after: 0 },
+                children: [
+                  new ImageRun({ data: logoBuffer, transformation: { width: 120, height: 100 }, type: "jpg" }),
+                ],
+              }),
+            ],
+          }),
+          new TableCell({
+            borders: NO_BORDERS,
+            children: [
+              hdrPara("SBK Global Auto Trading FZC LLC", { size: 16, color: "1F497D", after: 20 }),
+              hdrPara(SBK_INFO.addr1, { size: 8, color: "C00000", after: 20 }),
+              hdrPara(SBK_INFO.addr2, { size: 8, color: "C00000", after: 20 }),
+              hdrPara(SBK_INFO.web,   { size: 8, color: "C00000", after: 20 }),
+              hdrPara(SBK_INFO.email, { size: 8, color: "C00000", after: 20 }),
+              hdrPara(SBK_INFO.phone, { size: 8, color: "C00000", after: 0 }),
+            ],
+          }),
+        ],
+      }),
+    ],
+  });
+
   const doc = new Document({
     sections: [{
       properties: {
         page: { margin: { top: 600, bottom: 600, left: 720, right: 720 } },
       },
       children: [
-        hdrPara("SBK Global Auto Trading FZC LLC", { size: 16, color: "1F497D", after: 20 }),
-        hdrPara(SBK_INFO.addr1, { size: 8, color: "C00000", after: 20 }),
-        hdrPara(SBK_INFO.addr2, { size: 8, color: "C00000", after: 20 }),
-        hdrPara(SBK_INFO.web,   { size: 8, color: "C00000", after: 20 }),
-        hdrPara(SBK_INFO.email, { size: 8, color: "C00000", after: 20 }),
-        hdrPara(SBK_INFO.phone, { size: 8, color: "C00000", after: 60 }),
+        headerTable,
+        new Paragraph({ spacing: { after: 60 }, children: [] }),
 
         new Table({
           width: { size: 100, type: WidthType.PERCENTAGE },
@@ -215,6 +253,12 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
         }),
 
         new Paragraph({ children: [] }),
+        new Paragraph({
+          spacing: { after: 40 },
+          children: [
+            new ImageRun({ data: stampBuffer, transformation: { width: 80, height: 80 }, type: "jpg" }),
+          ],
+        }),
         new Paragraph({ spacing: { after: 0 }, children: [new TextRun({ text: "Terms and Conditions:", font: "Calibri" })] }),
         ...TERMS.map(t => termPara(t)),
       ],
