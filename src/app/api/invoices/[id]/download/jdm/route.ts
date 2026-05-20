@@ -77,8 +77,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     { width: 14.1 }, { width: 0.9 },  { width: 6.4 },  { width: 6.4 },
     { width: 7.1 },  { width: 5.5 },  { width: 6.9 },  { width: 8.1 },
     { width: 6.6 },  { width: 9.6 },  { width: 9.5 },  { width: 5.4 },
-    { width: 12.1 }, { width: 16.1 }, { width: 20.8 }, { width: 9.0 },
-    { width: 9.0 },  { width: 9.0 },  { width: 9.0 },  { width: 9.0 },
+    { width: 12.1 }, { width: 16.1 }, { width: 20.8 },
   ];
 
   ws.getRow(1).height = 10;
@@ -95,13 +94,13 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   // R4: ADDRESS + BANKING DETAILS labels
   ws.mergeCells(4, 2, 4, 7);
   lbl(ws, 4, 2, "          ADDRESS:", 8);
-  ws.mergeCells(4, 17, 4, 18);
+  ws.mergeCells(4, 17, 4, 19);
   const r4bank = ws.getCell(4, 17);
-  r4bank.value = "                      BANKING DETAILS:";
+  r4bank.value = "BANKING DETAILS:";
   r4bank.font = { bold: true, size: 9 };
   ws.getRow(4).height = 15;
 
-  // R5-R10: Banking details
+  // R5-R10: Banking details (columns 17-19, same as vehicle table QTY/CNF/TOTAL columns)
   const bankLines = [
     `ACCOUNT NAME: ${JDM.accountName}`,
     `BANK NAME: ${JDM.bankName}`,
@@ -112,8 +111,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   ];
   bankLines.forEach((val, i) => {
     const r = 5 + i;
-    ws.mergeCells(r, 21, r, 24);
-    lbl(ws, r, 21, val, 9);
+    ws.mergeCells(r, 17, r, 19);
+    lbl(ws, r, 17, val, 9);
     ws.getRow(r).height = 15;
   });
 
@@ -163,12 +162,14 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   ws.mergeCells(14, 10, 14, 14);
   ws.getRow(14).height = 15;
 
-  // R15: PHONE
+  // R15: PHONE (consignee) + Country (notify party)
   lbl(ws, 15, 2, "PHONE:", 9);
   ws.mergeCells(15, 3, 15, 5);
   lbl(ws, 15, 3, inv.consignee.phone, 9);
   ws.mergeCells(15, 8, 15, 9);
+  lbl(ws, 15, 8, "Country :", 9);
   ws.mergeCells(15, 10, 15, 14);
+  lbl(ws, 15, 10, inv.consignee.country, 9);
   ws.getRow(15).height = 15;
 
   // R16: POD
