@@ -40,7 +40,7 @@ function set(
   opts: {
     bold?: boolean; size?: number; color?: string;
     h?: "left"|"center"|"right"; v?: "middle"|"top"|"bottom";
-    wrap?: boolean; numFmt?: string; fill?: string;
+    wrap?: boolean; numFmt?: string; fill?: string; underline?: boolean;
   } = {}
 ) {
   const cell = ws.getCell(r, c);
@@ -49,6 +49,7 @@ function set(
     bold: opts.bold ?? false,
     size: opts.size ?? 10,
     color: opts.color ? { argb: opts.color } : undefined,
+    underline: opts.underline ? "single" : undefined,
   };
   cell.alignment = {
     horizontal: opts.h ?? "left",
@@ -117,6 +118,15 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     ws.getColumn(c).style = { font: { size: 10, name: "Calibri" } };
   }
 
+  // A4 landscape — fills page when Ctrl+P
+  ws.pageSetup = {
+    paperSize: 9,
+    orientation: "landscape",
+    fitToPage: true,
+    fitToWidth: 1,
+    fitToHeight: 0,
+  };
+
   // ── Logo image (rows 1-2, col A) ────────────────────────────────────────────
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const logoImgId = wb.addImage({ buffer: logoBuffer as any, extension: "png" });
@@ -127,10 +137,10 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   // ── Row 3: Company name (E) + BANKING DETAILS (K) ────────────────────────
   ws.getRow(3).height = 19.5;
   set(ws, 3, 5, JDM.name,         { bold: true, size: 15, color: "FF8B0000" });
-  set(ws, 3, 11, "BANKING DETAILS", { bold: true, h: "left" });
+  set(ws, 3, 11, "BANKING DETAILS", { bold: true, h: "left", underline: true });
 
   // ── Rows 4-9: Company address (E) + Banking lines (K) ────────────────────
-  set(ws, 4, 5, "ADDRESS",                              { bold: true });
+  set(ws, 4, 5, "ADDRESS",                              { bold: true, underline: true });
   set(ws, 4, 11, `ACCOUNT NAME: ${JDM.accountName}`,    { h: "left" });
 
   set(ws, 5, 5, JDM.addr1,                              {});
@@ -148,8 +158,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   set(ws, 9, 11, `SWIFT CODE: ${JDM.swift}`,            { h: "left" });
 
   // ── Row 10: CONSIGNEE + NOTIFY PARTY labels ──────────────────────────────
-  set(ws, 10, 1, "CONSIGNEE",    { bold: true });
-  set(ws, 10, 6, "NOTIFY PARTY", { bold: true });
+  set(ws, 10, 1, "CONSIGNEE",    { bold: true, underline: true });
+  set(ws, 10, 6, "NOTIFY PARTY", { bold: true, underline: true });
   ws.getRow(10).height = 18;
 
   // ── Row 11: spacer ───────────────────────────────────────────────────────
@@ -367,7 +377,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     ws.mergeCells(r, 12, r, 15);
     const c = ws.getCell(r, 12);
     c.value = text;
-    c.font  = { bold, size: 10 };
+    c.font  = { bold, size: 10, underline: bold ? "single" : undefined };
     c.alignment = { horizontal: "left", vertical: "middle" };
   });
 
