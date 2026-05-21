@@ -358,14 +358,15 @@ async function genJDM() {
     ws.getColumn(c).style = { font: { size: 10, name: "Calibri" } };
   }
 
-  // A4 landscape — fills page when Ctrl+P
+  // A4 landscape — fit entire invoice on exactly 1 page when Ctrl+P
   ws.pageSetup = {
     paperSize: 9,
     orientation: "landscape",
     fitToPage: true,
     fitToWidth: 1,
-    fitToHeight: 0,
+    fitToHeight: 1,
   };
+  ws.pageSetup.printArea = "A1:O39";
 
   // Logo image (rows 1-2, col A)
   const logoImgId = wb.addImage({ buffer: logoBuffer, extension: "png" });
