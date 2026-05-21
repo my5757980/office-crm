@@ -93,9 +93,10 @@ const NO_BORDERS = { top: NONE, bottom: NONE, left: NONE, right: NONE };
 
 function makeCell(def) {
   const sz = (def.size ?? 7) * 2;
+  const align = def.align === "right" ? AlignmentType.RIGHT : AlignmentType.LEFT;
   const paragraphs = def.lines.map(line =>
     new Paragraph({
-      alignment: AlignmentType.LEFT,
+      alignment: align,
       spacing: { before: 0, after: 0 },
       children: [new TextRun({ text: line, bold: def.bold ?? false, size: sz, font: "Calibri" })],
     })
@@ -123,11 +124,11 @@ function hdrPara(text, opts = {}) {
   });
 }
 
-function termPara(text) {
+function termPara(text, num) {
   return new Paragraph({
     alignment: AlignmentType.BOTH,
     spacing: { after: 0, before: 0 },
-    children: [new TextRun({ text, size: 6 * 2, font: "Calibri" })],
+    children: [new TextRun({ text: `${num}. ${text}`, size: 6 * 2, font: "Calibri" })],
   });
 }
 
@@ -262,13 +263,13 @@ async function genSBK() {
                 }),
               ],
             }),
-            row(empty(6), { lines: [salesPerson, "Director International Sales"], bold: true, colSpan: 6 }),
+            row(empty(6), { lines: [salesPerson, "Director International Sales"], bold: true, colSpan: 6, align: "right" }),
           ],
         }),
 
         new Paragraph({ spacing: { after: 40 }, children: [] }),
         new Paragraph({ spacing: { after: 0 }, children: [new TextRun({ text: "Terms and Conditions:", font: "Calibri" })] }),
-        ...TERMS.map(t => termPara(t)),
+        ...TERMS.map((t, i) => termPara(t, i + 1)),
       ],
     }],
   });
@@ -282,12 +283,22 @@ async function genSBK() {
 // ─── JDM Excel ────────────────────────────────────────────────────────────────
 const JDM = {
   name:        "JDM TRADING CO. LTD",
+  addr1:       "NAGOYASHI MIDORI-KU-SHIKAYAMA",
+  addr2:       "2-1-1- ROYAL SHIKAYAMA A503, JAPAN",
+  tel:         "TEL: +81-52-755-0916 FAX: +81-52-717-7427",
+  email:       "info@jdm-trading.com",
   bankBranch1: "1-203, TAKBATA, NAKAGAWA-KU,",
   bankBranch2: "NAGOYA-SHI, AICHI 454-0911, JAPAN",
   bankName:    "MITSUBISHI UFJ",
   accountNo:   "0282462",
   swift:       "BOTKJPJT",
   accountName: "JDM TRADING CO. LTD",
+  intBankName: "BANK NAME: BANK OF TOKYO MITSUBISHI UFJ, LTD.,",
+  intBranch:   "BRANCH NAME: NEW YORK BRANCH",
+  intAddr:     "ADDRESS: 1251 AVENUE OF THE AMERICAS",
+  intCity:     "CITY: NEW YORK, NY",
+  intPost:     "POST CODE: 10020-1104",
+  intSwift:    "SWIFT CODE: BOTKUS33",
 };
 
 const XTHIN = { style: "thin" };
@@ -322,242 +333,231 @@ function xlbl(ws, r, c, val, size = 9) {
 }
 
 async function genJDM() {
-  const date    = inv.createdAt.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
-  const invNo   = `JDM-${inv._id.slice(-5).toUpperCase()}`;
-  const advPct  = inv.advancePercent ?? 50;
-  const advAmt  = Math.round(inv.cnfPrice * advPct / 100);
+  const date      = inv.createdAt.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+  const invNo     = `JDM-${inv._id.slice(-5).toUpperCase()}`;
+  const advPct    = inv.advancePercent ?? 50;
+  const advAmt    = Math.round(inv.cnfPrice * advPct / 100);
   const remaining = inv.cnfPrice - advAmt;
-
   const unitParts = inv.unit.split(" ");
-  const make  = unitParts[0] ?? inv.unit;
-  const model = unitParts.slice(1).join(" ") || inv.unit;
+  const make      = unitParts[0] ?? inv.unit;
+  const model     = unitParts.slice(1).join(" ") || inv.unit;
 
   const wb = new ExcelJS.Workbook();
   const ws = wb.addWorksheet("INVOICE");
 
+  // 15 columns A–O
   ws.columns = [
-    { width: 2.2 },  { width: 12.4 }, { width: 5.1 },  { width: 12.4 },
-    { width: 14.1 }, { width: 0.9 },  { width: 6.4 },  { width: 6.4 },
-    { width: 7.1 },  { width: 5.5 },  { width: 6.9 },  { width: 8.1 },
-    { width: 6.6 },  { width: 9.6 },  { width: 9.5 },  { width: 5.4 },
-    { width: 12.1 }, { width: 16.1 }, { width: 20.8 },
+    { width: 8.86 }, { width: 9.0  }, { width: 7.0  }, { width: 8.0  }, { width: 8.0  },
+    { width: 7.0  }, { width: 7.86 }, { width: 7.0  }, { width: 7.14 }, { width: 6.57 },
+    { width: 8.86 }, { width: 11.0 }, { width: 7.0  }, { width: 9.0  }, { width: 17.29 },
   ];
+
+  function jset(r, c, val, opts = {}) {
+    const cell = ws.getCell(r, c);
+    cell.value = val;
+    cell.font = { bold: opts.bold ?? false, size: opts.size ?? 10, color: opts.color ? { argb: opts.color } : undefined };
+    cell.alignment = { horizontal: opts.h ?? "left", vertical: "middle", wrapText: opts.wrap ?? false };
+    if (opts.numFmt) cell.numFmt = opts.numFmt;
+  }
+  function jhdr(r, c, val) {
+    jset(r, c, val, { bold: true, color: "FFFFFFFF", h: "center" });
+    ws.getCell(r, c).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1A1A2E" } };
+    xborder(ws.getCell(r, c));
+  }
+  function jbdr(r, c) { xborder(ws.getCell(r, c)); }
 
   ws.getRow(1).height = 10;
   ws.getRow(2).height = 10;
 
-  ws.mergeCells(3, 1, 3, 19);
-  const r3 = ws.getCell(3, 1);
-  r3.value = JDM.name;
-  r3.font = { bold: true, size: 14, color: { argb: "FF8B0000" } };
-  r3.alignment = { horizontal: "center", vertical: "middle" };
-  ws.getRow(3).height = 25;
+  // R3: company name (E=5) + banking label (K=11)
+  ws.getRow(3).height = 19.5;
+  jset(3, 5,  JDM.name,                          { bold: true, size: 15, color: "FF8B0000" });
+  jset(3, 11, "BANKING DETAILS",                  { bold: true });
 
-  ws.mergeCells(4, 2, 4, 7);
-  xlbl(ws, 4, 2, "          ADDRESS:", 8);
-  ws.mergeCells(4, 17, 4, 19);
-  const r4bank = ws.getCell(4, 17);
-  r4bank.value = "BANKING DETAILS:";
-  r4bank.font = { bold: true, size: 9 };
-  ws.getRow(4).height = 15;
+  // R4-9: address (E) + banking lines (K)
+  jset(4, 5,  "ADDRESS",                          { bold: true });
+  jset(4, 11, `ACCOUNT NAME: ${JDM.accountName}`);
+  jset(5, 5,  JDM.addr1);
+  jset(5, 11, `BANK NAME: ${JDM.bankName}`);
+  jset(6, 5,  JDM.addr2);
+  jset(6, 11, `BRANCH ADDRESS: ${JDM.bankBranch1}`);
+  jset(7, 5,  JDM.tel);
+  jset(7, 11, JDM.bankBranch2);
+  jset(8, 5,  JDM.email);
+  jset(8, 11, `ACCOUNT # ${JDM.accountNo}`);
+  jset(9, 11, `SWIFT CODE: ${JDM.swift}`);
 
-  const bankLines = [
-    `ACCOUNT NAME: ${JDM.accountName}`,
-    `BANK NAME: ${JDM.bankName}`,
-    `BRANCH ADDRESS: ${JDM.bankBranch1}`,
-    JDM.bankBranch2,
-    `ACCOUNT # ${JDM.accountNo}`,
-    `SWIFT CODE: ${JDM.swift}`,
-  ];
-  bankLines.forEach((val, i) => {
-    const r = 5 + i;
-    ws.mergeCells(r, 17, r, 19);
-    xlbl(ws, r, 17, val, 9);
-    ws.getRow(r).height = 15;
-  });
-
-  ws.mergeCells(7, 1, 7, 14);
-
-  xlbl(ws, 10, 2, "CONSIGNEE:", 9);
-  ws.getCell(10, 2).font = { bold: true, size: 9 };
-  xlbl(ws, 10, 8, "NOTIFY PARTY:", 9);
-  ws.getCell(10, 8).font = { bold: true, size: 9 };
+  // R10: CONSIGNEE + NOTIFY PARTY
+  jset(10, 1, "CONSIGNEE",    { bold: true });
+  jset(10, 6, "NOTIFY PARTY", { bold: true });
   ws.getRow(10).height = 18;
   ws.getRow(11).height = 8;
 
-  xlbl(ws, 12, 2, "NAME :", 9);
-  ws.mergeCells(12, 3, 12, 5);
-  const r12name = ws.getCell(12, 3);
-  r12name.value = inv.consignee.name;
-  r12name.font = { bold: true, size: 9 };
-  ws.mergeCells(12, 8, 12, 9);
-  xlbl(ws, 12, 8, "NAME:", 9);
-  ws.mergeCells(12, 10, 12, 14);
-  xlbl(ws, 12, 10, "SAME", 9);
-  ws.mergeCells(12, 19, 12, 19);
-  const r12date = ws.getCell(12, 19);
-  r12date.value = `DATE: ${date}`;
-  r12date.font = { bold: true, size: 9 };
+  // R12: NAME + SAME AS CONSIGNEE + INVOICE (K12:O13 merged)
+  ws.mergeCells(12, 2, 12, 4);
+  jset(12, 1, "NAME :");
+  jset(12, 2, inv.consignee.name,  { bold: true });
+  jset(12, 6, "SAME AS CONSIGNEE");
+  ws.mergeCells(12, 11, 13, 15);
+  jset(12, 11, "INVOICE",           { bold: true, size: 18, h: "center" });
   ws.getRow(12).height = 15;
 
-  xlbl(ws, 13, 2, "ADDRESS:", 9);
-  ws.mergeCells(13, 3, 13, 5);
-  xlbl(ws, 13, 3, inv.consignee.address, 9);
-  ws.mergeCells(13, 8, 13, 9);
-  xlbl(ws, 13, 8, "Address :", 9);
-  ws.mergeCells(13, 10, 13, 14);
-  xlbl(ws, 13, 10, "SAME", 9);
-  ws.mergeCells(13, 19, 13, 19);
-  const r13inv = ws.getCell(13, 19);
-  r13inv.value = `INVOICE # ${invNo}`;
-  r13inv.font = { bold: true, size: 9 };
+  // R13: ADDRESS
+  ws.mergeCells(13, 2, 13, 4);
+  jset(13, 1, "ADDRESS:");
+  jset(13, 2, inv.consignee.address);
   ws.getRow(13).height = 15;
 
-  ws.mergeCells(14, 3, 14, 5);
-  ws.mergeCells(14, 8, 14, 9);
-  ws.mergeCells(14, 10, 14, 14);
+  // R14: empty
+  ws.mergeCells(14, 2, 14, 4);
   ws.getRow(14).height = 15;
 
-  xlbl(ws, 15, 2, "PHONE:", 9);
-  ws.mergeCells(15, 3, 15, 5);
-  xlbl(ws, 15, 3, inv.consignee.phone, 9);
-  ws.mergeCells(15, 8, 15, 9);
-  xlbl(ws, 15, 8, "Country :", 9);
-  ws.mergeCells(15, 10, 15, 14);
-  xlbl(ws, 15, 10, inv.consignee.country, 9);
+  // R15: PHONE + DATE
+  ws.mergeCells(15, 2, 15, 4);
+  jset(15, 1, "PHONE:");
+  jset(15, 2, inv.consignee.phone);
+  ws.mergeCells(15, 11, 15, 15);
+  jset(15, 11, `DATE:${date}`, { bold: true, h: "center" });
   ws.getRow(15).height = 15;
 
-  xlbl(ws, 16, 2, "POD:", 9);
-  ws.mergeCells(16, 3, 16, 5);
-  xlbl(ws, 16, 3, inv.consignee.port, 9);
-  ws.mergeCells(16, 8, 16, 9);
-  ws.mergeCells(16, 10, 16, 14);
+  // R16: POD + INVOICE #
+  ws.mergeCells(16, 2, 16, 4);
+  jset(16, 1, "POD:");
+  jset(16, 2, inv.consignee.port);
+  ws.mergeCells(16, 11, 16, 15);
+  jset(16, 11, `INVOICE # ${invNo}`, { bold: true, h: "center" });
   ws.getRow(16).height = 15;
 
-  xlbl(ws, 17, 2, "COUNTRY :", 9);
-  ws.mergeCells(17, 3, 17, 5);
-  xlbl(ws, 17, 3, inv.consignee.country, 9);
+  // R17: COUNTRY
+  ws.mergeCells(17, 2, 17, 4);
+  jset(17, 1, "COUNTRY :");
+  jset(17, 2, inv.consignee.country);
   ws.getRow(17).height = 15;
 
-  ws.mergeCells(18, 2, 18, 5);
-  ws.mergeCells(18, 8, 18, 13);
+  // R18: spacer
+  ws.mergeCells(18, 1, 18, 4);
+  ws.mergeCells(18, 6, 18, 9);
   ws.getRow(18).height = 8;
 
-  ws.mergeCells(19, 3, 19, 4);
-  ws.mergeCells(19, 5, 19, 6);
-  ws.mergeCells(19, 7, 19, 9);
-  ws.mergeCells(19, 10, 19, 12);
-  ws.mergeCells(19, 13, 19, 14);
-  ws.mergeCells(19, 15, 19, 16);
-  xhdr(ws, 19, 2,  "No.");
-  xhdr(ws, 19, 3,  "MAKE");
-  xhdr(ws, 19, 5,  "MODEL");
-  xhdr(ws, 19, 7,  "CHASSIS");
-  xhdr(ws, 19, 10, "YEAR");
-  xhdr(ws, 19, 13, "COLOR");
-  xhdr(ws, 19, 15, "ENGINE SIZE");
-  xhdr(ws, 19, 17, "QTY");
-  xhdr(ws, 19, 18, "CNF$");
-  xhdr(ws, 19, 19, "TOTAL AMOUNT $");
+  // R19: table header
+  ws.mergeCells(19, 2, 19, 3);   // MAKE
+  ws.mergeCells(19, 5, 19, 6);   // CHASSIS
+  ws.mergeCells(19, 7, 19, 8);   // YEAR
+  ws.mergeCells(19, 9, 19, 10);  // COLOR
+  ws.mergeCells(19, 11, 19, 12); // ENGINE SIZE
+  jhdr(19, 1,  "No.");
+  jhdr(19, 2,  "MAKE");
+  jhdr(19, 4,  "MODEL");
+  jhdr(19, 5,  "CHASSIS");
+  jhdr(19, 7,  "YEAR");
+  jhdr(19, 9,  "COLOR");
+  jhdr(19, 11, "ENGINE SIZE");
+  jhdr(19, 13, "QTY");
+  jhdr(19, 14, "CNF$");
+  jhdr(19, 15, "TOTAL AMOUNT $");
   ws.getRow(19).height = 18;
 
-  function applyDataRowFormat(r) {
-    ws.mergeCells(r, 3, r, 4);
+  function dataFmt(r) {
+    ws.mergeCells(r, 2, r, 3);
     ws.mergeCells(r, 5, r, 6);
-    ws.mergeCells(r, 7, r, 9);
-    ws.mergeCells(r, 10, r, 12);
-    ws.mergeCells(r, 13, r, 14);
-    ws.mergeCells(r, 15, r, 16);
-    [2, 3, 5, 7, 10, 13, 15, 17, 18, 19].forEach(c => xborder(ws.getCell(r, c)));
+    ws.mergeCells(r, 7, r, 8);
+    ws.mergeCells(r, 9, r, 10);
+    ws.mergeCells(r, 11, r, 12);
+    [1, 2, 4, 5, 7, 9, 11, 13, 14, 15].forEach(c => jbdr(r, c));
     ws.getRow(r).height = 18;
   }
 
-  applyDataRowFormat(20);
-  applyDataRowFormat(21);
-  xdat(ws, 21, 2,  "1",          { bold: true, align: "center" });
-  xdat(ws, 21, 3,  make);
-  xdat(ws, 21, 5,  model);
-  xdat(ws, 21, 7,  inv.chassisNo);
-  xdat(ws, 21, 10, inv.year ?? "");
-  xdat(ws, 21, 13, inv.color);
-  xdat(ws, 21, 15, inv.engineNo ?? "");
-  xdat(ws, 21, 17, 1,            { align: "center" });
-  xdat(ws, 21, 18, inv.cnfPrice, { numFmt: "#,##0" });
-  xdat(ws, 21, 19, inv.cnfPrice, { numFmt: "#,##0" });
-
-  for (let r = 22; r <= 31; r++) applyDataRowFormat(r);
+  dataFmt(20);
+  dataFmt(21);
+  jset(21, 1,  "1",             { h: "center" });
+  jset(21, 2,  make);
+  jset(21, 4,  model);
+  jset(21, 5,  inv.chassisNo);
+  jset(21, 7,  inv.year ?? "");
+  jset(21, 9,  inv.color);
+  jset(21, 11, inv.engineNo ?? "");
+  jset(21, 13, 1,               { h: "center" });
+  jset(21, 14, inv.cnfPrice,    { numFmt: "#,##0" });
+  jset(21, 15, inv.cnfPrice,    { numFmt: "#,##0" });
+  for (let r = 22; r <= 28; r++) dataFmt(r);
 
   function totalRow(r, label, val) {
-    ws.mergeCells(r, 3, r, 4);
+    ws.mergeCells(r, 2, r, 3);
     ws.mergeCells(r, 5, r, 6);
-    ws.mergeCells(r, 7, r, 9);
-    ws.mergeCells(r, 10, r, 12);
-    ws.mergeCells(r, 13, r, 14);
-    ws.mergeCells(r, 15, r, 17);
-    const lc = ws.getCell(r, 15);
-    lc.value = label;
-    lc.font = { bold: true, size: 9 };
+    ws.mergeCells(r, 7, r, 8);
+    ws.mergeCells(r, 9, r, 10);
+    ws.mergeCells(r, 11, r, 13);
+    const lc = ws.getCell(r, 11);
+    lc.value = label; lc.font = { bold: true, size: 10 };
     lc.alignment = { horizontal: "right", vertical: "middle" };
     xborder(lc);
-    const uc = ws.getCell(r, 18);
-    uc.value = "US$";
-    uc.font = { bold: true, size: 9 };
+    const uc = ws.getCell(r, 14);
+    uc.value = "US$"; uc.font = { bold: true, size: 10 };
     uc.alignment = { horizontal: "center", vertical: "middle" };
     xborder(uc);
-    const vc = ws.getCell(r, 19);
-    vc.value = val;
-    vc.font = { bold: true, size: 9 };
+    const vc = ws.getCell(r, 15);
+    vc.value = val; vc.font = { bold: true, size: 10 };
     vc.alignment = { horizontal: "right", vertical: "middle" };
-    vc.numFmt = "#,##0";
-    xborder(vc);
-    [3, 5, 7, 10, 13].forEach(c => xborder(ws.getCell(r, c)));
+    vc.numFmt = "#,##0"; xborder(vc);
+    [1, 2, 4, 5, 7, 9].forEach(c => jbdr(r, c));
     ws.getRow(r).height = 16;
   }
 
-  totalRow(32, `${advPct}% ADVANCE PAYMENT`, advAmt);
-  totalRow(33, "BALANCE",                    remaining);
+  totalRow(29, `${advPct}% ADVANCE PAYMENT`, advAmt);
+  totalRow(30, "BALANCE", remaining);
 
-  ws.mergeCells(34, 2, 34, 14);
-  const r34note = ws.getCell(34, 2);
-  r34note.value = "Special Notes and Instructions";
-  r34note.font = { bold: true, size: 9 };
-  xborder(r34note);
-  ws.mergeCells(34, 15, 34, 17);
-  const r34lbl = ws.getCell(34, 15);
-  r34lbl.value = "TOTAL SALES PRICE";
-  r34lbl.font = { bold: true, size: 9 };
-  r34lbl.alignment = { horizontal: "right", vertical: "middle" };
-  xborder(r34lbl);
-  const r34us = ws.getCell(34, 18);
-  r34us.value = "US$";
-  r34us.font = { bold: true, size: 9 };
-  r34us.alignment = { horizontal: "center", vertical: "middle" };
-  xborder(r34us);
-  const r34val = ws.getCell(34, 19);
-  r34val.value = inv.cnfPrice;
-  r34val.font = { bold: true, size: 9 };
-  r34val.alignment = { horizontal: "right", vertical: "middle" };
-  r34val.numFmt = "#,##0";
-  xborder(r34val);
-  ws.getRow(34).height = 16;
+  // R31: Special Notes + TOTAL SALES PRICE
+  ws.mergeCells(31, 1, 31, 10);
+  const r31n = ws.getCell(31, 1);
+  r31n.value = "Special Notes and Instructions";
+  r31n.font  = { bold: true, size: 10 }; xborder(r31n);
+  ws.mergeCells(31, 11, 31, 13);
+  const r31l = ws.getCell(31, 11);
+  r31l.value = "TOTAL SALES PRICE"; r31l.font = { bold: true, size: 10 };
+  r31l.alignment = { horizontal: "right", vertical: "middle" }; xborder(r31l);
+  const r31u = ws.getCell(31, 14);
+  r31u.value = "US$"; r31u.font = { bold: true, size: 10 };
+  r31u.alignment = { horizontal: "center", vertical: "middle" }; xborder(r31u);
+  const r31v = ws.getCell(31, 15);
+  r31v.value = inv.cnfPrice; r31v.font = { bold: true, size: 10 };
+  r31v.alignment = { horizontal: "right", vertical: "middle" };
+  r31v.numFmt = "#,##0"; xborder(r31v);
+  ws.getRow(31).height = 16;
 
+  // R32-39: Notes (A) + Intermediary banking (L=12)
   const notes = [
-    [35, "Shipping:",                                                                                                   true],
-    [36, "=>  After receiving deposit/payment original Bill of Lading will be released once full payment is received.", false],
-    [37, "Conditions:",                                                                                                 true],
-    [38, "=>  Please confirm import regulations with your local authority before purchase.",                             false],
-    [39, "=>  Price stated in the invoice does not cover any bank charges.",                                            false],
-    [40, "=>  Or additional charges payable to the bank.",                                                              false],
-    [41, "=>  All bank charges must be paid by the customer.",                                                          false],
-    [42, "=>  This is a computer generated invoice and requires no signature.",                                         false],
+    ["Shipping:",                                                                                                    true],
+    ["=>  After receiving deposit/payment original Bill of Lading will be released once full payment is received.", false],
+    ["Conditions:",                                                                                                  true],
+    ["=>  Please confirm import regulations with your local authority before purchase.",                              false],
+    ["=>  Price stated in the invoice does not cover any bank charges.",                                              false],
+    ["=>  Or additional charges payable to the bank.",                                                               false],
+    ["=>  All bank charges must be paid by the customer.",                                                           false],
+    ["=>  This is a computer generated invoice and requires no signature.",                                          false],
   ];
-  notes.forEach(([r, text, bold]) => {
-    ws.mergeCells(r, 2, r, 19);
-    const c = ws.getCell(r, 2);
-    c.value = text;
-    c.font = { bold, size: 8 };
+  const intBank = [
+    ["",                           false],
+    ["INTERMEDIARY BANKING DETAILS", true],
+    [JDM.intBankName,              false],
+    [JDM.intBranch,                false],
+    [JDM.intAddr,                  false],
+    [JDM.intCity,                  false],
+    [JDM.intPost,                  false],
+    [JDM.intSwift,                 false],
+  ];
+  notes.forEach(([text, bold], i) => {
+    const r = 32 + i;
+    const c = ws.getCell(r, 1);
+    c.value = text; c.font = { bold, size: 10 };
     c.alignment = { vertical: "middle" };
     ws.getRow(r).height = 14;
+  });
+  intBank.forEach(([text, bold], i) => {
+    const r = 32 + i;
+    ws.mergeCells(r, 12, r, 15);
+    const c = ws.getCell(r, 12);
+    c.value = text; c.font = { bold, size: 10 };
+    c.alignment = { horizontal: "left", vertical: "middle" };
   });
 
   const outPath = path.join(OUT, "test-jdm.xlsx");
