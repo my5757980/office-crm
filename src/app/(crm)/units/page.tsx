@@ -4,6 +4,7 @@ import dbConnect from "@/lib/db";
 import Unit from "@/models/Unit";
 import UnitFile from "@/models/UnitFile";
 import Invoice from "@/models/Invoice";
+import UnitFinancial from "@/models/UnitFinancial";
 import TopBar from "@/components/layout/TopBar";
 import UnitsTable from "@/components/units/UnitsTable";
 
@@ -32,15 +33,23 @@ export default async function UnitsPage() {
   }
 
   const unitIds = units.map(u => u._id);
-  const coverFiles = await UnitFile.find({
-    unitId: { $in: unitIds },
-    mimetype: /^image\//,
-  }).select("unitId _id").sort({ uploadedAt: 1 }).lean();
+  const [coverFiles, financials] = await Promise.all([
+    UnitFile.find({ unitId: { $in: unitIds }, mimetype: /^image\// })
+      .select("unitId _id").sort({ uploadedAt: 1 }).lean(),
+    role === "manager"
+      ? UnitFinancial.find({ unitId: { $in: unitIds } }).select("unitId profit").lean()
+      : Promise.resolve([]),
+  ]);
 
   const coverMap: Record<string, string> = {};
   for (const f of coverFiles) {
     const key = f.unitId.toString();
     if (!coverMap[key]) coverMap[key] = (f._id as { toString(): string }).toString();
+  }
+
+  const profitMap: Record<string, number | null> = {};
+  for (const f of financials) {
+    profitMap[(f.unitId as { toString(): string }).toString()] = (f as { profit: number }).profit;
   }
 
   const unitsData = JSON.parse(JSON.stringify(units));
@@ -64,7 +73,7 @@ export default async function UnitsPage() {
           </div>
         ) : (
           <div style={{ background: "#ffffff", border: "1px solid #d0d7de", borderRadius: "10px", overflow: "hidden", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
-            <UnitsTable units={unitsData} coverMap={coverMap} />
+            <UnitsTable units={unitsData} coverMap={coverMap} profitMap={profitMap} role={role} />
           </div>
         )}
       </div>
