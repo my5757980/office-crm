@@ -54,6 +54,8 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
   let costOfUnitUSD = 0;
 
   if (currency === "JPY") {
+    const lotNo      = String(body.lotNo ?? "").trim();
+    const auctionName = String(body.auctionName ?? "").trim();
     const buying    = Number(body.buying)    || 0;
     const domestic  = Number(body.domestic)  || 0;
     const storage   = Number(body.storage)   || 0;
@@ -74,6 +76,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
       { unitId: id },
       {
         unitId: id, currency,
+        lotNo, auctionName,
         buying, domestic, storage, inspect, repairs, misc, agencyFee, freight, dhl,
         exchangeRate, costUSD: 0,
         costOfUnitJPY, costOfUnitUSD,

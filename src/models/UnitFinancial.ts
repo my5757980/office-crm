@@ -3,6 +3,9 @@ import mongoose, { Schema, Document } from "mongoose";
 export interface IUnitFinancial extends Document {
   unitId:       mongoose.Types.ObjectId;
   currency:     "JPY" | "USD";
+  // JPY info fields
+  lotNo:        string;
+  auctionName:  string;
   // JPY breakdown fields (stored in JPY)
   buying:       number;
   domestic:     number;
@@ -29,6 +32,8 @@ const UnitFinancialSchema = new Schema<IUnitFinancial>(
   {
     unitId:       { type: Schema.Types.ObjectId, ref: "Unit", required: true, unique: true, index: true },
     currency:     { type: String, enum: ["JPY", "USD"], required: true },
+    lotNo:        { type: String, default: "" },
+    auctionName:  { type: String, default: "" },
     buying:       { type: Number, default: 0 },
     domestic:     { type: Number, default: 0 },
     storage:      { type: Number, default: 0 },
