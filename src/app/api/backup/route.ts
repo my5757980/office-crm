@@ -5,6 +5,7 @@ import Lead from "@/models/Lead";
 import Invoice from "@/models/Invoice";
 import Payment from "@/models/Payment";
 import Unit from "@/models/Unit";
+import UnitFinancial from "@/models/UnitFinancial";
 import ExcelJS from "exceljs";
 
 export async function GET() {
@@ -18,11 +19,12 @@ export async function GET() {
 
   await dbConnect();
 
-  const [leads, invoices, payments, units] = await Promise.all([
+  const [leads, invoices, payments, units, financials] = await Promise.all([
     Lead.find().populate("createdBy", "name email").lean(),
     Invoice.find().populate("createdBy", "name email").populate("approvedBy", "name").populate("leadId", "customerName").lean(),
     Payment.find().populate("invoiceId", "unit chassisNo").populate("recordedBy", "name email").lean(),
     Unit.find().populate("createdBy", "name email").populate("invoiceId", "unit chassisNo").lean(),
+    UnitFinancial.find().populate("unitId", "make carModel year chassis").lean(),
   ]);
 
   const wb = new ExcelJS.Workbook();
@@ -192,6 +194,67 @@ export async function GET() {
       location:     u.location ?? "",
       createdBy:    u.createdBy?.name ?? "",
       createdAt:    u.createdAt ? new Date(u.createdAt).toLocaleDateString("en-GB") : "",
+    });
+  });
+
+  // ── Sheet 5: Financial ─────────────────────────────────────────
+  const wsFinancial = wb.addWorksheet("Financial");
+  wsFinancial.columns = [
+    { key: "no",           width: 6  },
+    { key: "chassis",      width: 20 },
+    { key: "vehicle",      width: 22 },
+    { key: "currency",     width: 10 },
+    { key: "lotNo",        width: 14 },
+    { key: "auctionName",  width: 20 },
+    { key: "buying",       width: 16 },
+    { key: "domestic",     width: 14 },
+    { key: "storage",      width: 14 },
+    { key: "inspect",      width: 14 },
+    { key: "repairs",      width: 14 },
+    { key: "misc",         width: 12 },
+    { key: "agencyFee",    width: 14 },
+    { key: "freight",      width: 14 },
+    { key: "dhl",          width: 12 },
+    { key: "costOfUnitJPY",width: 18 },
+    { key: "exchangeRate", width: 14 },
+    { key: "costOfUnitUSD",width: 18 },
+    { key: "directCostUSD",width: 18 },
+    { key: "sellingPrice", width: 16 },
+    { key: "profit",       width: 16 },
+    { key: "updatedAt",    width: 16 },
+  ];
+  applyHeaders(wsFinancial, [
+    "#", "Chassis", "Vehicle", "Currency",
+    "Lot No.", "Auction Name",
+    "Buying (¥)", "Domestic (¥)", "Storage (¥)", "Inspect (¥)", "Repairs (¥)", "Misc (¥)", "Agency Fee (¥)", "Freight (¥)", "DHL (¥)",
+    "Cost of Unit (¥)", "Exchange Rate", "Cost of Unit (USD)",
+    "Direct Cost (USD)", "Selling Price (USD)", "Profit (USD)", "Updated At",
+  ]);
+  financials.forEach((f: any, i) => {
+    const isJPY = f.currency === "JPY";
+    wsFinancial.addRow({
+      no:            i + 1,
+      chassis:       f.unitId?.chassis ?? "",
+      vehicle:       f.unitId ? `${f.unitId.year} ${f.unitId.make} ${f.unitId.carModel}` : "",
+      currency:      f.currency ?? "",
+      lotNo:         f.lotNo ?? "",
+      auctionName:   f.auctionName ?? "",
+      buying:        isJPY ? (f.buying ?? 0) : "",
+      domestic:      isJPY ? (f.domestic ?? 0) : "",
+      storage:       isJPY ? (f.storage ?? 0) : "",
+      inspect:       isJPY ? (f.inspect ?? 0) : "",
+      repairs:       isJPY ? (f.repairs ?? 0) : "",
+      misc:          isJPY ? (f.misc ?? 0) : "",
+      agencyFee:     isJPY ? (f.agencyFee ?? 0) : "",
+      freight:       isJPY ? (f.freight ?? 0) : "",
+      dhl:           isJPY ? (f.dhl ?? 0) : "",
+      costOfUnitJPY: isJPY ? (f.costOfUnitJPY ?? 0) : "",
+      exchangeRate:  isJPY ? (f.exchangeRate ?? 0) : "",
+      costOfUnitUSD: isJPY ? (f.costOfUnitUSD ?? 0) : "",
+      directCostUSD: isJPY ? "" : (f.costUSD ?? 0),
+      sellingPrice:  f.sellingPrice ?? 0,
+      profit:        f.profit ?? 0,
+      updatedAt:     f.updatedAt ? new Date(f.updatedAt).toLocaleDateString("en-GB") : "",
     });
   });
 
