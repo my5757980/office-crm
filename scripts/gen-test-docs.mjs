@@ -358,6 +358,15 @@ async function genJDM() {
     ws.getColumn(c).style = { font: { size: 10, name: "Calibri" } };
   }
 
+  // A4 landscape — fills page when Ctrl+P
+  ws.pageSetup = {
+    paperSize: 9,
+    orientation: "landscape",
+    fitToPage: true,
+    fitToWidth: 1,
+    fitToHeight: 0,
+  };
+
   // Logo image (rows 1-2, col A)
   const logoImgId = wb.addImage({ buffer: logoBuffer, extension: "png" });
   ws.addImage(logoImgId, { tl: { col: 0, row: 0 }, ext: { width: 200, height: 80 } });
@@ -367,7 +376,7 @@ async function genJDM() {
   function jset(r, c, val, opts = {}) {
     const cell = ws.getCell(r, c);
     cell.value = val;
-    cell.font = { bold: opts.bold ?? false, size: opts.size ?? 10, color: opts.color ? { argb: opts.color } : undefined };
+    cell.font = { bold: opts.bold ?? false, size: opts.size ?? 10, color: opts.color ? { argb: opts.color } : undefined, underline: opts.underline ? "single" : undefined };
     cell.alignment = { horizontal: opts.h ?? "left", vertical: "middle", wrapText: opts.wrap ?? false };
     if (opts.numFmt) cell.numFmt = opts.numFmt;
   }
@@ -384,10 +393,10 @@ async function genJDM() {
   // R3: company name (E=5) + banking label (K=11)
   ws.getRow(3).height = 19.5;
   jset(3, 5,  JDM.name,                          { bold: true, size: 15, color: "FF8B0000" });
-  jset(3, 11, "BANKING DETAILS",                  { bold: true });
+  jset(3, 11, "BANKING DETAILS",                  { bold: true, underline: true });
 
   // R4-9: address (E) + banking lines (K)
-  jset(4, 5,  "ADDRESS",                          { bold: true });
+  jset(4, 5,  "ADDRESS",                          { bold: true, underline: true });
   jset(4, 11, `ACCOUNT NAME: ${JDM.accountName}`);
   jset(5, 5,  JDM.addr1);
   jset(5, 11, `BANK NAME: ${JDM.bankName}`);
@@ -400,8 +409,8 @@ async function genJDM() {
   jset(9, 11, `SWIFT CODE: ${JDM.swift}`);
 
   // R10: CONSIGNEE + NOTIFY PARTY
-  jset(10, 1, "CONSIGNEE",    { bold: true });
-  jset(10, 6, "NOTIFY PARTY", { bold: true });
+  jset(10, 1, "CONSIGNEE",    { bold: true, underline: true });
+  jset(10, 6, "NOTIFY PARTY", { bold: true, underline: true });
   ws.getRow(10).height = 18;
   ws.getRow(11).height = 8;
 
@@ -568,7 +577,7 @@ async function genJDM() {
     const r = 32 + i;
     ws.mergeCells(r, 12, r, 15);
     const c = ws.getCell(r, 12);
-    c.value = text; c.font = { bold, size: 10 };
+    c.value = text; c.font = { bold, size: 10, underline: bold ? "single" : undefined };
     c.alignment = { horizontal: "left", vertical: "middle" };
   });
 
