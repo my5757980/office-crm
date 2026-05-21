@@ -72,13 +72,15 @@ type CellDef = {
   shade?: string;
   colSpan?: number;
   vMerge?: "restart" | "continue";
+  align?: "left" | "right";
 };
 
 function makeCell(def: CellDef): TableCell {
   const sz = (def.size ?? 7) * 2;
+  const align = def.align === "right" ? AlignmentType.RIGHT : AlignmentType.LEFT;
   const paragraphs = def.lines.map(line =>
     new Paragraph({
-      alignment: AlignmentType.LEFT,
+      alignment: align,
       spacing: { before: 0, after: 0 },
       children: [new TextRun({ text: line, bold: def.bold ?? false, size: sz, font: "Calibri" })],
     })
@@ -117,11 +119,11 @@ function hdrPara(text: string, opts: { size?: number; color?: string; bold?: boo
   });
 }
 
-function termPara(text: string) {
+function termPara(text: string, num: number) {
   return new Paragraph({
     alignment: AlignmentType.BOTH,
     spacing: { after: 0, before: 0 },
-    children: [new TextRun({ text, size: 6 * 2, font: "Calibri" })],
+    children: [new TextRun({ text: `${num}. ${text}`, size: 6 * 2, font: "Calibri" })],
   });
 }
 
@@ -273,13 +275,13 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
                 }),
               ],
             }),
-            row(empty(6), { lines: [salesPerson, "Director International Sales"], bold: true, colSpan: 6 }),
+            row(empty(6), { lines: [salesPerson, "Director International Sales"], bold: true, colSpan: 6, align: "right" }),
           ],
         }),
 
         new Paragraph({ spacing: { after: 40 }, children: [] }),
         new Paragraph({ spacing: { after: 0 }, children: [new TextRun({ text: "Terms and Conditions:", font: "Calibri" })] }),
-        ...TERMS.map(t => termPara(t)),
+        ...TERMS.map((t, i) => termPara(t, i + 1)),
       ],
     }],
   });
