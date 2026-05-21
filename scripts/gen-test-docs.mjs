@@ -353,6 +353,10 @@ async function genJDM() {
     { width: 7.0  }, { width: 7.86 }, { width: 7.0  }, { width: 7.14 }, { width: 6.57 },
     { width: 8.86 }, { width: 11.0 }, { width: 7.0  }, { width: 9.0  }, { width: 17.29 },
   ];
+  // Default font size 10 to match original
+  for (let c = 1; c <= 15; c++) {
+    ws.getColumn(c).style = { font: { size: 10, name: "Calibri" } };
+  }
 
   // Logo image (rows 1-2, col A)
   const logoImgId = wb.addImage({ buffer: logoBuffer, extension: "png" });
@@ -567,6 +571,45 @@ async function genJDM() {
     c.value = text; c.font = { bold, size: 10 };
     c.alignment = { horizontal: "left", vertical: "middle" };
   });
+
+  // ── Section box borders ──────────────────────────────────────────────────
+  const T = { style: "thin" };
+  function addBdr(r, c, top, bot, lft, rgt) {
+    const cell = ws.getCell(r, c);
+    const cur = cell.border || {};
+    cell.border = {
+      top:    top ? T : cur.top,
+      bottom: bot ? T : cur.bottom,
+      left:   lft ? T : cur.left,
+      right:  rgt ? T : cur.right,
+    };
+  }
+
+  // Banking box: K(11)–O(15), rows 3–9
+  for (let c = 11; c <= 15; c++) addBdr(3, c,  true,  false, c===11, c===15);
+  for (let r = 4;  r <= 8;  r++) { addBdr(r, 11, false, false, true, false); addBdr(r, 15, false, false, false, true); }
+  for (let c = 11; c <= 15; c++) addBdr(9, c,  false, true,  c===11, c===15);
+
+  // CONSIGNEE box: A(1)–D(4), rows 10–17
+  for (let c = 1;  c <= 4;  c++) addBdr(10, c, true,  false, c===1,  c===4);
+  for (let r = 11; r <= 16; r++) { addBdr(r, 1, false, false, true, false); addBdr(r, 4, false, false, false, true); }
+  for (let c = 1;  c <= 4;  c++) addBdr(17, c, false, true,  c===1,  c===4);
+
+  // NOTIFY PARTY box: F(6)–I(9), rows 10–17
+  for (let c = 6;  c <= 9;  c++) addBdr(10, c, true,  false, c===6,  c===9);
+  for (let r = 11; r <= 16; r++) { addBdr(r, 6, false, false, true, false); addBdr(r, 9, false, false, false, true); }
+  for (let c = 6;  c <= 9;  c++) addBdr(17, c, false, true,  c===6,  c===9);
+
+  // DATE row: K(11)–O(15), row 15 — top + left + right
+  for (let c = 11; c <= 15; c++) addBdr(15, c, true,  false, c===11, c===15);
+
+  // INVOICE# row: K(11)–O(15), row 16 — bottom + left + right
+  for (let c = 11; c <= 15; c++) addBdr(16, c, false, true,  c===11, c===15);
+
+  // Intermediary banking box: L(12)–O(15), rows 33–39
+  for (let c = 12; c <= 15; c++) addBdr(33, c, true,  false, c===12, c===15);
+  for (let r = 34; r <= 38; r++) { addBdr(r, 12, false, false, true, false); addBdr(r, 15, false, false, false, true); }
+  for (let c = 12; c <= 15; c++) addBdr(39, c, false, true,  c===12, c===15);
 
   const outPath = path.join(OUT, "test-jdm.xlsx");
   await wb.xlsx.writeFile(outPath);
