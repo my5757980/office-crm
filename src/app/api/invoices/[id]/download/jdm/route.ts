@@ -112,6 +112,10 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     { width: 9.0  },  // N  (14) CNF$ / US$
     { width: 17.29 }, // O  (15) TOTAL AMOUNT $
   ];
+  // Default font size 10 to match original (blank cells inherit this)
+  for (let c = 1; c <= 15; c++) {
+    ws.getColumn(c).style = { font: { size: 10, name: "Calibri" } };
+  }
 
   // ── Logo image (rows 1-2, col A) ────────────────────────────────────────────
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -280,6 +284,18 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     ws.getRow(r).height = 16;
   }
 
+  // Adds border sides without wiping existing sides on the cell
+  function addBdr(r: number, c: number, top: boolean, bot: boolean, lft: boolean, rgt: boolean) {
+    const cell = ws.getCell(r, c);
+    const cur: ExcelJS.Borders = (cell.border as ExcelJS.Borders) || {};
+    cell.border = {
+      top:    top ? THIN : cur.top,
+      bottom: bot ? THIN : cur.bottom,
+      left:   lft ? THIN : cur.left,
+      right:  rgt ? THIN : cur.right,
+    };
+  }
+
   // ── Row 29: Advance payment ───────────────────────────────────────────────
   totalRow(29, `${advPct}% ADVANCE PAYMENT`, advanceAmt);
 
@@ -354,6 +370,34 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     c.font  = { bold, size: 10 };
     c.alignment = { horizontal: "left", vertical: "middle" };
   });
+
+  // ── Section box borders ──────────────────────────────────────────────────
+
+  // Banking box: K(11)–O(15), rows 3–9
+  for (let c = 11; c <= 15; c++) addBdr(3, c,  true,  false, c===11, c===15);
+  for (let r = 4;  r <= 8;  r++) { addBdr(r, 11, false, false, true, false); addBdr(r, 15, false, false, false, true); }
+  for (let c = 11; c <= 15; c++) addBdr(9, c,  false, true,  c===11, c===15);
+
+  // CONSIGNEE box: A(1)–D(4), rows 10–17
+  for (let c = 1;  c <= 4;  c++) addBdr(10, c, true,  false, c===1,  c===4);
+  for (let r = 11; r <= 16; r++) { addBdr(r, 1, false, false, true, false); addBdr(r, 4, false, false, false, true); }
+  for (let c = 1;  c <= 4;  c++) addBdr(17, c, false, true,  c===1,  c===4);
+
+  // NOTIFY PARTY box: F(6)–I(9), rows 10–17
+  for (let c = 6;  c <= 9;  c++) addBdr(10, c, true,  false, c===6,  c===9);
+  for (let r = 11; r <= 16; r++) { addBdr(r, 6, false, false, true, false); addBdr(r, 9, false, false, false, true); }
+  for (let c = 6;  c <= 9;  c++) addBdr(17, c, false, true,  c===6,  c===9);
+
+  // DATE row: K(11)–O(15), row 15 (merged K:O) — top + left + right
+  for (let c = 11; c <= 15; c++) addBdr(15, c, true,  false, c===11, c===15);
+
+  // INVOICE# row: K(11)–O(15), row 16 (merged K:O) — bottom + left + right
+  for (let c = 11; c <= 15; c++) addBdr(16, c, false, true,  c===11, c===15);
+
+  // Intermediary banking box: L(12)–O(15), rows 33–39
+  for (let c = 12; c <= 15; c++) addBdr(33, c, true,  false, c===12, c===15);
+  for (let r = 34; r <= 38; r++) { addBdr(r, 12, false, false, true, false); addBdr(r, 15, false, false, false, true); }
+  for (let c = 12; c <= 15; c++) addBdr(39, c, false, true,  c===12, c===15);
 
   const buffer = await wb.xlsx.writeBuffer();
 
