@@ -7,7 +7,7 @@ import UnitFinancial from "@/models/UnitFinancial";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
-const CAN_EDIT = ["manager", "super_admin"];
+const CAN_EDIT = ["manager"];
 
 export async function GET(_req: NextRequest, { params }: RouteContext) {
   const session = await auth();

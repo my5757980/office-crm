@@ -465,8 +465,8 @@ export default function UnitDetail({ unit, documents: initialDocs, role, payment
         </div>
       )}
 
-      {/* Financial / Profit — managers only */}
-      {canManage && <UnitFinancial unitId={unit._id} />}
+      {/* Financial / Profit — manager only */}
+      {role === "manager" && <UnitFinancial unitId={unit._id} />}
 
       {/* Document Folders */}
       <div style={cardStyle}>
