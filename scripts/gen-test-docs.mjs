@@ -280,6 +280,192 @@ async function genSBK() {
   console.log("SBK Word saved:", outPath);
 }
 
+// ─── SBK Excel ────────────────────────────────────────────────────────────────
+async function genSBKExcel() {
+  const date        = new Date(inv.createdAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+  const docNo       = `K-${new Date(inv.createdAt).getFullYear().toString().slice(2)}-${String(inv._id).slice(-5).toUpperCase()}`;
+  const invNo       = `SBK${String(inv._id).slice(-5).toUpperCase()}`;
+  const advPct      = inv.advancePercent ?? 50;
+  const advanceAmt  = Math.round(inv.cnfPrice * advPct / 100);
+  const remaining   = inv.cnfPrice - advanceAmt;
+  const words       = amountToWords(inv.cnfPrice);
+  const salesPerson = inv.salesperson || "TBA";
+  const trFuel      = `${inv.transmission || "TBA"} ${inv.fuel || "TBA"}`;
+  const yearLine    = inv.year || "—";
+
+  const logoBuffer  = Buffer.from(fs.readFileSync(path.join(ROOT, "public", "images", "sbk-logo.jpg")));
+  const stampBuffer = Buffer.from(fs.readFileSync(path.join(ROOT, "public", "images", "sbk-stamp.jpg")));
+
+  const wb = new ExcelJS.Workbook();
+  wb.creator = "SBK CRM";
+  const ws = wb.addWorksheet("INVOICE");
+
+  ws.columns = [
+    { width: 7.14  }, { width: 9.00  }, { width: 8.29  }, { width: 6.29  },
+    { width: 10.29 }, { width: 12.71 }, { width: 6.29  }, { width: 13.86 },
+    { width: 10.29 }, { width: 9.14  },
+  ];
+  for (let c = 1; c <= 10; c++) ws.getColumn(c).style = { font: { size: 7, name: "Calibri" } };
+
+  ws.pageSetup = {
+    paperSize: 9, orientation: "portrait", fitToPage: false, scale: 100,
+    printArea: "A1:J59", horizontalCentered: true,
+    margins: { left: 0.45, right: 0.45, top: 0.25, bottom: 0.25, header: 0.3, footer: 0.3 },
+  };
+
+  ws.getRow(2).height  = 21;
+  ws.getRow(9).height  = 21;
+  ws.getRow(22).height = 24;
+  ws.getRow(23).height = 25.5;
+  ws.getRow(24).height = 25.5;
+  ws.getRow(25).height = 25.5;
+
+  const logoId  = wb.addImage({ buffer: logoBuffer,  extension: "jpeg" });
+  const stampId = wb.addImage({ buffer: stampBuffer, extension: "jpeg" });
+  ws.addImage(logoId,  { tl: { col: 6,   row: 0  }, br: { col: 9.9, row: 5.8 }, editAs: "oneCell" });
+  ws.addImage(stampId, { tl: { col: 7.2, row: 39 }, br: { col: 9.0, row: 47  }, editAs: "oneCell" });
+
+  const T    = { style: "thin" };
+  const ALL  = { top: T, bottom: T, left: T, right: T };
+  const GRAY = { type: "pattern", pattern: "solid", fgColor: { argb: "FFD9D9D9" }, bgColor: { argb: "FFD9D9D9" } };
+
+  function sset(r, c, val, opts = {}) {
+    const cell = ws.getCell(r, c);
+    cell.value = val;
+    cell.font  = { name: "Calibri", size: opts.size ?? 7, bold: opts.bold ?? false,
+                   color: opts.color ? { argb: opts.color } : undefined };
+    cell.alignment = { horizontal: opts.h ?? "left", vertical: opts.v ?? "middle",
+                       wrapText: opts.wrap ?? false };
+    if (opts.fill)   cell.fill   = opts.fill;
+    if (opts.border) cell.border = opts.border;
+    if (opts.numFmt) cell.numFmt = opts.numFmt;
+  }
+
+  sset(2, 1, "SBK Global Auto Trading FZC LLC", { bold: true, size: 16, color: "FF1F497D" });
+  for (const [r, txt] of [[3, SBK_INFO.addr1],[4, SBK_INFO.addr2],[5, SBK_INFO.web],[6, SBK_INFO.email],[7, SBK_INFO.phone]])
+    sset(r, 1, txt, { bold: true, size: 8, color: "FFC00000" });
+
+  ws.mergeCells(9, 1, 9, 10);
+  sset(9, 1, "INVOICE", { bold: true, size: 14, h: "center", fill: GRAY, border: ALL });
+
+  ws.mergeCells(10, 1, 10, 10);
+  sset(10, 1, "CONSIGNEE :", { bold: true, wrap: true, border: ALL });
+
+  ws.mergeCells(11, 4, 21, 4); ws.getCell(11, 4).border = ALL;
+  ws.mergeCells(11, 7, 21, 7); ws.getCell(11, 7).border = ALL;
+
+  const leftLabels  = ["Name", "Address", "Port", "Country", "Phone", "Email"];
+  const leftVals    = [`: ${inv.consignee.name || ""}`, `: ${inv.consignee.address || ""}`,
+    `: ${inv.consignee.port || ""}`, `: ${inv.consignee.country || ""}`, `: ${inv.consignee.phone || ""}`, ": N/A"];
+  const midLabels   = ["DATE", "DOCUMENT NO", "INVOICE", "SALES PERSON", "SHIPMENT TYPE", "INCOTERM"];
+  const midVals     = [`: ${date}`, `: ${docNo}`, `: ${invNo}`, `: ${salesPerson}`, ": RORO", ": C&F"];
+  const rightLabels = ["HAULIER", "VESSEL", "PORT OF LOADING", "PORT OF UNLOADING", "ETD", "COUNTRY"];
+  const rightVals   = [": TBA", ": TBA", ": ANY", `: ${inv.consignee.port || ""}`, ": N/A", `: ${inv.consignee.country || ""}`];
+
+  for (let i = 0; i < 6; i++) {
+    const r = 11 + i;
+    ws.mergeCells(r, 2, r, 3); ws.mergeCells(r, 9, r, 10);
+    sset(r, 1, leftLabels[i],  { border: ALL, wrap: true });
+    sset(r, 2, leftVals[i],    { border: ALL, wrap: true });
+    sset(r, 5, midLabels[i],   { border: ALL, wrap: true });
+    sset(r, 6, midVals[i],     { border: ALL, wrap: true });
+    sset(r, 8, rightLabels[i], { border: ALL, wrap: true });
+    sset(r, 9, rightVals[i],   { border: ALL, wrap: true });
+  }
+
+  ws.mergeCells(17, 1, 17, 3); ws.mergeCells(18, 1, 18, 3);
+  ws.mergeCells(19, 1, 19, 3); ws.mergeCells(20, 1, 21, 3);
+  ws.mergeCells(17, 5, 21, 6); ws.mergeCells(17, 8, 19, 10);
+  ws.mergeCells(20, 9, 20, 10); ws.mergeCells(21, 9, 21, 10);
+  ws.getCell(17, 1).border = ALL; ws.getCell(17, 5).border = ALL; ws.getCell(17, 8).border = ALL;
+  sset(18, 1, "NOTIFY PARTY :", { bold: true, wrap: true, border: ALL });
+  sset(19, 1, "Same as consignee", { wrap: true, border: ALL });
+  ws.getCell(20, 1).border = ALL;
+  sset(20, 8, "PAYMENT TERMS", { bold: true, fill: GRAY, border: ALL });
+  sset(20, 9, `${advPct}% (Advance Payment)`, { bold: true, h: "left", fill: GRAY, border: ALL });
+  sset(21, 8, "CURRENCY", { bold: true, fill: GRAY, border: ALL });
+  sset(21, 9, " US$",     { bold: true, h: "left", fill: GRAY, border: ALL });
+
+  ws.mergeCells(22, 2, 22, 3); ws.mergeCells(22, 5, 22, 6);
+  const TH = { bold: true, fill: GRAY, border: ALL, h: "center", v: "middle", wrap: true };
+  sset(22, 1,  "S.No.",                          TH);
+  sset(22, 2,  "Chassis No. (STOCK ID)\nORIGIN", TH);
+  sset(22, 4,  "Qty",                            TH);
+  sset(22, 5,  "DESCRIPTION & DETAILS",          TH);
+  sset(22, 7,  "Year / CC",                      TH);
+  sset(22, 8,  "Transmission/Fuel",              TH);
+  sset(22, 9,  "C&F US$",                        TH);
+  sset(22, 10, "TOTAL US$",                      TH);
+
+  ws.mergeCells(23, 2, 23, 3); ws.mergeCells(23, 5, 23, 6);
+  const VD = { h: "center", v: "middle", border: ALL, wrap: true };
+  sset(23, 1,  1,                                        VD);
+  sset(23, 2,  `${inv.chassisNo || "—"}\nORIGIN: JAPAN`, VD);
+  sset(23, 4,  1,                                        VD);
+  sset(23, 5,  inv.unit || "—",                          VD);
+  sset(23, 7,  yearLine,                                 VD);
+  sset(23, 8,  trFuel,                                   VD);
+  sset(23, 9,  inv.cnfPrice, { ...VD, numFmt: "#,##0" });
+  sset(23, 10, inv.cnfPrice, { ...VD, numFmt: "#,##0" });
+
+  for (const r of [24, 25]) {
+    ws.mergeCells(r, 2, r, 3); ws.mergeCells(r, 5, r, 6);
+    for (let c = 1; c <= 10; c++) { if (c !== 3 && c !== 6) ws.getCell(r, c).border = ALL; }
+  }
+
+  ws.mergeCells(26, 8, 26, 9); ws.mergeCells(27, 8, 27, 9); ws.mergeCells(28, 8, 28, 9);
+  const SL = { bold: true, border: { left: T, top: T, bottom: T } };
+  sset(26, 8, "TOTAL AMOUNT",     SL);
+  sset(27, 8, "50% AMOUNT",       SL);
+  sset(28, 8, "Remaining Balance", SL);
+  for (const [r, v] of [[26, inv.cnfPrice],[27, advanceAmt],[28, remaining]])
+    sset(r, 10, v, { bold: true, h: "center", numFmt: "#,##0", border: ALL });
+
+  ws.mergeCells(29, 1, 29, 10);
+  sset(29, 1, `TOTAL AMOUNT VALUE IN WORDS : ${words} US DOLLARS ONLY`,
+    { bold: true, border: { left: T, top: T, bottom: T } });
+
+  ws.mergeCells(30, 1, 30, 10);
+  sset(30, 1, `INVOICE : ${invNo}`, { bold: true, border: { left: T, top: T, bottom: T } });
+
+  ws.mergeCells(31, 1, 31, 10);
+
+  ws.mergeCells(32, 1, 32, 5); ws.mergeCells(32, 6, 39, 6); ws.mergeCells(32, 7, 39, 10);
+  sset(32, 1, "SHIPPER'S BANK DETAILS:", { bold: true, border: ALL });
+  sset(32, 7, "REMARKS:\nPLEASE PAY BANK CHARGES OR PAYPAL CHARGES OR CREDIT CARD CHARGES.\n\nPLEASE READ TERMS AND CONDITION BELOW.",
+    { h: "left", v: "top", wrap: true, border: ALL });
+
+  const bankRows = [
+    ["ACCOUNT",     SBK_INFO.bankAccount], ["BANK",        SBK_INFO.bankName],
+    ["BRANCH",      SBK_INFO.bankBranch],  ["ADDRESS",     SBK_INFO.bankAddress],
+    ["IBAN",        SBK_INFO.iban],        ["ACCOUNT NO:", SBK_INFO.accountNo],
+    ["SWIFT CODE:", SBK_INFO.swift],
+  ];
+  bankRows.forEach(([label, value], i) => {
+    const r = 33 + i;
+    ws.mergeCells(r, 1, r, 2); ws.mergeCells(r, 3, r, 5);
+    sset(r, 1, label, { bold: true, wrap: true, border: ALL });
+    sset(r, 3, value, { bold: true, wrap: true, border: ALL });
+  });
+
+  ws.mergeCells(40, 7, 47, 10);
+  ws.mergeCells(48, 7, 48, 10);
+  ws.mergeCells(49, 7, 49, 10);
+  sset(49, 7, "SM Khurram Rashid", { bold: true, size: 10, h: "center",
+    border: { bottom: T } });
+
+  ws.mergeCells(50, 1, 59, 10);
+  const tc = ws.getCell(50, 1);
+  tc.value     = "Terms and Conditions:\n1) All Customer payments shall be made through Telegraphic Transfer (TT).\n2) Customer shall state the Proforma Invoice No. as reference for payment.\n3) The proof of payment shall be emailed by the Customer to SBK Global Auto Trading.\n4) Deposit/Payment must be paid within given Reservation Period of three (07) working days.\n5) The Issuing & Correspondence Bank charges shall be paid by the Customer.\n6) The estimated shipment date would take place within three (03) weeks.\n7) Any amendment request for BL, after shipment instruction, shall incur USD50 on each such adjustment.\n8) Customer need to ensure balance payment within 1 week of the issuance of Bill of Lading.\n9) Customer should settle timeously, and shall not hold SBK Global Auto Trading responsible for any delay.\n10) Should there be any delay of payment, additional Yard Fees would be charged at USD 3/per day.";
+  tc.font      = { name: "Calibri", size: 6 };
+  tc.alignment = { horizontal: "left", vertical: "top", wrapText: true };
+  tc.border    = { top: T };
+
+  const outPath = path.join(OUT, "test-sbk-excel.xlsx");
+  await wb.xlsx.writeFile(outPath);
+  console.log("SBK Excel saved:", outPath);
+}
+
 // ─── JDM Excel ────────────────────────────────────────────────────────────────
 const JDM = {
   name:        "JDM TRADING CO. LTD",
@@ -632,5 +818,6 @@ async function genJDM() {
 
 // ─── Run ──────────────────────────────────────────────────────────────────────
 await genSBK();
+await genSBKExcel();
 await genJDM();
-console.log("\nBoth files saved to:", OUT);
+console.log("\nAll files saved to:", OUT);
