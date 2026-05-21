@@ -3,6 +3,8 @@ import { auth } from "@/lib/auth";
 import dbConnect from "@/lib/db";
 import Invoice from "@/models/Invoice";
 import ExcelJS from "exceljs";
+import fs from "fs";
+import path from "path";
 
 const CAN_DOWNLOAD = ["super_admin"];
 
@@ -85,6 +87,9 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const make  = unitParts[0] ?? inv.unit;
   const model = unitParts.slice(1).join(" ") || inv.unit;
 
+  const logoPath   = path.join(process.cwd(), "public", "images", "jdm-logo.png");
+  const logoBuffer = fs.readFileSync(logoPath);
+
   const wb = new ExcelJS.Workbook();
   wb.creator = "SBK CRM";
   const ws = wb.addWorksheet("INVOICE");
@@ -108,9 +113,12 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     { width: 17.29 }, // O  (15) TOTAL AMOUNT $
   ];
 
-  // ── Rows 1-2: empty ─────────────────────────────────────────────────────────
-  ws.getRow(1).height = 10;
-  ws.getRow(2).height = 10;
+  // ── Logo image (rows 1-2, col A) ────────────────────────────────────────────
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const logoImgId = wb.addImage({ buffer: logoBuffer as any, extension: "png" });
+  ws.addImage(logoImgId, { tl: { col: 0, row: 0 }, ext: { width: 200, height: 80 } });
+  ws.getRow(1).height = 45;
+  ws.getRow(2).height = 45;
 
   // ── Row 3: Company name (E) + BANKING DETAILS (K) ────────────────────────
   ws.getRow(3).height = 19.5;
