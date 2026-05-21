@@ -118,18 +118,18 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     ws.getColumn(c).style = { font: { size: 10, name: "Calibri" } };
   }
 
-  // A4 landscape — fit entire invoice on exactly 1 page when Ctrl+P
-  // scale:undefined prevents ExcelJS from writing scale="100" which overrides fitToPage
+  // A4 landscape — explicit 75% scale (calc: height needs 79%, use 75% for safety)
+  // fitToPage is unreliable across Excel/printer versions; explicit scale is guaranteed
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (ws as any).pageSetup = {
     paperSize: 9,
     orientation: "landscape",
-    fitToPage: true,
-    fitToWidth: 1,
-    fitToHeight: 1,
-    scale: undefined,
+    fitToPage: false,
+    scale: 75,
     printArea: "A1:O39",
-    margins: { left: 0.2, right: 0.2, top: 0.2, bottom: 0.2, header: 0.1, footer: 0.1 },
+    horizontalCentered: true,
+    verticalCentered: true,
+    margins: { left: 0.4, right: 0.4, top: 0.4, bottom: 0.4, header: 0.2, footer: 0.2 },
   };
 
   // ── Logo image (rows 1-2, col A) ────────────────────────────────────────────
