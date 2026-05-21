@@ -177,7 +177,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   set(ws, 12, 6, "SAME AS CONSIGNEE",      {});
   ws.mergeCells(12, 11, 13, 15);
   set(ws, 12, 11, "INVOICE",               { bold: true, size: 18, h: "center", color: "FFFFFFFF" });
-  ws.getCell(12, 11).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF000000" } };
+  ws.getCell(12, 11).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF000000" }, bgColor: { argb: "FF000000" } };
   ws.getRow(12).height = 15;
 
   // ── Row 13: ADDRESS ───────────────────────────────────────────────────────
