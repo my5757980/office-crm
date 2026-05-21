@@ -342,6 +342,8 @@ async function genJDM() {
   const make      = unitParts[0] ?? inv.unit;
   const model     = unitParts.slice(1).join(" ") || inv.unit;
 
+  const logoBuffer = fs.readFileSync(path.join(ROOT, "public", "images", "jdm-logo.png"));
+
   const wb = new ExcelJS.Workbook();
   const ws = wb.addWorksheet("INVOICE");
 
@@ -351,6 +353,12 @@ async function genJDM() {
     { width: 7.0  }, { width: 7.86 }, { width: 7.0  }, { width: 7.14 }, { width: 6.57 },
     { width: 8.86 }, { width: 11.0 }, { width: 7.0  }, { width: 9.0  }, { width: 17.29 },
   ];
+
+  // Logo image (rows 1-2, col A)
+  const logoImgId = wb.addImage({ buffer: logoBuffer, extension: "png" });
+  ws.addImage(logoImgId, { tl: { col: 0, row: 0 }, ext: { width: 200, height: 80 } });
+  ws.getRow(1).height = 45;
+  ws.getRow(2).height = 45;
 
   function jset(r, c, val, opts = {}) {
     const cell = ws.getCell(r, c);
