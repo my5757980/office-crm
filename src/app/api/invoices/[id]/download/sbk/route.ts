@@ -129,7 +129,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const stampId = (wb as any).addImage({ buffer: stampBuffer, extension: "jpeg" });
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  (ws as any).addImage(logoId,  { tl: { col: 6,   row: 0  }, br: { col: 9.9, row: 5.8 }, editAs: "oneCell" });
+  (ws as any).addImage(logoId,  { tl: { col: 6,   row: 0  }, ext: { width: 246, height: 93 }, editAs: "oneCell" });
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (ws as any).addImage(stampId, { tl: { col: 7.2, row: 39 }, br: { col: 9.0, row: 47  }, editAs: "oneCell" });
 
@@ -323,12 +323,15 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   // ── Rows 40–47: stamp image area ──────────────────────────────────────────
   ws.mergeCells(40, 7, 47, 10);
 
-  // ── Row 48: (stamp area continued) ───────────────────────────────────────
+  // ── Row 48: director name ─────────────────────────────────────────────────
   ws.mergeCells(48, 7, 48, 10);
+  set(48, 7, "SM Khurram Rashid", {
+    bold: true, size: 10, h: "center",
+  });
 
-  // ── Row 49: director name ─────────────────────────────────────────────────
+  // ── Row 49: director title ────────────────────────────────────────────────
   ws.mergeCells(49, 7, 49, 10);
-  set(49, 7, "SM Khurram Rashid", {
+  set(49, 7, "Director International Sales", {
     bold: true, size: 10, h: "center",
     border: { bottom: THIN },
   });
