@@ -1,8 +1,14 @@
 "use client";
 
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
+import { useEffect } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { invoiceRequestSchema, InvoiceRequestFormData } from "@/lib/validations";
+
+const COUNTRY_PORT_MAP: Record<string, string> = {
+  Uganda: "Mombasa",
+  Botswana: "Durban",
+};
 
 interface Props {
   leadId: string;
@@ -66,6 +72,8 @@ export default function InvoiceRequestForm({ leadId, defaultConsignee, onSubmit 
   const {
     register,
     handleSubmit,
+    setValue,
+    control,
     formState: { errors, isSubmitting },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } = useForm<InvoiceRequestFormData>({ resolver: zodResolver(invoiceRequestSchema) as any, defaultValues: {
@@ -76,6 +84,12 @@ export default function InvoiceRequestForm({ leadId, defaultConsignee, onSubmit 
     m3Rate: undefined, exchangeRate: undefined, pushPrice: undefined, cnfPrice: undefined,
     advancePercent: 50,
   }});
+
+  const selectedCountry = useWatch({ control, name: "consignee.country" });
+  useEffect(() => {
+    const port = COUNTRY_PORT_MAP[selectedCountry ?? ""];
+    if (port) setValue("consignee.port", port);
+  }, [selectedCountry, setValue]);
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} style={{ display: "flex", flexDirection: "column", gap: "28px" }}>
@@ -91,7 +105,17 @@ export default function InvoiceRequestForm({ leadId, defaultConsignee, onSubmit 
             <input {...register("consignee.phone")} style={inputStyle} placeholder="+92 300 0000000" {...focusHandlers} />
           </Field>
           <Field label="Country" required error={errors.consignee?.country?.message}>
-            <input {...register("consignee.country")} style={inputStyle} placeholder="Country" {...focusHandlers} />
+            <select
+              {...register("consignee.country")}
+              style={{ ...inputStyle, cursor: "pointer" }}
+              onFocus={(e) => { e.target.style.borderColor = "#2563eb"; e.target.style.boxShadow = "0 0 0 3px rgba(37,99,235,0.12)"; }}
+              onBlur={(e) => { e.target.style.borderColor = "#d0d7de"; e.target.style.boxShadow = "none"; }}
+            >
+              <option value="">— Select country —</option>
+              {Object.keys(COUNTRY_PORT_MAP).map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
           </Field>
           <Field label="Port" required error={errors.consignee?.port?.message}>
             <input {...register("consignee.port")} style={inputStyle} placeholder="Destination port" {...focusHandlers} />
