@@ -322,7 +322,7 @@ async function genSBKExcel() {
 
   const logoId  = wb.addImage({ buffer: logoBuffer,  extension: "jpeg" });
   const stampId = wb.addImage({ buffer: stampBuffer, extension: "jpeg" });
-  ws.addImage(logoId,  { tl: { col: 6,   row: 0  }, br: { col: 9.9, row: 5.8 }, editAs: "oneCell" });
+  ws.addImage(logoId,  { tl: { col: 6,   row: 0  }, ext: { width: 246, height: 93 }, editAs: "oneCell" });
   ws.addImage(stampId, { tl: { col: 7.2, row: 39 }, br: { col: 9.0, row: 47  }, editAs: "oneCell" });
 
   const T    = { style: "thin" };
@@ -450,8 +450,9 @@ async function genSBKExcel() {
 
   ws.mergeCells(40, 7, 47, 10);
   ws.mergeCells(48, 7, 48, 10);
+  sset(48, 7, "SM Khurram Rashid", { bold: true, size: 10, h: "center" });
   ws.mergeCells(49, 7, 49, 10);
-  sset(49, 7, "SM Khurram Rashid", { bold: true, size: 10, h: "center",
+  sset(49, 7, "Director International Sales", { bold: true, size: 10, h: "center",
     border: { bottom: T } });
 
   ws.mergeCells(50, 1, 59, 10);
