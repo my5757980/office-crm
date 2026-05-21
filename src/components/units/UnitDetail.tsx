@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import UnitFinancial from "./UnitFinancial";
 
 const FOLDERS = [
   "Auction Details/Pics",
@@ -463,6 +464,9 @@ export default function UnitDetail({ unit, documents: initialDocs, role, payment
           </div>
         </div>
       )}
+
+      {/* Financial / Profit — managers only */}
+      {canManage && <UnitFinancial unitId={unit._id} />}
 
       {/* Document Folders */}
       <div style={cardStyle}>
