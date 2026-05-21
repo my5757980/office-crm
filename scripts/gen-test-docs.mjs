@@ -424,7 +424,8 @@ async function genJDM() {
   jset(12, 2, inv.consignee.name,  { bold: true });
   jset(12, 6, "SAME AS CONSIGNEE");
   ws.mergeCells(12, 11, 13, 15);
-  jset(12, 11, "INVOICE",           { bold: true, size: 18, h: "center" });
+  jset(12, 11, "INVOICE",           { bold: true, size: 18, h: "center", color: "FFFFFFFF" });
+  ws.getCell(12, 11).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1F497D" } };
   ws.getRow(12).height = 15;
 
   // R13: ADDRESS
