@@ -119,14 +119,17 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   }
 
   // A4 landscape — fit entire invoice on exactly 1 page when Ctrl+P
-  ws.pageSetup = {
+  // margins nested inside pageSetup (ExcelJS stores them there, not as separate property)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (ws as any).pageSetup = {
     paperSize: 9,
     orientation: "landscape",
     fitToPage: true,
     fitToWidth: 1,
     fitToHeight: 1,
+    printArea: "A1:O39",
+    margins: { left: 0.2, right: 0.2, top: 0.2, bottom: 0.2, header: 0.1, footer: 0.1 },
   };
-  ws.pageSetup.printArea = "A1:O39";
 
   // ── Logo image (rows 1-2, col A) ────────────────────────────────────────────
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
