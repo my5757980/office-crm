@@ -58,7 +58,7 @@ export default async function UnitDetailPage({
       <TopBar />
       <div style={{ flex: 1, padding: "24px", display: "flex", flexDirection: "column", gap: "16px", background: "#f6f8fa" }}>
         <Link
-          href={`/invoices/${unit.invoiceId}`}
+          href="/units"
           style={{
             display: "inline-flex", alignItems: "center", gap: "6px",
             fontSize: "13px", fontWeight: 500, color: "#656d76", textDecoration: "none",
@@ -67,7 +67,7 @@ export default async function UnitDetailPage({
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <line x1="19" y1="12" x2="5" y2="12" /><polyline points="12 19 5 12 12 5" />
           </svg>
-          Back to Invoice
+          Back to Units
         </Link>
 
         <UnitDetail unit={unitData} documents={docsData} role={role} payments={paymentsData} invoiceCnfPrice={invoiceCnfPrice} coverFileId={coverFileId} />
