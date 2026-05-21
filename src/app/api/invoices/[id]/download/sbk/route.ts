@@ -2,23 +2,18 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import dbConnect from "@/lib/db";
 import Invoice from "@/models/Invoice";
+import ExcelJS from "exceljs";
 import fs from "fs";
 import path from "path";
-import {
-  Document, Packer, Paragraph, Table, TableRow, TableCell, TextRun,
-  AlignmentType, WidthType, BorderStyle, VerticalMergeType, ImageRun,
-} from "docx";
 
 const CAN_DOWNLOAD = ["super_admin"];
 
-const COLS = [397, 289, 509, 621, 54, 2670, 1249, 966, 626, 1315, 1080, 1014];
-
 const SBK_INFO = {
-  addr1: "Address: Amber Gem Tower, Mezzanine Floor, Sheikh Khalifa Street,",
-  addr2: "P.O Box 4848, Ajman, United Arab Emirates",
-  web:   "www.sbkautotrading.com",
-  email: "Email: payment@sbkautotrading.com",
-  phone: "Contact: +971 55 417 7311 (UAE) | +81 3 5050 0251 (Japan) | WhatsApp: +66 991983485 (Thailand)",
+  addr1:       "Address: Amber Gem Tower, Mezzanine Floor, Sheikh Khalifa Street,",
+  addr2:       "P.O Box 4848, Ajman, United Arab Emirates",
+  web:         "www.sbkautotrading.com",
+  email:       "Email: payment@sbkautotrading.com",
+  phone:       "Contact: +971 55 417 7311 (UAE) | +81 3 5050 0251 (Japan) | WhatsApp: +66 991983485 (Thailand)",
   bankAccount: "SBK GLOBAL AUTO TRADING FZC LLC",
   bankName:    "Emirates Islamic",
   bankBranch:  "EI Ibn Batuta Mall",
@@ -26,21 +21,20 @@ const SBK_INFO = {
   iban:        "AE020340003708512932302",
   accountNo:   "3708512932302",
   swift:       "MEBLAEADXXX",
-  remarks:     "REMARKS:\nPLEASE PAY BANK CHARGES OR PAYPAL CHARGES OR CREDIT CARD CHARGES. \n\nPLEASE READ TERMS AND CONDITION BELOW.",
 };
 
-const TERMS = [
-  "All Customer payments shall be made through Telegraphic Transfer (TT), as according to the Country's prevailing Regulations.",
-  "Customer shall state the Proforma Invoice No. as reference for payment in the information area of the TT/SWIFT/LC application.",
-  "The proof of payment shall be emailed by the Customer to SBK Global Auto Trading which would be verified and receipted on realization of funds.",
-  "If the Deposit/Payment is not paid or LC not opened within the given Reservation Period of three (07) workings days or as per agreed Terms, the Exporter reserves the right to sell the vehicle to another customer.",
-  "The Issuing & Correspondence Bank charges shall be paid by the Customer.",
-  "The estimated shipment date would take place within three (03) weeks, after confirmation of satisfactory receipt of Customer Payment/LC Conditions.",
-  "Any amendment request for BL, after shipment instruction, shall incur USD50 on each such adjustment, charged to the customer.",
-  "Customer need to ensure balance payment within 1 week of the issuance of Bill of Lading, the Original Shipping Documents for Customs Clearance purpose shall be couriered/surrendered to the Customer upon full payment received.",
-  "Customer should settle timeously, and Customer shall not hold SBK Global Auto Trading responsible for any delay, arising from the payment delays, nor for any penalties incurred therewith.",
-  "Should there be any delay of payment or opening of LC or shipment confirmation on the part of Customer, additional Yard Fees would be charged to the Customer at USD 3/per day.",
-];
+const TERMS_TEXT =
+  "Terms and Conditions:\n" +
+  "1) All Customer payments shall be made through Telegraphic Transfer (TT), as according to the Country's prevailing Regulations.\n" +
+  "2) Customer shall state the Proforma Invoice No. as reference for payment in the information area of the TT/SWIFT/LC application.\n" +
+  "3) The proof of payment shall be emailed by the Customer to SBK Global Auto Trading which would be verified and receipted on realization of funds.\n" +
+  "4) If the Deposit/Payment is not paid or LC not opened within the given Reservation Period of three (07) workings days or as per agreed Terms, the Exporter reserves the right to sell the vehicle to another customer.\n" +
+  "5) The Issuing & Correspondence Bank charges shall be paid by the Customer.\n" +
+  "6) The estimated shipment date would take place within three (03) weeks, after confirmation of satisfactory receipt of Customer Payment/LC Conditions.\n" +
+  "7) Any amendment request for BL, after shipment instruction, shall incur USD50 on each such adjustment, charged to the customer.\n" +
+  "8) Customer need to ensure balance payment within 1 week of the issuance of Bill of Lading, the Original Shipping Documents for Customs Clearance purpose shall be couriered/surrendered to the Customer upon full payment received.\n" +
+  "9) Customer should settle timeously, and Customer shall not hold SBK Global Auto Trading responsible for any delay, arising from the payment delays, nor for any penalties incurred therewith.\n" +
+  "10) Should there be any delay of payment or opening of LC or shipment confirmation on the part of Customer, additional Yard Fees would be charged to the Customer at USD 3/per day.";
 
 function amountToWords(n: number): string {
   const amt = Math.round(n);
@@ -58,74 +52,11 @@ function amountToWords(n: number): string {
   return c(amt).trim();
 }
 
-function fmt(n: number) {
-  return `$${n.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
-}
-
-const THIN = { style: BorderStyle.SINGLE, size: 1, color: "AAAAAA" };
-const ALL_BORDERS = { top: THIN, bottom: THIN, left: THIN, right: THIN };
-
-type CellDef = {
-  lines: string[];
-  bold?: boolean;
-  size?: number;
-  shade?: string;
-  colSpan?: number;
-  vMerge?: "restart" | "continue";
-  align?: "left" | "right";
-};
-
-function makeCell(def: CellDef): TableCell {
-  const sz = (def.size ?? 7) * 2;
-  const align = def.align === "right" ? AlignmentType.RIGHT : AlignmentType.LEFT;
-  const paragraphs = def.lines.map(line =>
-    new Paragraph({
-      alignment: align,
-      spacing: { before: 0, after: 0 },
-      children: [new TextRun({ text: line, bold: def.bold ?? false, size: sz, font: "Calibri" })],
-    })
-  );
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const opts: any = {
-    children: paragraphs,
-    borders: ALL_BORDERS,
-    margins: { top: 30, bottom: 30, left: 80, right: 80 },
-  };
-  if (def.colSpan && def.colSpan > 1) opts.columnSpan = def.colSpan;
-  if (def.shade) opts.shading = { fill: def.shade, type: "clear", color: "auto" };
-  if (def.vMerge === "restart") opts.verticalMerge = VerticalMergeType.RESTART;
-  if (def.vMerge === "continue") opts.verticalMerge = VerticalMergeType.CONTINUE;
-  return new TableCell(opts);
-}
-
-function row(...cells: CellDef[]): TableRow {
-  return new TableRow({ children: cells.map(makeCell) });
-}
-
-function empty(colSpan = 1): CellDef {
-  return { lines: [""], colSpan };
-}
-
-function hdrPara(text: string, opts: { size?: number; color?: string; bold?: boolean; after?: number } = {}) {
-  return new Paragraph({
-    alignment: AlignmentType.LEFT,
-    spacing: { after: opts.after ?? 20, before: 0 },
-    children: [new TextRun({
-      text, bold: opts.bold ?? true,
-      size: (opts.size ?? 8) * 2,
-      color: opts.color ?? "000000",
-      font: "Calibri",
-    })],
-  });
-}
-
-function termPara(text: string, num: number) {
-  return new Paragraph({
-    alignment: AlignmentType.BOTH,
-    spacing: { after: 0, before: 0 },
-    children: [new TextRun({ text: `${num}. ${text}`, size: 6 * 2, font: "Calibri" })],
-  });
-}
+const THIN = { style: "thin" as const };
+const ALL  = { top: THIN, bottom: THIN, left: THIN, right: THIN };
+const GRAY = { type: "pattern" as const, pattern: "solid" as const, fgColor: { argb: "FFD9D9D9" }, bgColor: { argb: "FFD9D9D9" } };
+const NAVY = "FF1F497D";
+const RED  = "FFC00000";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
@@ -138,160 +69,283 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const inv = await Invoice.findById(id).lean();
   if (!inv) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  const date         = new Date(inv.createdAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
-  const docNo        = `K-${new Date(inv.createdAt).getFullYear().toString().slice(2)}-${String(id).slice(-5).toUpperCase()}`;
-  const invNo        = `SBK${String(id).slice(-5).toUpperCase()}`;
-  const advPct       = inv.advancePercent ?? 50;
-  const advanceAmt   = Math.round(inv.cnfPrice * advPct / 100);
-  const remaining    = inv.cnfPrice - advanceAmt;
-  const words        = amountToWords(inv.cnfPrice);
-  const salesPerson  = inv.salesperson  || "TBA";
-  const transmission = inv.transmission || "TBA";
-  const fuel         = inv.fuel         || "TBA";
-  const yearLine     = inv.year         || "—";
-  const engineLine   = inv.engineNo     || "—";
+  const date        = new Date(inv.createdAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+  const docNo       = `K-${new Date(inv.createdAt).getFullYear().toString().slice(2)}-${String(id).slice(-5).toUpperCase()}`;
+  const invNo       = `SBK${String(id).slice(-5).toUpperCase()}`;
+  const advPct      = inv.advancePercent ?? 50;
+  const advanceAmt  = Math.round(inv.cnfPrice * advPct / 100);
+  const remaining   = inv.cnfPrice - advanceAmt;
+  const words       = amountToWords(inv.cnfPrice);
+  const salesPerson = inv.salesperson  || "TBA";
+  const trFuel      = `${inv.transmission || "TBA"} ${inv.fuel || "TBA"}`;
+  const yearLine    = inv.year || "—";
 
-  const logoBuffer  = fs.readFileSync(path.join(process.cwd(), "public", "images", "sbk-logo.jpg"));
-  const stampBuffer = fs.readFileSync(path.join(process.cwd(), "public", "images", "sbk-stamp.jpg"));
+  const logoBuffer  = Buffer.from(fs.readFileSync(path.join(process.cwd(), "public", "images", "sbk-logo.jpg")));
+  const stampBuffer = Buffer.from(fs.readFileSync(path.join(process.cwd(), "public", "images", "sbk-stamp.jpg")));
 
-  const NONE = { style: BorderStyle.NONE, size: 0, color: "auto" };
-  const NO_BORDERS = { top: NONE, bottom: NONE, left: NONE, right: NONE };
+  const wb = new ExcelJS.Workbook();
+  wb.creator = "SBK CRM";
+  const ws = wb.addWorksheet("INVOICE");
 
-  const headerTable = new Table({
-    width: { size: 100, type: WidthType.PERCENTAGE },
-    borders: { top: NONE, bottom: NONE, left: NONE, right: NONE, insideHorizontal: NONE, insideVertical: NONE },
-    columnWidths: [8790, 2000],
-    rows: [
-      new TableRow({
-        children: [
-          new TableCell({
-            borders: NO_BORDERS,
-            children: [
-              hdrPara("SBK Global Auto Trading FZC LLC", { size: 16, color: "1F497D", after: 20 }),
-              hdrPara(SBK_INFO.addr1, { size: 8, color: "C00000", after: 20 }),
-              hdrPara(SBK_INFO.addr2, { size: 8, color: "C00000", after: 20 }),
-              hdrPara(SBK_INFO.web,   { size: 8, color: "C00000", after: 20 }),
-              hdrPara(SBK_INFO.email, { size: 8, color: "C00000", after: 20 }),
-              hdrPara(SBK_INFO.phone, { size: 8, color: "C00000", after: 0 }),
-            ],
-          }),
-          new TableCell({
-            borders: NO_BORDERS,
-            children: [
-              new Paragraph({
-                alignment: AlignmentType.RIGHT,
-                spacing: { after: 0 },
-                children: [
-                  new ImageRun({ data: logoBuffer, transformation: { width: 140, height: 110 }, type: "jpg" }),
-                ],
-              }),
-            ],
-          }),
-        ],
-      }),
-    ],
+  // ── Columns A–J (1–10) ─────────────────────────────────────────────────────
+  ws.columns = [
+    { width: 7.14  },  // A (1)
+    { width: 9.00  },  // B (2)
+    { width: 8.29  },  // C (3)
+    { width: 6.29  },  // D (4)
+    { width: 10.29 },  // E (5)
+    { width: 12.71 },  // F (6)
+    { width: 6.29  },  // G (7)
+    { width: 13.86 },  // H (8)
+    { width: 10.29 },  // I (9)
+    { width: 9.14  },  // J (10)
+  ];
+  for (let c = 1; c <= 10; c++) {
+    ws.getColumn(c).style = { font: { size: 7, name: "Calibri" } };
+  }
+
+  // ── Page setup ─────────────────────────────────────────────────────────────
+  (ws as any).pageSetup = {
+    paperSize: 9,
+    orientation: "portrait",
+    fitToPage: false,
+    scale: 100,
+    printArea: "A1:J59",
+    horizontalCentered: true,
+    margins: { left: 0.45, right: 0.45, top: 0.25, bottom: 0.25, header: 0.3, footer: 0.3 },
+  };
+
+  // ── Row heights ────────────────────────────────────────────────────────────
+  ws.getRow(2).height  = 21;
+  ws.getRow(9).height  = 21;
+  ws.getRow(22).height = 24;
+  ws.getRow(23).height = 25.5;
+  ws.getRow(24).height = 25.5;
+  ws.getRow(25).height = 25.5;
+
+  // ── Images ─────────────────────────────────────────────────────────────────
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const logoId  = (wb as any).addImage({ buffer: logoBuffer,  extension: "jpeg" });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const stampId = (wb as any).addImage({ buffer: stampBuffer, extension: "jpeg" });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (ws as any).addImage(logoId,  { tl: { col: 6,   row: 0  }, br: { col: 9.9, row: 5.8 }, editAs: "oneCell" });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (ws as any).addImage(stampId, { tl: { col: 7.2, row: 39 }, br: { col: 9.0, row: 47  }, editAs: "oneCell" });
+
+  // ── Cell helper ────────────────────────────────────────────────────────────
+  function set(
+    r: number, c: number, val: string | number,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    opts: { bold?: boolean; size?: number; color?: string; fill?: any;
+            h?: "left"|"center"|"right"; v?: "middle"|"top"|"bottom";
+            wrap?: boolean; border?: any; numFmt?: string; } = {}
+  ) {
+    const cell = ws.getCell(r, c);
+    cell.value = val;
+    cell.font  = { name: "Calibri", size: opts.size ?? 7, bold: opts.bold ?? false,
+                   color: opts.color ? { argb: opts.color } : undefined };
+    cell.alignment = { horizontal: opts.h ?? "left", vertical: opts.v ?? "middle",
+                       wrapText: opts.wrap ?? false };
+    if (opts.fill)   cell.fill   = opts.fill;
+    if (opts.border) cell.border = opts.border;
+    if (opts.numFmt) cell.numFmt = opts.numFmt;
+  }
+
+  // ── Row 2: Company name ────────────────────────────────────────────────────
+  set(2, 1, "SBK Global Auto Trading FZC LLC", { bold: true, size: 16, color: NAVY });
+
+  // ── Rows 3–7: Address / contact (red) ─────────────────────────────────────
+  set(3, 1, SBK_INFO.addr1, { bold: true, size: 8, color: RED });
+  set(4, 1, SBK_INFO.addr2, { bold: true, size: 8, color: RED });
+  set(5, 1, SBK_INFO.web,   { bold: true, size: 8, color: RED });
+  set(6, 1, SBK_INFO.email, { bold: true, size: 8, color: RED });
+  set(7, 1, SBK_INFO.phone, { bold: true, size: 8, color: RED });
+
+  // ── Row 9: "INVOICE" header (A9:J9) ───────────────────────────────────────
+  ws.mergeCells(9, 1, 9, 10);
+  set(9, 1, "INVOICE", { bold: true, size: 14, h: "center", fill: GRAY, border: ALL });
+
+  // ── Row 10: "CONSIGNEE :" header (A10:J10) ────────────────────────────────
+  ws.mergeCells(10, 1, 10, 10);
+  set(10, 1, "CONSIGNEE :", { bold: true, wrap: true, border: ALL });
+
+  // ── D11:D21 vertical separator ────────────────────────────────────────────
+  ws.mergeCells(11, 4, 21, 4);
+  ws.getCell(11, 4).border = ALL;
+
+  // ── G11:G21 vertical separator ────────────────────────────────────────────
+  ws.mergeCells(11, 7, 21, 7);
+  ws.getCell(11, 7).border = ALL;
+
+  // ── Rows 11–16: consignee labels + values + right grid ───────────────────
+  const leftLabels  = ["Name", "Address", "Port", "Country", "Phone", "Email"];
+  const leftVals    = [
+    `: ${inv.consignee.name    || ""}`,
+    `: ${inv.consignee.address || ""}`,
+    `: ${inv.consignee.port    || ""}`,
+    `: ${inv.consignee.country || ""}`,
+    `: ${inv.consignee.phone   || ""}`,
+    ": N/A",
+  ];
+  const midLabels   = ["DATE", "DOCUMENT NO", "INVOICE", "SALES PERSON", "SHIPMENT TYPE", "INCOTERM"];
+  const midVals     = [`: ${date}`, `: ${docNo}`, `: ${invNo}`, `: ${salesPerson}`, ": RORO", ": C&F"];
+  const rightLabels = ["HAULIER", "VESSEL", "PORT OF LOADING", "PORT OF UNLOADING", "ETD", "COUNTRY"];
+  const rightVals   = [": TBA", ": TBA", ": ANY",
+    `: ${inv.consignee.port    || ""}`,
+    ": N/A",
+    `: ${inv.consignee.country || ""}`,
+  ];
+
+  for (let i = 0; i < 6; i++) {
+    const r = 11 + i;
+    ws.mergeCells(r, 2, r, 3);
+    ws.mergeCells(r, 9, r, 10);
+    set(r, 1, leftLabels[i],  { border: ALL, wrap: true });
+    set(r, 2, leftVals[i],    { border: ALL, wrap: true });
+    set(r, 5, midLabels[i],   { border: ALL, wrap: true });
+    set(r, 6, midVals[i],     { border: ALL, wrap: true });
+    set(r, 8, rightLabels[i], { border: ALL, wrap: true });
+    set(r, 9, rightVals[i],   { border: ALL, wrap: true });
+  }
+
+  // ── Rows 17–21: NOTIFY PARTY + payment terms ──────────────────────────────
+  ws.mergeCells(17, 1, 17, 3);
+  ws.mergeCells(18, 1, 18, 3);
+  ws.mergeCells(19, 1, 19, 3);
+  ws.mergeCells(20, 1, 21, 3);
+  ws.mergeCells(17, 5, 21, 6);
+  ws.mergeCells(17, 8, 19, 10);
+  ws.mergeCells(20, 9, 20, 10);
+  ws.mergeCells(21, 9, 21, 10);
+
+  ws.getCell(17, 1).border = ALL;
+  ws.getCell(17, 5).border = ALL;
+  ws.getCell(17, 8).border = ALL;
+
+  set(18, 1, "NOTIFY PARTY :", { bold: true, wrap: true, border: ALL });
+  set(19, 1, "Same as consignee", { wrap: true, border: ALL });
+  ws.getCell(20, 1).border = ALL;
+
+  set(20, 8, "PAYMENT TERMS", { bold: true, fill: GRAY, border: ALL });
+  set(20, 9, `${advPct}% (Advance Payment)`, { bold: true, h: "left", fill: GRAY, border: ALL });
+  set(21, 8, "CURRENCY",  { bold: true, fill: GRAY, border: ALL });
+  set(21, 9, " US$",      { bold: true, h: "left", fill: GRAY, border: ALL });
+
+  // ── Row 22: table header ───────────────────────────────────────────────────
+  ws.mergeCells(22, 2, 22, 3);
+  ws.mergeCells(22, 5, 22, 6);
+  const TH = { bold: true, fill: GRAY, border: ALL, h: "center" as const, v: "middle" as const, wrap: true };
+  set(22, 1,  "S.No.",                              TH);
+  set(22, 2,  "Chassis No. (STOCK ID)\nORIGIN",     TH);
+  set(22, 4,  "Qty",                                TH);
+  set(22, 5,  "DESCRIPTION & DETAILS",              TH);
+  set(22, 7,  "Year / CC",                          TH);
+  set(22, 8,  "Transmission/Fuel",                  TH);
+  set(22, 9,  "C&F US$",                            TH);
+  set(22, 10, "TOTAL US$",                          TH);
+
+  // ── Row 23: vehicle data ───────────────────────────────────────────────────
+  ws.mergeCells(23, 2, 23, 3);
+  ws.mergeCells(23, 5, 23, 6);
+  const VD = { h: "center" as const, v: "middle" as const, border: ALL, wrap: true };
+  set(23, 1,  1,                                      VD);
+  set(23, 2,  `${inv.chassisNo || "—"}\nORIGIN: JAPAN`, VD);
+  set(23, 4,  1,                                      VD);
+  set(23, 5,  inv.unit || "—",                        VD);
+  set(23, 7,  yearLine,                               VD);
+  set(23, 8,  trFuel,                                 VD);
+  set(23, 9,  inv.cnfPrice, { ...VD, numFmt: "#,##0" });
+  set(23, 10, inv.cnfPrice, { ...VD, numFmt: "#,##0" });
+
+  // ── Rows 24–25: empty vehicle rows with borders ───────────────────────────
+  for (const r of [24, 25]) {
+    ws.mergeCells(r, 2, r, 3);
+    ws.mergeCells(r, 5, r, 6);
+    for (let c = 1; c <= 10; c++) {
+      if (c === 3 || c === 6) continue;
+      ws.getCell(r, c).border = ALL;
+    }
+  }
+
+  // ── Rows 26–28: summary ────────────────────────────────────────────────────
+  ws.mergeCells(26, 8, 26, 9);
+  ws.mergeCells(27, 8, 27, 9);
+  ws.mergeCells(28, 8, 28, 9);
+  const SL = { bold: true, border: { left: THIN, top: THIN, bottom: THIN } };
+  set(26, 8, "TOTAL AMOUNT",    SL);
+  set(27, 8, "50% AMOUNT",      SL);
+  set(28, 8, "Remaining Balance", SL);
+  for (const [r, v] of [[26, inv.cnfPrice], [27, advanceAmt], [28, remaining]] as [number,number][]) {
+    set(r, 10, v, { bold: true, h: "center", numFmt: "#,##0", border: ALL });
+  }
+
+  // ── Row 29: total in words (A29:J29) ──────────────────────────────────────
+  ws.mergeCells(29, 1, 29, 10);
+  set(29, 1, `TOTAL AMOUNT VALUE IN WORDS : ${words} US DOLLARS ONLY`,
+    { bold: true, border: { left: THIN, top: THIN, bottom: THIN } });
+
+  // ── Row 30: invoice# (A30:J30) ────────────────────────────────────────────
+  ws.mergeCells(30, 1, 30, 10);
+  set(30, 1, `INVOICE : ${invNo}`,
+    { bold: true, border: { left: THIN, top: THIN, bottom: THIN } });
+
+  // ── Row 31: separator (A31:J31) ───────────────────────────────────────────
+  ws.mergeCells(31, 1, 31, 10);
+
+  // ── Rows 32–39: bank details (left) + remarks (right) ─────────────────────
+  ws.mergeCells(32, 1, 32, 5);
+  ws.mergeCells(32, 6, 39, 6);
+  ws.mergeCells(32, 7, 39, 10);
+
+  set(32, 1, "SHIPPER'S BANK DETAILS:", { bold: true, border: ALL });
+  set(32, 7,
+    "REMARKS:\nPLEASE PAY BANK CHARGES OR PAYPAL CHARGES OR CREDIT CARD CHARGES.\n\nPLEASE READ TERMS AND CONDITION BELOW.",
+    { h: "left", v: "top", wrap: true, border: ALL });
+
+  const bankRows: [string, string][] = [
+    ["ACCOUNT",     SBK_INFO.bankAccount],
+    ["BANK",        SBK_INFO.bankName],
+    ["BRANCH",      SBK_INFO.bankBranch],
+    ["ADDRESS",     SBK_INFO.bankAddress],
+    ["IBAN",        SBK_INFO.iban],
+    ["ACCOUNT NO:", SBK_INFO.accountNo],
+    ["SWIFT CODE:", SBK_INFO.swift],
+  ];
+  bankRows.forEach(([label, value], i) => {
+    const r = 33 + i;
+    ws.mergeCells(r, 1, r, 2);
+    ws.mergeCells(r, 3, r, 5);
+    set(r, 1, label, { bold: true, wrap: true, border: ALL });
+    set(r, 3, value, { bold: true, wrap: true, border: ALL });
   });
 
-  const doc = new Document({
-    sections: [{
-      properties: {
-        page: { margin: { top: 600, bottom: 600, left: 720, right: 720 } },
-      },
-      children: [
-        headerTable,
-        new Paragraph({ spacing: { after: 60 }, children: [] }),
+  // ── Rows 40–47: stamp image area ──────────────────────────────────────────
+  ws.mergeCells(40, 7, 47, 10);
 
-        new Table({
-          width: { size: 100, type: WidthType.PERCENTAGE },
-          columnWidths: COLS,
-          rows: [
-            row({ lines: ["CONSIGNEE :"], bold: true, colSpan: 6 }, { lines: ["DATE"] }, { lines: [`: ${date}`], colSpan: 2 }, { lines: ["HAULER\t: TBA"], colSpan: 3 }),
-            row({ lines: ["Name"], colSpan: 2 }, { lines: [inv.consignee.name], colSpan: 4 }, { lines: ["DOCUMENT NO"] }, { lines: [`: ${docNo}`], colSpan: 2 }, { lines: ["VESSEL\t: TBA"], colSpan: 3 }),
-            row({ lines: ["Address"], colSpan: 2 }, { lines: [inv.consignee.address], colSpan: 4 }, { lines: ["INVOICE"] }, { lines: [`: ${invNo}`], colSpan: 2 }, { lines: ["PORT OF LOADING\t: ANY"], colSpan: 3 }),
-            row({ lines: ["Port"], colSpan: 2 }, { lines: [inv.consignee.port], colSpan: 4 }, { lines: ["SALES PERSON"] }, { lines: [`: ${salesPerson}`], colSpan: 2 }, { lines: [`PORT OF UNLOADING\t: ${inv.consignee.port}`], colSpan: 3 }),
-            row({ lines: ["Country"], colSpan: 2 }, { lines: [inv.consignee.country], colSpan: 4 }, { lines: ["SHIPMENT TYPE"] }, { lines: [": RORO"], colSpan: 2 }, { lines: ["ETD\t: TBA"], colSpan: 3 }),
-            row({ lines: ["Phone"], colSpan: 2 }, { lines: [inv.consignee.phone], colSpan: 4 }, { lines: ["INCOTERM"] }, { lines: [": C&F"], colSpan: 2 }, { lines: [`COUNTRY\t: ${inv.consignee.country}`], colSpan: 3 }),
-            row({ lines: ["Email"], colSpan: 2 }, { lines: ["—"], colSpan: 4 }, empty(1), empty(2), empty(3)),
-            row({ lines: ["NOTIFY PARTY :"], bold: true, colSpan: 6 }, empty(1), empty(2), empty(3)),
-            row({ lines: ["Same as consignee"], bold: true, colSpan: 12 }),
-            row(empty(9), { lines: [`PAYMENT TERMS\t: ${advPct}% (Advance Payment)`], bold: true, colSpan: 3, shade: "BFBFBF" }),
-            row(empty(9), { lines: ["CURRENCY\t: US$"], bold: true, colSpan: 3 }),
-            row(
-              { lines: ["S.No"],                            bold: true, shade: "BFBFBF" },
-              { lines: ["Chassis No. (STOCK ID)","ORIGIN"], bold: true, shade: "BFBFBF", colSpan: 3 },
-              { lines: ["DESCRIPTION & DETAILS"],            bold: true, shade: "BFBFBF", colSpan: 2 },
-              { lines: ["YEAR MONTH & ENGINE CC"],           bold: true, shade: "BFBFBF" },
-              { lines: ["TRANS & FUEL"],                     bold: true, shade: "BFBFBF", colSpan: 2 },
-              { lines: ["QTY"],                              bold: true, shade: "BFBFBF" },
-              { lines: ["C&F US$"],                          bold: true, shade: "BFBFBF" },
-              { lines: ["TOTAL US$"],                        bold: true, shade: "BFBFBF" },
-            ),
-            row({ lines: ["VEHICLE(S)"], bold: true, colSpan: 12 }),
-            row(
-              { lines: ["1"] },
-              { lines: [inv.chassisNo, "ORIGIN: JAPAN"], colSpan: 3 },
-              empty(1),
-              { lines: [inv.unit] },
-              { lines: [yearLine, engineLine] },
-              { lines: [transmission, fuel], colSpan: 2 },
-              { lines: ["1"] },
-              { lines: [fmt(inv.cnfPrice)] },
-              { lines: [fmt(inv.cnfPrice)] },
-            ),
-            row(empty(), empty(3), empty(4), { lines: ["Total Amount"], bold: true, colSpan: 3 }, { lines: [fmt(inv.cnfPrice)], bold: true }),
-            row(empty(), empty(3), empty(4), { lines: [`${advPct}% Amount`], bold: true, colSpan: 3 }, { lines: [fmt(advanceAmt)], bold: true }),
-            row(empty(), empty(3), empty(4), { lines: ["Remaining Balance"], bold: true, colSpan: 3, shade: "BFBFBF" }, { lines: [fmt(remaining)], bold: true, shade: "BFBFBF" }),
-            row({ lines: [`TOTAL AMOUNT VALUE IN WORDS : ${words} US DOLLARS ONLY`], bold: true, colSpan: 9 }, empty(3)),
-            row({ lines: [`INVOICE : ${invNo}`], bold: true, colSpan: 9 }, empty(3)),
-            row({ lines: ["", "SHIPPER'S BANK DETAILS:"], bold: true, colSpan: 8 }, { lines: SBK_INFO.remarks.split("\n"), colSpan: 4, vMerge: "restart" }),
-            row({ lines: ["ACCOUNT:"],  bold: true, colSpan: 3 }, { lines: [SBK_INFO.bankAccount], bold: true, colSpan: 3 }, empty(2), { lines: [""], colSpan: 4, vMerge: "continue" }),
-            row({ lines: ["BANK:"],     bold: true, colSpan: 3 }, { lines: [SBK_INFO.bankName],    bold: true, colSpan: 3 }, empty(2), { lines: [""], colSpan: 4, vMerge: "continue" }),
-            row({ lines: ["BRANCH:"],   bold: true, colSpan: 3 }, { lines: [SBK_INFO.bankBranch],  bold: true, colSpan: 3 }, empty(2), { lines: [""], colSpan: 4, vMerge: "continue" }),
-            row({ lines: ["ADDRESS:"],  bold: true, colSpan: 3 }, { lines: [SBK_INFO.bankAddress], bold: true, colSpan: 3 }, empty(2), { lines: [""], colSpan: 4, vMerge: "continue" }),
-            row({ lines: ["IBAN:"],     bold: true, colSpan: 3 }, { lines: [SBK_INFO.iban],        bold: true, colSpan: 3 }, empty(2), { lines: [""], colSpan: 4, vMerge: "continue" }),
-            row({ lines: ["ACCOUNT NO:"], bold: true, colSpan: 3 }, { lines: [SBK_INFO.accountNo], bold: true, colSpan: 3 }, empty(2), empty(4)),
-            row({ lines: ["SWIFT CODE:"], bold: true, colSpan: 3 }, { lines: [SBK_INFO.swift],     bold: true, colSpan: 3 }, empty(2), empty(4)),
-            new TableRow({
-              children: [
-                new TableCell({
-                  columnSpan: 6,
-                  borders: ALL_BORDERS,
-                  margins: { top: 30, bottom: 30, left: 80, right: 80 },
-                  children: [new Paragraph({ spacing: { before: 0, after: 0 }, children: [] })],
-                }),
-                new TableCell({
-                  columnSpan: 6,
-                  borders: ALL_BORDERS,
-                  margins: { top: 30, bottom: 30, left: 80, right: 80 },
-                  children: [
-                    new Paragraph({
-                      alignment: AlignmentType.RIGHT,
-                      spacing: { before: 0, after: 0 },
-                      children: [
-                        new ImageRun({ data: stampBuffer, transformation: { width: 100, height: 100 }, type: "jpg" }),
-                      ],
-                    }),
-                  ],
-                }),
-              ],
-            }),
-            row(empty(6), { lines: [salesPerson, "Director International Sales"], bold: true, colSpan: 6, align: "right" }),
-          ],
-        }),
+  // ── Row 48: (stamp area continued) ───────────────────────────────────────
+  ws.mergeCells(48, 7, 48, 10);
 
-        new Paragraph({ spacing: { after: 40 }, children: [] }),
-        new Paragraph({ spacing: { after: 0 }, children: [new TextRun({ text: "Terms and Conditions:", font: "Calibri" })] }),
-        ...TERMS.map((t, i) => termPara(t, i + 1)),
-      ],
-    }],
+  // ── Row 49: director name ─────────────────────────────────────────────────
+  ws.mergeCells(49, 7, 49, 10);
+  set(49, 7, "SM Khurram Rashid", {
+    bold: true, size: 10, h: "center",
+    border: { bottom: THIN },
   });
 
-  const buffer = await Packer.toBuffer(doc);
+  // ── Rows 50–59: terms and conditions ──────────────────────────────────────
+  ws.mergeCells(50, 1, 59, 10);
+  const tc = ws.getCell(50, 1);
+  tc.value     = TERMS_TEXT;
+  tc.font      = { name: "Calibri", size: 6 };
+  tc.alignment = { horizontal: "left", vertical: "top", wrapText: true };
+  tc.border    = { top: THIN };
 
-  return new NextResponse(buffer as unknown as BodyInit, {
+  const buffer = await wb.xlsx.writeBuffer();
+  return new NextResponse(buffer as ArrayBuffer, {
     headers: {
-      "Content-Type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-      "Content-Disposition": `attachment; filename="SBK-Invoice-${invNo}.docx"`,
+      "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "Content-Disposition": `attachment; filename="SBK-Invoice-${invNo}.xlsx"`,
     },
   });
 }
