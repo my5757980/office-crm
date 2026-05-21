@@ -20,10 +20,15 @@ type UnitRow = {
 export default function UnitsTable({
   units,
   coverMap,
+  profitMap = {},
+  role,
 }: {
   units: UnitRow[];
   coverMap: Record<string, string>;
+  profitMap?: Record<string, number | null>;
+  role?: string;
 }) {
+  const showProfit = role === "manager";
   const [query, setQuery] = useState("");
 
   const q = query.trim().toLowerCase();
@@ -93,8 +98,8 @@ export default function UnitsTable({
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
           <thead>
             <tr style={{ background: "#f6f8fa", borderBottom: "1px solid #d0d7de" }}>
-              {["Vehicle", "Chassis", "Color", "Drive / Fuel", "Mileage", "Location", "Added By", ""].map(h => (
-                <th key={h} style={{ padding: "10px 16px", fontSize: "11px", fontWeight: 700, color: "#656d76", textAlign: "left", textTransform: "uppercase", letterSpacing: "0.05em", whiteSpace: "nowrap" }}>{h}</th>
+              {["Vehicle", "Chassis", "Color", "Drive / Fuel", "Mileage", "Location", "Added By", ...(showProfit ? ["Profit"] : []), ""].map(h => (
+                <th key={h} style={{ padding: "10px 16px", fontSize: "11px", fontWeight: 700, color: "#656d76", textAlign: h === "Profit" ? "right" : "left", textTransform: "uppercase", letterSpacing: "0.05em", whiteSpace: "nowrap" }}>{h}</th>
               ))}
             </tr>
           </thead>
@@ -127,6 +132,26 @@ export default function UnitsTable({
                   <td style={{ padding: "12px 16px", color: "#656d76" }}>{u.mileage.toLocaleString()} km</td>
                   <td style={{ padding: "12px 16px", color: "#656d76" }}>{u.location}</td>
                   <td style={{ padding: "12px 16px", color: "#8c959f", fontSize: "12px" }}>{u.createdBy?.name ?? "—"}</td>
+                  {showProfit && (() => {
+                    const profit = profitMap[u._id] ?? null;
+                    if (profit === null) return (
+                      <td style={{ padding: "12px 16px", textAlign: "right" }}>
+                        <span style={{ fontSize: "12px", color: "#8c959f" }}>—</span>
+                      </td>
+                    );
+                    const isProfit = profit >= 0;
+                    return (
+                      <td style={{ padding: "12px 16px", textAlign: "right" }}>
+                        <span style={{
+                          fontSize: "12px", fontWeight: 700, padding: "3px 10px", borderRadius: "20px",
+                          background: isProfit ? "#d1fae5" : "#fee2e2",
+                          color: isProfit ? "#065f46" : "#991b1b",
+                        }}>
+                          {isProfit ? "+" : "-"}${Math.abs(profit).toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                        </span>
+                      </td>
+                    );
+                  })()}
                   <td style={{ padding: "12px 16px", textAlign: "right" }}>
                     <Link href={`/units/${u._id}`} style={{
                       fontSize: "11px", fontWeight: 600, padding: "5px 12px", borderRadius: "6px",
