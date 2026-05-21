@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 
 interface FinancialRecord {
   currency: "JPY" | "USD";
+  lotNo: string; auctionName: string;
   buying: number; domestic: number; storage: number; inspect: number;
   repairs: number; misc: number; agencyFee: number; freight: number; dhl: number;
   exchangeRate: number; costUSD: number;
@@ -47,7 +48,7 @@ const JPY_FIELDS: { key: string; label: string }[] = [
 ];
 
 function emptyJPY() {
-  return { buying: "", domestic: "", storage: "", inspect: "", repairs: "", misc: "", agencyFee: "", freight: "", dhl: "", exchangeRate: "" };
+  return { buying: "", domestic: "", storage: "", inspect: "", repairs: "", misc: "", agencyFee: "", freight: "", dhl: "", exchangeRate: "", lotNo: "", auctionName: "" };
 }
 
 export default function UnitFinancial({ unitId }: Props) {
@@ -83,6 +84,8 @@ export default function UnitFinancial({ unitId }: Props) {
             freight: f.freight ? String(f.freight) : "",
             dhl: f.dhl ? String(f.dhl) : "",
             exchangeRate: f.exchangeRate ? String(f.exchangeRate) : "",
+            lotNo: f.lotNo ?? "",
+            auctionName: f.auctionName ?? "",
           });
         } else {
           setUsdCost(f.costUSD ? String(f.costUSD) : "");
@@ -110,7 +113,7 @@ export default function UnitFinancial({ unitId }: Props) {
     setError("");
     try {
       const body = currency === "JPY"
-        ? { currency, ...Object.fromEntries(JPY_FIELDS.map(f => [f.key, parseFloat(jpyFields[f.key]) || 0])), exchangeRate: parseFloat(jpyFields.exchangeRate) || 0 }
+        ? { currency, lotNo: jpyFields.lotNo, auctionName: jpyFields.auctionName, ...Object.fromEntries(JPY_FIELDS.map(f => [f.key, parseFloat(jpyFields[f.key]) || 0])), exchangeRate: parseFloat(jpyFields.exchangeRate) || 0 }
         : { currency, costUSD: usdCostNum };
 
       const res = await fetch(`/api/units/${unitId}/financial`, {
@@ -203,6 +206,30 @@ export default function UnitFinancial({ unitId }: Props) {
         {/* JPY Mode */}
         {currency === "JPY" && (
           <>
+            {/* Lot No. & Auction Name */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+              <div>
+                <p style={labelStyle}>Lot No.</p>
+                <input
+                  type="text"
+                  value={jpyFields.lotNo}
+                  onChange={e => setJpyFields(p => ({ ...p, lotNo: e.target.value }))}
+                  placeholder="e.g. 12345"
+                  style={{ ...inputStyle, textAlign: "left", marginTop: "4px", border: "1px solid #d0d7de", borderRadius: "6px" }}
+                />
+              </div>
+              <div>
+                <p style={labelStyle}>Auction Name</p>
+                <input
+                  type="text"
+                  value={jpyFields.auctionName}
+                  onChange={e => setJpyFields(p => ({ ...p, auctionName: e.target.value }))}
+                  placeholder="e.g. USS Tokyo"
+                  style={{ ...inputStyle, textAlign: "left", marginTop: "4px", border: "1px solid #d0d7de", borderRadius: "6px" }}
+                />
+              </div>
+            </div>
+
             <div>
               <p style={{ fontSize: "11px", fontWeight: 700, color: "#8c959f", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "12px" }}>
                 Cost Breakdown (JPY ¥)
