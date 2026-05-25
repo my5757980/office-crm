@@ -8408,5 +8408,17 @@
       "VICTORIA FALLS",
       "WANKIE NATIONAL PARK"
     ]
+  },
+  "Uganda": {
+    "code": "UG",
+    "ports": [
+      "Mombasa"
+    ]
+  },
+  "Botswana": {
+    "code": "BW",
+    "ports": [
+      "Durban"
+    ]
   }
 }

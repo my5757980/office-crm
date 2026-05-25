@@ -1,14 +1,14 @@
 "use client";
 
 import { useForm, useWatch } from "react-hook-form";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { invoiceRequestSchema, InvoiceRequestFormData } from "@/lib/validations";
+import countriesPorts from "@/data/countries_ports.json";
 
-const COUNTRY_PORT_MAP: Record<string, string> = {
-  Uganda: "Mombasa",
-  Botswana: "Durban",
-};
+type CountryData = { code: string; ports: string[] };
+const cpData = countriesPorts as Record<string, CountryData>;
+const countryList = Object.keys(cpData).sort();
 
 interface Props {
   leadId: string;
@@ -85,10 +85,18 @@ export default function InvoiceRequestForm({ leadId, defaultConsignee, onSubmit 
     advancePercent: 50,
   }});
 
+  const [ports, setPorts] = useState<string[]>([]);
+  const [portLocked, setPortLocked] = useState(false);
+
   const selectedCountry = useWatch({ control, name: "consignee.country" });
   useEffect(() => {
-    const port = COUNTRY_PORT_MAP[selectedCountry ?? ""];
-    if (port) setValue("consignee.port", port);
+    if (!selectedCountry) { setPorts([]); setPortLocked(false); return; }
+    const data = cpData[selectedCountry];
+    if (!data) { setPorts([]); setPortLocked(false); return; }
+    const cp = data.ports ?? [];
+    setPorts(cp);
+    if (cp.length === 1) { setValue("consignee.port", cp[0]); setPortLocked(true); }
+    else { setValue("consignee.port", ""); setPortLocked(false); }
   }, [selectedCountry, setValue]);
 
   return (
@@ -112,13 +120,26 @@ export default function InvoiceRequestForm({ leadId, defaultConsignee, onSubmit 
               onBlur={(e) => { e.target.style.borderColor = "#d0d7de"; e.target.style.boxShadow = "none"; }}
             >
               <option value="">— Select country —</option>
-              {Object.keys(COUNTRY_PORT_MAP).map((c) => (
+              {countryList.map((c) => (
                 <option key={c} value={c}>{c}</option>
               ))}
             </select>
           </Field>
           <Field label="Port" required error={errors.consignee?.port?.message}>
-            <input {...register("consignee.port")} style={inputStyle} placeholder="Destination port" {...focusHandlers} />
+            {portLocked ? (
+              <input value={ports[0] ?? ""} readOnly style={{ ...inputStyle, background: "#f6f8fa", color: "#656d76", cursor: "not-allowed" }} />
+            ) : (
+              <select
+                {...register("consignee.port")}
+                disabled={ports.length === 0}
+                style={{ ...inputStyle, cursor: ports.length === 0 ? "not-allowed" : "pointer", background: ports.length === 0 ? "#f6f8fa" : "#ffffff", color: ports.length === 0 ? "#8c959f" : "#1f2328" }}
+                onFocus={(e) => { e.target.style.borderColor = "#2563eb"; e.target.style.boxShadow = "0 0 0 3px rgba(37,99,235,0.12)"; }}
+                onBlur={(e) => { e.target.style.borderColor = "#d0d7de"; e.target.style.boxShadow = "none"; }}
+              >
+                <option value="">{ports.length === 0 ? "Select country first…" : "Select port…"}</option>
+                {ports.map((p) => <option key={p} value={p}>{p}</option>)}
+              </select>
+            )}
           </Field>
           <div style={{ gridColumn: "span 2" }}>
             <Field label="Address" error={errors.consignee?.address?.message}>
