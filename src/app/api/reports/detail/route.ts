@@ -6,7 +6,7 @@ import Invoice from "@/models/Invoice";
 import Unit from "@/models/Unit";
 import mongoose from "mongoose";
 
-function getRange(type: string, from?: string | null, to?: string | null) {
+function getRange(type: string, from?: string | null, to?: string | null, date?: string | null) {
   const now = new Date();
 
   if (type === "custom" && from && to) {
@@ -15,8 +15,9 @@ function getRange(type: string, from?: string | null, to?: string | null) {
     return { start, end };
   }
   if (type === "daily") {
-    const start = new Date(now); start.setHours(0, 0, 0, 0);
-    const end   = new Date(now); end.setHours(23, 59, 59, 999);
+    const base  = date ? new Date(date) : now;
+    const start = new Date(base); start.setHours(0, 0, 0, 0);
+    const end   = new Date(base); end.setHours(23, 59, 59, 999);
     return { start, end };
   }
   if (type === "weekly") {
@@ -41,13 +42,14 @@ export async function GET(req: NextRequest) {
   const type   = req.nextUrl.searchParams.get("type") ?? "daily";
   const from   = req.nextUrl.searchParams.get("from");
   const to     = req.nextUrl.searchParams.get("to");
+  const date   = req.nextUrl.searchParams.get("date");
 
   if (!userId) return NextResponse.json({ error: "userId required" }, { status: 400 });
   if (!["daily", "weekly", "monthly", "custom"].includes(type))
     return NextResponse.json({ error: "Invalid type" }, { status: 400 });
 
   await dbConnect();
-  const { start, end } = getRange(type, from, to);
+  const { start, end } = getRange(type, from, to, date);
 
   let userOid: mongoose.Types.ObjectId;
   try { userOid = new mongoose.Types.ObjectId(userId); }

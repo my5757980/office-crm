@@ -28,6 +28,7 @@ export default function ReportsPage() {
   const [type, setType]         = useState<ReportType>("daily");
   const [dateFrom, setDateFrom] = useState(today);
   const [dateTo, setDateTo]     = useState(today);
+  const [dailyDate, setDailyDate] = useState(today);
   const [data, setData]         = useState<ReportData | null>(null);
   const [loading, setLoading]   = useState(false);
   const [error, setError]       = useState("");
@@ -38,11 +39,12 @@ export default function ReportsPage() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailTab, setDetailTab]       = useState<"leads"|"invoices"|"units">("leads");
 
-  const load = (t: ReportType, from: string, to: string) => {
+  const load = (t: ReportType, from: string, to: string, day?: string) => {
     setLoading(true); setError("");
-    const url = t === "custom"
-      ? `/api/reports?type=custom&from=${from}&to=${to}`
-      : `/api/reports?type=${t}`;
+    const url =
+      t === "custom"      ? `/api/reports?type=custom&from=${from}&to=${to}`
+      : t === "daily"     ? `/api/reports?type=daily&date=${day ?? dailyDate}`
+      :                     `/api/reports?type=${t}`;
     fetch(url)
       .then(r => r.json())
       .then(j => { if (j.error) setError(j.error); else setData(j); })
@@ -51,7 +53,7 @@ export default function ReportsPage() {
   };
 
   useEffect(() => {
-    if (type !== "custom") load(type, dateFrom, dateTo);
+    if (type !== "custom") load(type, dateFrom, dateTo, dailyDate);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [type]);
 
@@ -61,7 +63,10 @@ export default function ReportsPage() {
     setDetailTab("leads");
     setDetailLoading(true);
     const base = `/api/reports/detail?userId=${agent.userId}&type=${type}`;
-    const url  = type === "custom" ? `${base}&from=${dateFrom}&to=${dateTo}` : base;
+    const url  =
+      type === "custom" ? `${base}&from=${dateFrom}&to=${dateTo}`
+      : type === "daily" ? `${base}&date=${dailyDate}`
+      : base;
     fetch(url)
       .then(r => r.json())
       .then(j => setDetail(j))
@@ -157,6 +162,25 @@ export default function ReportsPage() {
             <DownloadIcon /> Export All CSV
           </button>
         </div>
+
+        {/* Daily single date picker */}
+        {type === "daily" && (
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "16px", background: "#ffffff", border: "1px solid #d0d7de", borderRadius: "8px", padding: "12px 16px", flexWrap: "wrap" }}>
+            <span style={{ fontSize: "13px", fontWeight: 600, color: "#1f2328" }}>Select Date</span>
+            <input type="date" value={dailyDate} max={today} onChange={e => setDailyDate(e.target.value)}
+              style={{ padding: "6px 10px", borderRadius: "6px", border: "1px solid #d0d7de", fontSize: "13px" }} />
+            <button onClick={() => load("daily", dateFrom, dateTo, dailyDate)} disabled={!dailyDate}
+              style={{ padding: "7px 18px", borderRadius: "6px", border: "none", fontSize: "13px", fontWeight: 600, cursor: "pointer", background: "#c0272d", color: "#ffffff" }}>
+              Load Report
+            </button>
+            {dailyDate !== today && (
+              <button onClick={() => { setDailyDate(today); load("daily", dateFrom, dateTo, today); }}
+                style={{ padding: "7px 14px", borderRadius: "6px", border: "1px solid #d0d7de", fontSize: "13px", fontWeight: 600, cursor: "pointer", background: "#ffffff", color: "#656d76" }}>
+                Today
+              </button>
+            )}
+          </div>
+        )}
 
         {/* Custom date pickers */}
         {type === "custom" && (

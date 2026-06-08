@@ -7,7 +7,7 @@ import Unit from "@/models/Unit";
 
 type AggRow = { userId: string; name: string; count: number };
 
-function getRange(type: string, from?: string | null, to?: string | null): { start: Date; end: Date; label: string } {
+function getRange(type: string, from?: string | null, to?: string | null, date?: string | null): { start: Date; end: Date; label: string } {
   const now = new Date();
 
   if (type === "custom" && from && to) {
@@ -20,11 +20,14 @@ function getRange(type: string, from?: string | null, to?: string | null): { sta
   }
 
   if (type === "daily") {
-    const start = new Date(now);
+    const base = date ? new Date(date) : now;
+    const start = new Date(base);
     start.setHours(0, 0, 0, 0);
-    const end = new Date(now);
+    const end = new Date(base);
     end.setHours(23, 59, 59, 999);
-    return { start, end, label: `Today — ${now.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}` };
+    const isToday = start.toDateString() === now.toDateString();
+    const dateStr = base.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+    return { start, end, label: `${isToday ? "Today" : "Date"} — ${dateStr}` };
   }
 
   if (type === "weekly") {
@@ -71,13 +74,14 @@ export async function GET(req: NextRequest) {
 
   const from = req.nextUrl.searchParams.get("from");
   const to   = req.nextUrl.searchParams.get("to");
+  const date = req.nextUrl.searchParams.get("date");
 
   if (type === "custom" && (!from || !to))
     return NextResponse.json({ error: "from and to dates required for custom range" }, { status: 400 });
 
   await dbConnect();
 
-  const { start, end, label } = getRange(type, from, to);
+  const { start, end, label } = getRange(type, from, to, date);
 
   const [leadRows, invoiceRows, unitRows] = await Promise.all([
     aggregate(Lead    as Parameters<typeof aggregate>[0], start, end),
