@@ -21,21 +21,30 @@ export default async function AdminLeadsPage({
   await dbConnect();
   const params = await searchParams;
 
+  // Date range (applied to both the leads table AND the per-agent counts)
+  const dateFilter: Record<string, Date> = {};
+  if (params.from) dateFilter.$gte = new Date(params.from);
+  if (params.to) {
+    const end = new Date(params.to);
+    end.setHours(23, 59, 59, 999);
+    dateFilter.$lte = end;
+  }
+  const hasDate = Object.keys(dateFilter).length > 0;
+
   const filter: Record<string, unknown> = {};
   if (params.search)    filter.customerName = { $regex: params.search, $options: "i" };
   if (params.country)   filter.country = params.country;
   if (params.status)    filter.status = params.status;
   if (params.agentId)   filter.createdBy = params.agentId;
-  if (params.from || params.to) {
-    filter.createdAt = {};
-    if (params.from) (filter.createdAt as Record<string, Date>).$gte = new Date(params.from);
-    if (params.to)   (filter.createdAt as Record<string, Date>).$lte = new Date(params.to);
-  }
+  if (hasDate)          filter.createdAt = dateFilter;
+
+  // Per-agent counts respect the selected date (but not agent/search/status)
+  const countQuery = hasDate ? { createdAt: dateFilter } : {};
 
   const [leads, agents, allLeads] = await Promise.all([
     Lead.find(filter).populate("createdBy", "name email").sort({ createdAt: -1 }).limit(200).lean(),
     User.find({ role: "user" }, "name email").sort({ name: 1 }).lean(),
-    Lead.find({}).select("createdBy").lean(),
+    Lead.find(countQuery).select("createdBy").lean(),
   ]);
 
   // Count leads per agent
@@ -44,6 +53,18 @@ export default async function AdminLeadsPage({
     const id = l.createdBy?.toString();
     if (id) countMap[id] = (countMap[id] ?? 0) + 1;
   }
+
+  // Preserve current filters (date/search/status) when toggling an agent card
+  const buildAgentHref = (agentId: string, isSelected: boolean) => {
+    const p = new URLSearchParams();
+    if (params.search) p.set("search", params.search);
+    if (params.status) p.set("status", params.status);
+    if (params.from)   p.set("from", params.from);
+    if (params.to)     p.set("to", params.to);
+    if (!isSelected)   p.set("agentId", agentId);
+    const qs = p.toString();
+    return qs ? `/admin/leads?${qs}` : "/admin/leads";
+  };
 
   const leadsData  = JSON.parse(JSON.stringify(leads));
   const agentsData = JSON.parse(JSON.stringify(agents));
@@ -68,7 +89,7 @@ export default async function AdminLeadsPage({
               return (
                 <a
                   key={agent._id}
-                  href={isSelected ? "/admin/leads" : `/admin/leads?agentId=${agent._id}`}
+                  href={buildAgentHref(agent._id, isSelected)}
                   style={{
                     display: "flex", alignItems: "center", gap: "10px",
                     padding: "10px 16px", borderRadius: "8px", textDecoration: "none",
