@@ -250,7 +250,7 @@ export default function InvoiceDetail({ invoice, role, unitId }: InvoiceDetailPr
               </button>
             )}
 
-            {role === "super_admin" && ["approved", "sent"].includes(invoice.status) && (
+            {["manager", "super_admin"].includes(role) && ["approved", "sent"].includes(invoice.status) && (
               <>
                 <button
                   onClick={() => downloadInvoice("sbk")}
@@ -501,8 +501,8 @@ export default function InvoiceDetail({ invoice, role, unitId }: InvoiceDetailPr
         </div>
       </div>
 
-      {/* PDF Upload + Preview (supervisor: approved/sent | agent: sent) */}
-      {(["approved", "sent"].includes(invoice.status)) && (role === "super_admin" || (role === "user" && invoice.status === "sent")) && (
+      {/* PDF Upload + Preview (supervisor/manager: approved/sent | agent: sent) */}
+      {(["approved", "sent"].includes(invoice.status)) && (role === "super_admin" || role === "manager" || (role === "user" && invoice.status === "sent")) && (
         <div style={cardStyle}>
           <div style={{
             padding: "14px 24px", borderBottom: "1px solid #d0d7de",
@@ -560,8 +560,8 @@ export default function InvoiceDetail({ invoice, role, unitId }: InvoiceDetailPr
             </div>
           )}
 
-          {/* No PDF yet message for agent */}
-          {!uploadedPdf && role === "user" && (
+          {/* No PDF yet message for agent / manager */}
+          {!uploadedPdf && ["user", "manager"].includes(role) && (
             <div style={{ padding: "32px 24px", textAlign: "center", color: "#8c959f", fontSize: "13px" }}>
               Invoice PDF not uploaded yet.
             </div>
