@@ -6,7 +6,7 @@ import ExcelJS from "exceljs";
 import fs from "fs";
 import path from "path";
 
-const CAN_DOWNLOAD = ["super_admin"];
+const CAN_DOWNLOAD = ["manager", "super_admin"];
 
 const SBK_INFO = {
   addr1:       "Address: Amber Gem Tower, Mezzanine Floor, Sheikh Khalifa Street,",
