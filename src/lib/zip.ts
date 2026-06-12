@@ -104,6 +104,92 @@ export function createZip(entries: ZipEntry[], when: Date = new Date()): Buffer 
   return Buffer.concat([...fileParts, centralDir, eocd]);
 }
 
+/**
+ * Exact byte length the ZIP from `entries` will have.
+ * Lets the route set Content-Length even while streaming (so the client gets real %).
+ */
+export function zipByteLength(entries: ZipEntry[]): number {
+  let total = 0;
+  for (const e of entries) {
+    const nameLen = Buffer.byteLength(e.path, "utf-8");
+    total += 30 + nameLen + e.data.length; // local header + name + data
+    total += 46 + nameLen;                 // central directory header + name
+  }
+  total += 22; // end of central directory
+  return total;
+}
+
+/**
+ * Stream the ZIP as a sequence of Buffers instead of building one big buffer.
+ * The response is streamed chunk-by-chunk, which bypasses serverless
+ * buffered-response size limits (e.g. Vercel's ~4.5 MB cap).
+ */
+export function* zipChunks(entries: ZipEntry[], when: Date = new Date()): Generator<Buffer> {
+  const { time, date } = dosDateTime(when);
+  const centralParts: Buffer[] = [];
+  let offset = 0;
+
+  for (const entry of entries) {
+    const nameBuf = Buffer.from(entry.path, "utf-8");
+    const crc = crc32(entry.data);
+    const size = entry.data.length;
+
+    const local = Buffer.alloc(30);
+    local.writeUInt32LE(0x04034b50, 0);
+    local.writeUInt16LE(20, 4);
+    local.writeUInt16LE(0x0800, 6);
+    local.writeUInt16LE(0, 8);
+    local.writeUInt16LE(time, 10);
+    local.writeUInt16LE(date, 12);
+    local.writeUInt32LE(crc, 14);
+    local.writeUInt32LE(size, 18);
+    local.writeUInt32LE(size, 22);
+    local.writeUInt16LE(nameBuf.length, 26);
+    local.writeUInt16LE(0, 28);
+
+    yield local;
+    yield nameBuf;
+    yield entry.data;
+
+    const central = Buffer.alloc(46);
+    central.writeUInt32LE(0x02014b50, 0);
+    central.writeUInt16LE(20, 4);
+    central.writeUInt16LE(20, 6);
+    central.writeUInt16LE(0x0800, 8);
+    central.writeUInt16LE(0, 10);
+    central.writeUInt16LE(time, 12);
+    central.writeUInt16LE(date, 14);
+    central.writeUInt32LE(crc, 16);
+    central.writeUInt32LE(size, 20);
+    central.writeUInt32LE(size, 24);
+    central.writeUInt16LE(nameBuf.length, 28);
+    central.writeUInt16LE(0, 30);
+    central.writeUInt16LE(0, 32);
+    central.writeUInt16LE(0, 34);
+    central.writeUInt16LE(0, 36);
+    central.writeUInt32LE(0, 38);
+    central.writeUInt32LE(offset, 42);
+
+    centralParts.push(central, nameBuf);
+    offset += local.length + nameBuf.length + size;
+  }
+
+  const centralDir = Buffer.concat(centralParts);
+
+  const eocd = Buffer.alloc(22);
+  eocd.writeUInt32LE(0x06054b50, 0);
+  eocd.writeUInt16LE(0, 4);
+  eocd.writeUInt16LE(0, 6);
+  eocd.writeUInt16LE(entries.length, 8);
+  eocd.writeUInt16LE(entries.length, 10);
+  eocd.writeUInt32LE(centralDir.length, 12);
+  eocd.writeUInt32LE(offset, 16);
+  eocd.writeUInt16LE(0, 20);
+
+  yield centralDir;
+  yield eocd;
+}
+
 /** Make a string safe to use as a single path segment (folder or file name). */
 export function safeSegment(s: string): string {
   return (s || "")
