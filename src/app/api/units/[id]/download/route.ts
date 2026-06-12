@@ -3,7 +3,9 @@ import { auth } from "@/lib/auth";
 import dbConnect from "@/lib/db";
 import Unit from "@/models/Unit";
 import UnitFile from "@/models/UnitFile";
-import { createZip, safeSegment, type ZipEntry } from "@/lib/zip";
+import { zipChunks, zipByteLength, safeSegment, type ZipEntry } from "@/lib/zip";
+
+export const runtime = "nodejs";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -46,15 +48,26 @@ export async function GET(_req: NextRequest, { params }: RouteContext) {
     return { path: `${rootFolder}/${folder}/${name}`, data: toBuffer(f.data) };
   });
 
-  const zip = createZip(entries);
   const filename = `${rootFolder}.zip`;
+  const totalLength = zipByteLength(entries);
 
-  return new NextResponse(zip as unknown as BodyInit, {
+  // Stream the ZIP chunk-by-chunk so the response is never buffered as one
+  // big payload — this avoids serverless response-size limits (Vercel ~4.5 MB).
+  const iterator = zipChunks(entries);
+  const stream = new ReadableStream<Uint8Array>({
+    pull(controller) {
+      const { value, done } = iterator.next();
+      if (done) { controller.close(); return; }
+      controller.enqueue(new Uint8Array(value));
+    },
+  });
+
+  return new NextResponse(stream, {
     status: 200,
     headers: {
       "Content-Type": "application/zip",
       "Content-Disposition": `attachment; filename="${filename}"`,
-      "Content-Length": String(zip.length),
+      "Content-Length": String(totalLength),
       "Cache-Control": "no-store",
     },
   });
