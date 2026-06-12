@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import UnitDownloadButton from "./UnitDownloadButton";
 
 type UnitRow = {
   _id: string;
@@ -153,11 +154,14 @@ export default function UnitsTable({
                     );
                   })()}
                   <td style={{ padding: "12px 16px", textAlign: "right" }}>
-                    <Link href={`/units/${u._id}`} style={{
-                      fontSize: "11px", fontWeight: 600, padding: "5px 12px", borderRadius: "6px",
-                      background: "#eff6ff", color: "#2563eb", textDecoration: "none",
-                      border: "1px solid #bfdbfe",
-                    }}>View</Link>
+                    <div style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                      <UnitDownloadButton unitId={u._id} chassis={u.chassis} variant="icon" />
+                      <Link href={`/units/${u._id}`} style={{
+                        fontSize: "11px", fontWeight: 600, padding: "5px 12px", borderRadius: "6px",
+                        background: "#eff6ff", color: "#2563eb", textDecoration: "none",
+                        border: "1px solid #bfdbfe",
+                      }}>View</Link>
+                    </div>
                   </td>
                 </tr>
               );

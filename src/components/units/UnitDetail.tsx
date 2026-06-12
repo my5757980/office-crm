@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import UnitFinancial from "./UnitFinancial";
+import UnitDownloadButton from "./UnitDownloadButton";
 
 const FOLDERS = [
   "Auction Details/Pics",
@@ -470,9 +471,12 @@ export default function UnitDetail({ unit, documents: initialDocs, role, payment
 
       {/* Document Folders */}
       <div style={cardStyle}>
-        <div style={{ padding: "14px 24px", borderBottom: "1px solid #d0d7de", background: "linear-gradient(135deg, #f6f8fa 0%, #eff6ff 100%)" }}>
-          <p style={{ fontSize: "13px", fontWeight: 700, color: "#1f2328" }}>Document Repository</p>
-          <p style={{ fontSize: "12px", color: "#8c959f", marginTop: "2px" }}>Upload files to each folder — PDF, JPG, PNG and other formats supported</p>
+        <div style={{ padding: "14px 24px", borderBottom: "1px solid #d0d7de", background: "linear-gradient(135deg, #f6f8fa 0%, #eff6ff 100%)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px" }}>
+          <div>
+            <p style={{ fontSize: "13px", fontWeight: 700, color: "#1f2328" }}>Document Repository</p>
+            <p style={{ fontSize: "12px", color: "#8c959f", marginTop: "2px" }}>Upload files to each folder — PDF, JPG, PNG and other formats supported</p>
+          </div>
+          <UnitDownloadButton unitId={unit._id} chassis={display.chassis} variant="button" />
         </div>
 
         <div style={{ padding: "20px 24px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
