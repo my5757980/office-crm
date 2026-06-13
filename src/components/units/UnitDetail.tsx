@@ -476,7 +476,9 @@ export default function UnitDetail({ unit, documents: initialDocs, role, payment
             <p style={{ fontSize: "13px", fontWeight: 700, color: "#1f2328" }}>Document Repository</p>
             <p style={{ fontSize: "12px", color: "#8c959f", marginTop: "2px" }}>Upload files to each folder — PDF, JPG, PNG and other formats supported</p>
           </div>
-          <UnitDownloadButton unitId={unit._id} chassis={display.chassis} variant="button" />
+          {["manager", "super_admin"].includes(role) && (
+            <UnitDownloadButton unitId={unit._id} chassis={display.chassis} variant="button" />
+          )}
         </div>
 
         <div style={{ padding: "20px 24px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>

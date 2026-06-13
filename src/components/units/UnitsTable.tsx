@@ -30,6 +30,7 @@ export default function UnitsTable({
   role?: string;
 }) {
   const showProfit = role === "manager";
+  const showDownload = ["manager", "super_admin"].includes(role ?? "");
   const [query, setQuery] = useState("");
 
   const q = query.trim().toLowerCase();
@@ -155,7 +156,7 @@ export default function UnitsTable({
                   })()}
                   <td style={{ padding: "12px 16px", textAlign: "right" }}>
                     <div style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
-                      <UnitDownloadButton unitId={u._id} chassis={u.chassis} variant="icon" />
+                      {showDownload && <UnitDownloadButton unitId={u._id} chassis={u.chassis} variant="icon" />}
                       <Link href={`/units/${u._id}`} style={{
                         fontSize: "11px", fontWeight: 600, padding: "5px 12px", borderRadius: "6px",
                         background: "#eff6ff", color: "#2563eb", textDecoration: "none",
