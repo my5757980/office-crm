@@ -7,6 +7,8 @@ import { zipChunks, zipByteLength, safeSegment, type ZipEntry } from "@/lib/zip"
 
 export const runtime = "nodejs";
 
+const CAN_DOWNLOAD = ["manager", "super_admin"];
+
 type RouteContext = { params: Promise<{ id: string }> };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -19,6 +21,8 @@ function toBuffer(data: any): Buffer {
 export async function GET(_req: NextRequest, { params }: RouteContext) {
   const session = await auth();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!CAN_DOWNLOAD.includes(session.user.role))
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   await dbConnect();
   const { id } = await params;
