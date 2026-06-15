@@ -59,17 +59,21 @@ export async function POST(request: NextRequest) {
   headerRow.eachCell((cell, col) => {
     colIndex[cellStr(cell.value).toLowerCase()] = col;
   });
-  const col = (name: string) => colIndex[name.toLowerCase()];
+  const col = (...names: string[]) => {
+    for (const n of names) { const c = colIndex[n.toLowerCase()]; if (c) return c; }
+    return undefined;
+  };
   const ci = {
     contactPerson: col("Contact Person"),
-    customerName:  col("Customer Name"),
+    customerName:  col("Customer Name", "Company Name"),
     phone:         col("Phone"),
     email:         col("Email"),
     country:       col("Country"),
     port:          col("Port"),
     address:       col("Address"),
   };
-  if (!ci.contactPerson || !ci.phone || !ci.country || !ci.port) {
+  // Need phone + country columns, and at least one name column
+  if (!ci.phone || !ci.country || (!ci.contactPerson && !ci.customerName)) {
     return NextResponse.json({ error: "Template columns missing. Download a fresh template." }, { status: 400 });
   }
 
@@ -79,22 +83,22 @@ export async function POST(request: NextRequest) {
 
   for (let r = 2; r <= ws.rowCount; r++) {
     const row = ws.getRow(r);
-    const contactPerson = cellStr(row.getCell(ci.contactPerson!).value);
+    const contactPerson = ci.contactPerson ? cellStr(row.getCell(ci.contactPerson).value) : "";
     const phone         = cellStr(row.getCell(ci.phone!).value);
     const countryRaw    = cellStr(row.getCell(ci.country!).value);
-    const port          = cellStr(row.getCell(ci.port!).value);
+    const port          = ci.port ? cellStr(row.getCell(ci.port).value) : "";
     const customerName  = ci.customerName ? cellStr(row.getCell(ci.customerName).value) : "";
     const email         = ci.email ? cellStr(row.getCell(ci.email).value) : "";
     const address       = ci.address ? cellStr(row.getCell(ci.address).value) : "";
 
     // skip fully-empty rows + the example row
-    if (!contactPerson && !phone && !countryRaw && !port) continue;
-    if (/example/i.test(contactPerson)) continue;
+    if (!contactPerson && !customerName && !phone && !countryRaw) continue;
+    if (/example/i.test(contactPerson) || /example/i.test(customerName)) continue;
 
-    if (!contactPerson) { skipped.push({ row: r, reason: "Missing Contact Person" }); continue; }
-    if (!phone)         { skipped.push({ row: r, reason: "Missing Phone" }); continue; }
-    if (!countryRaw)    { skipped.push({ row: r, reason: "Missing Country" }); continue; }
-    if (!port)          { skipped.push({ row: r, reason: "Missing Port" }); continue; }
+    // Contact Person OR Company/Customer Name — at least one required
+    if (!contactPerson && !customerName) { skipped.push({ row: r, reason: "Missing Contact Person / Company Name" }); continue; }
+    if (!phone)      { skipped.push({ row: r, reason: "Missing Phone" }); continue; }
+    if (!countryRaw) { skipped.push({ row: r, reason: "Missing Country" }); continue; }
 
     const resolved = resolveCountry(countryRaw);
     if (!resolved) { skipped.push({ row: r, reason: `Unknown country "${countryRaw}"` }); continue; }
