@@ -60,7 +60,7 @@ export async function GET() {
 
   // Required-fields note
   ws.addRow([]);
-  const note = ws.addRow(["Required: Contact Person, Phone, Country, Port. Country & Port must match CRM list. Country Code is auto-filled."]);
+  const note = ws.addRow(["Required: (Contact Person OR Customer Name), Phone, Country. Country must match CRM list. Email, Port & Address are optional. Country Code is auto-filled."]);
   note.getCell(1).font = { italic: true, size: 9, color: { argb: "FF656D76" } };
 
   const buffer = await wb.xlsx.writeBuffer();

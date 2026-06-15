@@ -20,13 +20,13 @@ export interface ILead extends Document {
 const LeadSchema = new Schema<ILead>(
   {
     customerName: { type: String, trim: true, default: "" },
-    contactPerson: { type: String, required: true, trim: true },
+    contactPerson: { type: String, trim: true, default: "" },
     address: { type: String, trim: true },
     phone: { type: String, required: true, trim: true },
     email: { type: String, trim: true, lowercase: true },
     country: { type: String, required: true },
     countryCode: { type: String, required: true },
-    port: { type: String, required: true },
+    port: { type: String, default: "" },
     status: {
       type: String,
       enum: ["new", "in_progress", "closed", "invoice_requested", "invoiced"],
