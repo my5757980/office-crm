@@ -1,11 +1,13 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
+import mongoose from "mongoose";
 import dbConnect from "@/lib/db";
 import Lead from "@/models/Lead";
 import User from "@/models/User";
 import LeadTable from "@/components/leads/LeadTable";
 import LeadFilters from "@/components/leads/LeadFilters";
+import BulkLeadTools from "@/components/leads/BulkLeadTools";
 import TopBar from "@/components/layout/TopBar";
 
 const ELEVATED = ["admin", "manager", "super_admin"];
@@ -69,6 +71,18 @@ export default async function AdminLeadsPage({
   const leadsData  = JSON.parse(JSON.stringify(leads));
   const agentsData = JSON.parse(JSON.stringify(agents));
 
+  // Supervisor-only: imported (unassigned) leads grouped by country
+  const isSupervisor = session.user.role === "super_admin";
+  let unassignedData: { country: string; count: number }[] = [];
+  if (isSupervisor) {
+    const grouped = await Lead.aggregate([
+      { $match: { createdBy: new mongoose.Types.ObjectId(session.user.id) } },
+      { $group: { _id: "$country", count: { $sum: 1 } } },
+      { $sort: { _id: 1 } },
+    ]);
+    unassignedData = grouped.map((g: { _id: string; count: number }) => ({ country: g._id, count: g.count }));
+  }
+
   return (
     <div style={{ display: "flex", flexDirection: "column", flex: 1 }}>
       <TopBar />
@@ -79,6 +93,9 @@ export default async function AdminLeadsPage({
           <h1 style={{ fontSize: "20px", fontWeight: 700, color: "#1f2328" }}>All Leads</h1>
           <p style={{ fontSize: "13px", color: "#656d76", marginTop: "2px" }}>Viewing all leads from all agents</p>
         </div>
+
+        {/* Supervisor: bulk import + assign by country */}
+        {isSupervisor && <BulkLeadTools agents={agentsData} unassigned={unassignedData} />}
 
         {/* Agent stats cards */}
         {agentsData.length > 0 && (
