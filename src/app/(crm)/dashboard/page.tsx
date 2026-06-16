@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import LeadTable from "@/components/leads/LeadTable";
 import CustomerTable from "@/components/leads/CustomerTable";
 import LeadFilters from "@/components/leads/LeadFilters";
+import LeadPagination from "@/components/leads/LeadPagination";
 import TopBar from "@/components/layout/TopBar";
 import Link from "next/link";
 import dbConnect from "@/lib/db";
@@ -11,6 +12,21 @@ import Invoice from "@/models/Invoice";
 
 const ELEVATED = ["admin", "manager", "super_admin"];
 
+// Escape user input so regex special chars (e.g. "+" in phone numbers) don't break the query
+function escapeRegex(s: string) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+// Search across customer name, contact person and phone
+function searchOr(search: string) {
+  const rx = { $regex: escapeRegex(search.trim()), $options: "i" };
+  return [{ customerName: rx }, { contactPerson: rx }, { phone: rx }];
+}
+function parsePaging(searchParams: Record<string, string>) {
+  const limit = Math.min(Math.max(parseInt(searchParams.limit || "50") || 50, 1), 500);
+  const page  = Math.max(parseInt(searchParams.page || "1") || 1, 1);
+  return { limit, page };
+}
+
 async function getLeadsData(userId: string, role: string, searchParams: Record<string, string>) {
   await dbConnect();
   const isElevated = ELEVATED.includes(role);
@@ -18,8 +34,8 @@ async function getLeadsData(userId: string, role: string, searchParams: Record<s
     ? { isCustomer: { $ne: true } }
     : { createdBy: userId, isCustomer: { $ne: true } };
 
-  const filter = { ...base };
-  if (searchParams.search) filter.customerName = { $regex: searchParams.search, $options: "i" };
+  const filter: Record<string, unknown> = { ...base };
+  if (searchParams.search) filter.$or = searchOr(searchParams.search);
   if (searchParams.status) filter.status = searchParams.status;
   if (searchParams.from || searchParams.to) {
     filter.createdAt = {};
@@ -27,15 +43,22 @@ async function getLeadsData(userId: string, role: string, searchParams: Record<s
     if (searchParams.to)   (filter.createdAt as Record<string, Date>).$lte = new Date(searchParams.to);
   }
 
-  const [leads, total, newCount, inProgress, closed] = await Promise.all([
-    Lead.find(filter).populate("createdBy", "name email").sort({ createdAt: -1 }).limit(100).lean(),
+  const { limit, page } = parsePaging(searchParams);
+
+  const [leads, matchTotal, total, newCount, inProgress, closed] = await Promise.all([
+    Lead.find(filter).populate("createdBy", "name email").sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).lean(),
+    Lead.countDocuments(filter),
     Lead.countDocuments(base),
     Lead.countDocuments({ ...base, status: "new" }),
     Lead.countDocuments({ ...base, status: "in_progress" }),
     Lead.countDocuments({ ...base, status: "closed" }),
   ]);
 
-  return { leads: JSON.parse(JSON.stringify(leads)), stats: { total, newCount, inProgress, closed } };
+  return {
+    leads: JSON.parse(JSON.stringify(leads)),
+    stats: { total, newCount, inProgress, closed },
+    page, limit, matchTotal, totalPages: Math.max(Math.ceil(matchTotal / limit), 1),
+  };
 }
 
 async function getCustomersData(userId: string, role: string, searchParams: Record<string, string>) {
@@ -45,14 +68,20 @@ async function getCustomersData(userId: string, role: string, searchParams: Reco
     ? { isCustomer: true }
     : { createdBy: userId, isCustomer: true };
 
-  const filter = { ...base };
-  if (searchParams.search) filter.customerName = { $regex: searchParams.search, $options: "i" };
+  const filter: Record<string, unknown> = { ...base };
+  if (searchParams.search) filter.$or = searchOr(searchParams.search);
 
-  const customers = await Lead.find(filter)
-    .populate("createdBy", "name email")
-    .sort({ createdAt: -1 })
-    .limit(100)
-    .lean();
+  const { limit, page } = parsePaging(searchParams);
+
+  const [customers, matchTotal] = await Promise.all([
+    Lead.find(filter)
+      .populate("createdBy", "name email")
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .lean(),
+    Lead.countDocuments(filter),
+  ]);
 
   const customerIds = customers.map(c => c._id);
   const invoiceDocs = customerIds.length > 0
@@ -73,7 +102,8 @@ async function getCustomersData(userId: string, role: string, searchParams: Reco
   return {
     customers: JSON.parse(JSON.stringify(customers)),
     invoiceCounts: JSON.parse(JSON.stringify(countMap)),
-    stats: { total: customers.length, totalInvoices, totalPending },
+    stats: { total: matchTotal, totalInvoices, totalPending },
+    page, limit, matchTotal, totalPages: Math.max(Math.ceil(matchTotal / limit), 1),
   };
 }
 
@@ -192,6 +222,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
                 </Suspense>
               </div>
               <LeadTable leads={leadsData.leads} showCreatedBy={isElevated} />
+              <LeadPagination page={leadsData.page} totalPages={leadsData.totalPages} total={leadsData.matchTotal} limit={leadsData.limit} />
             </div>
           </>
         )}
@@ -238,6 +269,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
                 invoiceCounts={customersData.invoiceCounts}
                 showCreatedBy={isElevated}
               />
+              <LeadPagination page={customersData.page} totalPages={customersData.totalPages} total={customersData.matchTotal} limit={customersData.limit} />
             </div>
           </>
         )}
