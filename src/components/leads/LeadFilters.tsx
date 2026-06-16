@@ -66,6 +66,17 @@ export default function LeadFilters() {
       <span style={{ fontSize: "11px", color: "#8c959f" }}>—</span>
       <input type="date" defaultValue={searchParams.get("to") || ""} onChange={e => update("to", e.target.value)} style={controlStyle}
         onFocus={e => { e.target.style.borderColor = "#2563eb"; }} onBlur={e => { e.target.style.borderColor = "#d0d7de"; }} />
+
+      <select
+        defaultValue={searchParams.get("limit") || "50"}
+        onChange={e => update("limit", e.target.value)}
+        title="Rows per page"
+        style={controlStyle}
+        onFocus={e => { e.target.style.borderColor = "#2563eb"; }}
+        onBlur={e => { e.target.style.borderColor = "#d0d7de"; }}
+      >
+        {["25", "50", "100", "200", "500"].map(n => <option key={n} value={n}>{n} / page</option>)}
+      </select>
     </div>
   );
 }

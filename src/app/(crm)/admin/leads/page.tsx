@@ -7,10 +7,15 @@ import Lead from "@/models/Lead";
 import User from "@/models/User";
 import LeadTable from "@/components/leads/LeadTable";
 import LeadFilters from "@/components/leads/LeadFilters";
+import LeadPagination from "@/components/leads/LeadPagination";
 import BulkLeadTools from "@/components/leads/BulkLeadTools";
 import TopBar from "@/components/layout/TopBar";
 
 const ELEVATED = ["admin", "manager", "super_admin"];
+
+function escapeRegex(s: string) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
 
 export default async function AdminLeadsPage({
   searchParams,
@@ -34,7 +39,10 @@ export default async function AdminLeadsPage({
   const hasDate = Object.keys(dateFilter).length > 0;
 
   const filter: Record<string, unknown> = {};
-  if (params.search)    filter.customerName = { $regex: params.search, $options: "i" };
+  if (params.search) {
+    const rx = { $regex: escapeRegex(params.search.trim()), $options: "i" };
+    filter.$or = [{ customerName: rx }, { contactPerson: rx }, { phone: rx }];
+  }
   if (params.country)   filter.country = params.country;
   if (params.status)    filter.status = params.status;
   if (params.agentId)   filter.createdBy = params.agentId;
@@ -43,11 +51,17 @@ export default async function AdminLeadsPage({
   // Per-agent counts respect the selected date (but not agent/search/status)
   const countQuery = hasDate ? { createdAt: dateFilter } : {};
 
-  const [leads, agents, allLeads] = await Promise.all([
-    Lead.find(filter).populate("createdBy", "name email").sort({ createdAt: -1 }).limit(200).lean(),
+  // Pagination
+  const limit = Math.min(Math.max(parseInt(params.limit || "50") || 50, 1), 500);
+  const page  = Math.max(parseInt(params.page || "1") || 1, 1);
+
+  const [leads, matchTotal, agents, allLeads] = await Promise.all([
+    Lead.find(filter).populate("createdBy", "name email").sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).lean(),
+    Lead.countDocuments(filter),
     User.find({ role: "user" }, "name email").sort({ name: 1 }).lean(),
     Lead.find(countQuery).select("createdBy").lean(),
   ]);
+  const totalPages = Math.max(Math.ceil(matchTotal / limit), 1);
 
   // Count leads per agent
   const countMap: Record<string, number> = {};
@@ -147,13 +161,14 @@ export default async function AdminLeadsPage({
               {params.agentId
                 ? `${agentsData.find((a: { _id: string; name: string }) => a._id === params.agentId)?.name ?? "Agent"}'s Leads`
                 : "All Leads"
-              } · <span style={{ color: "#656d76", fontWeight: 400 }}>{leadsData.length} record{leadsData.length !== 1 ? "s" : ""}</span>
+              } · <span style={{ color: "#656d76", fontWeight: 400 }}>{matchTotal} record{matchTotal !== 1 ? "s" : ""}</span>
             </span>
             <Suspense>
               <LeadFilters />
             </Suspense>
           </div>
           <LeadTable leads={leadsData} showCreatedBy />
+          <LeadPagination page={page} totalPages={totalPages} total={matchTotal} limit={limit} />
         </div>
       </div>
     </div>

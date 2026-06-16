@@ -27,7 +27,10 @@ export async function GET(request: NextRequest) {
     ? {}
     : { createdBy: session.user.id };
 
-  if (search) filter.customerName = { $regex: search, $options: "i" };
+  if (search) {
+    const rx = { $regex: search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), $options: "i" };
+    filter.$or = [{ customerName: rx }, { contactPerson: rx }, { phone: rx }];
+  }
   if (country) filter.country = country;
   if (port) filter.port = port;
   if (status) filter.status = status;

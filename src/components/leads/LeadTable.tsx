@@ -84,9 +84,9 @@ export default function LeadTable({ leads, showCreatedBy = false }: { leads: Pop
                       display: "flex", alignItems: "center", justifyContent: "center",
                       fontSize: "11px", fontWeight: 700, color: "#2563eb",
                     }}>
-                      {lead.customerName[0]}
+                      {(lead.customerName || lead.contactPerson || "?")[0]}
                     </div>
-                    <span style={{ fontWeight: 600, color: "#1f2328" }}>{lead.customerName}</span>
+                    <span style={{ fontWeight: 600, color: "#1f2328" }}>{lead.customerName || lead.contactPerson || "—"}</span>
                   </div>
                 </td>
                 <td style={{ padding: "13px 18px", color: "#656d76" }}>{lead.contactPerson}</td>
