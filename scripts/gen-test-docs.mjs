@@ -416,7 +416,7 @@ async function genSBKExcel() {
   ws.mergeCells(26, 8, 26, 9); ws.mergeCells(27, 8, 27, 9); ws.mergeCells(28, 8, 28, 9);
   const SL = { bold: true, border: { left: T, top: T, bottom: T } };
   sset(26, 8, "TOTAL AMOUNT",     SL);
-  sset(27, 8, "50% AMOUNT",       SL);
+  sset(27, 8, `${advPct}% AMOUNT`, SL);
   sset(28, 8, "Remaining Balance", SL);
   for (const [r, v] of [[26, inv.cnfPrice],[27, advanceAmt],[28, remaining]])
     sset(r, 10, v, { bold: true, h: "center", numFmt: "#,##0", border: ALL });
