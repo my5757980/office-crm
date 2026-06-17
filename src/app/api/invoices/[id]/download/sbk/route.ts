@@ -274,7 +274,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   ws.mergeCells(28, 8, 28, 9);
   const SL = { bold: true, border: { left: THIN, top: THIN, bottom: THIN } };
   set(26, 8, "TOTAL AMOUNT",    SL);
-  set(27, 8, "50% AMOUNT",      SL);
+  set(27, 8, `${advPct}% AMOUNT`, SL);
   set(28, 8, "Remaining Balance", SL);
   for (const [r, v] of [[26, inv.cnfPrice], [27, advanceAmt], [28, remaining]] as [number,number][]) {
     set(r, 10, v, { bold: true, h: "center", numFmt: "#,##0", border: ALL });
