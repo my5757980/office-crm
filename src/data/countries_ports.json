@@ -640,7 +640,8 @@
       "GABORONE",
       "KHWAI RIVER LODGE",
       "MAUN",
-      "ORAPA"
+      "ORAPA",
+      "DURBAN"
     ]
   },
   "BRAZIL": {
@@ -7310,7 +7311,8 @@
       "KAMPALA",
       "KASESE",
       "MBABARA",
-      "TORORO"
+      "TORORO",
+      "MOMBASA"
     ]
   },
   "UKRAINE": {
@@ -8409,18 +8411,6 @@
       "WANKIE NATIONAL PARK",
       "DAR ES SALAM",
       "DURBAN"
-    ]
-  },
-  "Uganda": {
-    "code": "UG",
-    "ports": [
-      "Mombasa"
-    ]
-  },
-  "Botswana": {
-    "code": "BW",
-    "ports": [
-      "Durban"
     ]
   }
 }
