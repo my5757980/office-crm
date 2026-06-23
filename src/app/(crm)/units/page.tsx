@@ -5,8 +5,12 @@ import Unit from "@/models/Unit";
 import UnitFile from "@/models/UnitFile";
 import Invoice from "@/models/Invoice";
 import UnitFinancial from "@/models/UnitFinancial";
+import User from "@/models/User"; // ensure schema registered for .populate("createdBy")
 import TopBar from "@/components/layout/TopBar";
 import UnitsTable from "@/components/units/UnitsTable";
+
+// touch import so tree-shaking can't drop the User model registration
+void User;
 
 export default async function UnitsPage() {
   const session = await auth();
@@ -15,21 +19,28 @@ export default async function UnitsPage() {
 
   await dbConnect();
 
-  let units;
-  if (role === "user") {
-    const myInvoices = await Invoice.find({ createdBy: session!.user.id }).select("_id").lean();
-    const invoiceIds = myInvoices.map(i => i._id);
-    units = await Unit.find({ invoiceId: { $in: invoiceIds } })
-      .populate("invoiceId", "cnfPrice")
-      .populate("createdBy", "name")
-      .sort({ createdAt: -1 })
-      .lean();
-  } else {
-    units = await Unit.find({})
-      .populate("invoiceId", "cnfPrice")
-      .populate("createdBy", "name")
-      .sort({ createdAt: -1 })
-      .lean();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let units: any[] = [];
+  try {
+    if (role === "user") {
+      const myInvoices = await Invoice.find({ createdBy: session!.user.id }).select("_id").lean();
+      const invoiceIds = myInvoices.map(i => i._id);
+      units = await Unit.find({ invoiceId: { $in: invoiceIds } })
+        .populate("invoiceId", "cnfPrice")
+        .populate("createdBy", "name")
+        .sort({ createdAt: -1 })
+        .lean();
+    } else {
+      units = await Unit.find({})
+        .populate("invoiceId", "cnfPrice")
+        .populate("createdBy", "name")
+        .sort({ createdAt: -1 })
+        .lean();
+    }
+  } catch (err) {
+    // Don't let a populate / bad-record issue 500 the whole Units page
+    console.error("Units page query failed:", err);
+    units = [];
   }
 
   const unitIds = units.map(u => u._id);
