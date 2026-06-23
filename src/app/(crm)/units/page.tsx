@@ -23,7 +23,6 @@ export default async function UnitsPage() {
   let units: any[] = [];
   const coverMap: Record<string, string> = {};
   const profitMap: Record<string, number | null> = {};
-  let __diag = "";
 
   try {
     if (role === "user") {
@@ -43,8 +42,16 @@ export default async function UnitsPage() {
     }
 
     const unitIds = units.map(u => u._id);
+    // NOTE: no DB .sort() here — sorting the unitfiles collection (which holds
+    // image buffers) blows MongoDB's 32MB in-memory sort limit. We only need
+    // one cover image per unit, so we sort the tiny projected result in JS.
     const coverFiles = await UnitFile.find({ unitId: { $in: unitIds }, mimetype: /^image\// })
-      .select("unitId _id").sort({ uploadedAt: 1 }).lean();
+      .select("unitId _id uploadedAt").lean();
+    coverFiles.sort((a, b) => {
+      const ta = a.uploadedAt ? new Date(a.uploadedAt).getTime() : 0;
+      const tb = b.uploadedAt ? new Date(b.uploadedAt).getTime() : 0;
+      return ta - tb;
+    });
 
     let financials: { unitId: unknown; profit: number }[] = [];
     if (role === "manager") {
@@ -61,7 +68,6 @@ export default async function UnitsPage() {
       profitMap[(f.unitId as { toString(): string }).toString()] = f.profit;
     }
   } catch (err) {
-    __diag = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
     console.error("Units page query failed:", err);
     units = [];
   }
@@ -76,12 +82,6 @@ export default async function UnitsPage() {
           <h1 style={{ fontSize: "20px", fontWeight: 700, color: "#1f2328" }}>Unit Repository</h1>
           <p style={{ fontSize: "13px", color: "#8c959f", marginTop: "2px" }}>{unitsData.length} unit{unitsData.length !== 1 ? "s" : ""} total</p>
         </div>
-
-        {__diag && (
-          <div style={{ background: "#fff5f5", border: "1px solid #ffcecb", borderRadius: "8px", padding: "12px 16px", color: "#cf222e", fontSize: "12px", fontFamily: "monospace", whiteSpace: "pre-wrap" }}>
-            DIАG: {__diag}
-          </div>
-        )}
 
         {unitsData.length === 0 ? (
           <div style={{ background: "#ffffff", border: "1px solid #d0d7de", borderRadius: "10px", overflow: "hidden", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
