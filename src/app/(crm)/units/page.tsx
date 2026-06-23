@@ -33,23 +33,30 @@ export default async function UnitsPage() {
   }
 
   const unitIds = units.map(u => u._id);
-  const [coverFiles, financials] = await Promise.all([
-    UnitFile.find({ unitId: { $in: unitIds }, mimetype: /^image\// })
-      .select("unitId _id").sort({ uploadedAt: 1 }).lean(),
-    role === "manager"
-      ? UnitFinancial.find({ unitId: { $in: unitIds } }).select("unitId profit").lean()
-      : Promise.resolve([]),
-  ]);
+  const coverFiles = await UnitFile.find({ unitId: { $in: unitIds }, mimetype: /^image\// })
+    .select("unitId _id").sort({ uploadedAt: 1 }).lean();
+
+  // Manager-only profit data — never let it break the units page
+  let financials: { unitId: unknown; profit: number }[] = [];
+  if (role === "manager") {
+    try {
+      financials = await UnitFinancial.find({ unitId: { $in: unitIds } }).select("unitId profit").lean() as typeof financials;
+    } catch {
+      financials = [];
+    }
+  }
 
   const coverMap: Record<string, string> = {};
   for (const f of coverFiles) {
+    if (!f.unitId) continue;
     const key = f.unitId.toString();
     if (!coverMap[key]) coverMap[key] = (f._id as { toString(): string }).toString();
   }
 
   const profitMap: Record<string, number | null> = {};
   for (const f of financials) {
-    profitMap[(f.unitId as { toString(): string }).toString()] = (f as { profit: number }).profit;
+    if (!f.unitId) continue;
+    profitMap[(f.unitId as { toString(): string }).toString()] = f.profit;
   }
 
   const unitsData = JSON.parse(JSON.stringify(units));

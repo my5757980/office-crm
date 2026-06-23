@@ -131,7 +131,7 @@ export default function UnitsTable({
                   <td style={{ padding: "12px 16px", color: "#656d76", fontFamily: "monospace", fontSize: "12px" }}>{u.chassis}</td>
                   <td style={{ padding: "12px 16px", color: "#656d76" }}>{u.color}</td>
                   <td style={{ padding: "12px 16px", color: "#656d76" }}>{u.drive} · {u.fuel}</td>
-                  <td style={{ padding: "12px 16px", color: "#656d76" }}>{u.mileage.toLocaleString()} km</td>
+                  <td style={{ padding: "12px 16px", color: "#656d76" }}>{(u.mileage ?? 0).toLocaleString()} km</td>
                   <td style={{ padding: "12px 16px", color: "#656d76" }}>{u.location}</td>
                   <td style={{ padding: "12px 16px", color: "#8c959f", fontSize: "12px" }}>{u.createdBy?.name ?? "—"}</td>
                   {showProfit && (() => {
