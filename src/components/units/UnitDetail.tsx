@@ -329,10 +329,10 @@ export default function UnitDetail({ unit, documents: initialDocs, role, payment
               </div>
             ) : (
               <>
-                <DataRow label="Engine CC"     value={`${display.engineCC.toLocaleString()} cc`} />
+                <DataRow label="Engine CC"     value={`${(display.engineCC ?? 0).toLocaleString()} cc`} />
                 <DataRow label="Drive"         value={display.drive} />
                 <DataRow label="Fuel"          value={display.fuel} />
-                <DataRow label="Mileage"       value={`${display.mileage.toLocaleString()} km`} />
+                <DataRow label="Mileage"       value={`${(display.mileage ?? 0).toLocaleString()} km`} />
                 <DataRow label="Transmission"  value={display.transmission} />
                 <DataRow label="Steering"      value={display.steering} />
                 <DataRow label="Doors / Seats" value={`${display.doors} doors · ${display.seats} seats`} />

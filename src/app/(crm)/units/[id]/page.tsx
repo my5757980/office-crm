@@ -29,7 +29,7 @@ export default async function UnitDetailPage({
   const invoice = await Invoice.findById(unit.invoiceId).select("createdBy cnfPrice").lean();
 
   if (role === "user") {
-    if (!invoice || invoice.createdBy.toString() !== session!.user.id) notFound();
+    if (!invoice || invoice.createdBy?.toString() !== session!.user.id) notFound();
   }
 
   const [files, payments, coverFile] = await Promise.all([
