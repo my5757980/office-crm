@@ -21,6 +21,10 @@ export default async function UnitsPage() {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let units: any[] = [];
+  const coverMap: Record<string, string> = {};
+  const profitMap: Record<string, number | null> = {};
+  let __diag = "";
+
   try {
     if (role === "user") {
       const myInvoices = await Invoice.find({ createdBy: session!.user.id }).select("_id").lean();
@@ -37,37 +41,29 @@ export default async function UnitsPage() {
         .sort({ createdAt: -1 })
         .lean();
     }
+
+    const unitIds = units.map(u => u._id);
+    const coverFiles = await UnitFile.find({ unitId: { $in: unitIds }, mimetype: /^image\// })
+      .select("unitId _id").sort({ uploadedAt: 1 }).lean();
+
+    let financials: { unitId: unknown; profit: number }[] = [];
+    if (role === "manager") {
+      financials = await UnitFinancial.find({ unitId: { $in: unitIds } }).select("unitId profit").lean() as typeof financials;
+    }
+
+    for (const f of coverFiles) {
+      if (!f.unitId) continue;
+      const key = f.unitId.toString();
+      if (!coverMap[key]) coverMap[key] = (f._id as { toString(): string }).toString();
+    }
+    for (const f of financials) {
+      if (!f.unitId) continue;
+      profitMap[(f.unitId as { toString(): string }).toString()] = f.profit;
+    }
   } catch (err) {
-    // Don't let a populate / bad-record issue 500 the whole Units page
+    __diag = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
     console.error("Units page query failed:", err);
     units = [];
-  }
-
-  const unitIds = units.map(u => u._id);
-  const coverFiles = await UnitFile.find({ unitId: { $in: unitIds }, mimetype: /^image\// })
-    .select("unitId _id").sort({ uploadedAt: 1 }).lean();
-
-  // Manager-only profit data — never let it break the units page
-  let financials: { unitId: unknown; profit: number }[] = [];
-  if (role === "manager") {
-    try {
-      financials = await UnitFinancial.find({ unitId: { $in: unitIds } }).select("unitId profit").lean() as typeof financials;
-    } catch {
-      financials = [];
-    }
-  }
-
-  const coverMap: Record<string, string> = {};
-  for (const f of coverFiles) {
-    if (!f.unitId) continue;
-    const key = f.unitId.toString();
-    if (!coverMap[key]) coverMap[key] = (f._id as { toString(): string }).toString();
-  }
-
-  const profitMap: Record<string, number | null> = {};
-  for (const f of financials) {
-    if (!f.unitId) continue;
-    profitMap[(f.unitId as { toString(): string }).toString()] = f.profit;
   }
 
   const unitsData = JSON.parse(JSON.stringify(units));
@@ -80,6 +76,12 @@ export default async function UnitsPage() {
           <h1 style={{ fontSize: "20px", fontWeight: 700, color: "#1f2328" }}>Unit Repository</h1>
           <p style={{ fontSize: "13px", color: "#8c959f", marginTop: "2px" }}>{unitsData.length} unit{unitsData.length !== 1 ? "s" : ""} total</p>
         </div>
+
+        {__diag && (
+          <div style={{ background: "#fff5f5", border: "1px solid #ffcecb", borderRadius: "8px", padding: "12px 16px", color: "#cf222e", fontSize: "12px", fontFamily: "monospace", whiteSpace: "pre-wrap" }}>
+            DIАG: {__diag}
+          </div>
+        )}
 
         {unitsData.length === 0 ? (
           <div style={{ background: "#ffffff", border: "1px solid #d0d7de", borderRadius: "10px", overflow: "hidden", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
