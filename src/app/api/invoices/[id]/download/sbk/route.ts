@@ -13,7 +13,7 @@ const SBK_INFO = {
   addr2:       "P.O Box 4848, Ajman, United Arab Emirates",
   web:         "www.sbkautotrading.com",
   email:       "Email: payment@sbkautotrading.com",
-  phone:       "Contact: +971 55 417 7311 (UAE) | +81 3 5050 0251 (Japan) | WhatsApp: +66 991983485 (Thailand)",
+  phone:       "Contact: +971 55 417 7311 (UAE) | +81 70 9427 5106 (Japan) | WhatsApp: +66 991983485 (Thailand)",
   bankAccount: "SBK GLOBAL AUTO TRADING FZC LLC",
   bankName:    "Emirates Islamic",
   bankBranch:  "EI Ibn Batuta Mall",
