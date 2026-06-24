@@ -21,7 +21,7 @@ const today = new Date().toISOString().slice(0, 10);
 const col = { leads: "#2563eb", invoices: "#7c3aed", units: "#059669" };
 
 function fmtDate(d: string) {
-  return new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+  return new Date(d).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" });
 }
 
 export default function ReportsPage() {
@@ -376,7 +376,7 @@ export default function ReportsPage() {
                   {detailTab === "invoices" && (
                     <DetailTable
                       headers={["Unit", "Consignee", "Amount", "Date"]}
-                      rows={detail.invoices.map(i => [i.unit ?? "—", i.consignee?.name ?? "—", `$${(i.cnfPrice ?? 0).toLocaleString()}`, fmtDate(i.createdAt)])}
+                      rows={detail.invoices.map(i => [i.unit ?? "—", i.consignee?.name ?? "—", `$${(i.cnfPrice ?? 0).toLocaleString("en-US")}`, fmtDate(i.createdAt)])}
                       color={col.invoices}
                       empty="No invoices in this period"
                     />
