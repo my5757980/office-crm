@@ -5,19 +5,16 @@ import Lead from "@/models/Lead";
 import Invoice from "@/models/Invoice";
 import Unit from "@/models/Unit";
 import UnitFile from "@/models/UnitFile";
-import UnitFinancial from "@/models/UnitFinancial";
 import Payment from "@/models/Payment";
-import Message from "@/models/Message";
-import Notification from "@/models/Notification";
-import User from "@/models/User";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-// One-time / safe to re-run: builds the indexes declared in the schemas on the
-// actual database. Creating indexes is non-destructive. Needed because some
-// collections predate their createdAt indexes, causing slow in-memory/disk
-// sorts (and the earlier "Sort exceeded memory limit" crash).
+// One-time / safe to re-run: builds the sort indexes the app relies on.
+// Creating indexes is non-destructive. Needed because some collections predate
+// their createdAt indexes, causing slow scans + disk sorts (and the earlier
+// "Sort exceeded memory limit" crash). Each build is isolated so one conflict
+// can't fail the rest.
 export async function GET() {
   const session = await auth();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -26,33 +23,23 @@ export async function GET() {
 
   await dbConnect();
 
-  // Ensure useful sort indexes exist (idempotent)
-  await Promise.all([
-    Invoice.collection.createIndex({ createdAt: -1 }),
-    Unit.collection.createIndex({ createdAt: -1 }),
-    UnitFile.collection.createIndex({ unitId: 1, uploadedAt: 1 }),
-    Lead.collection.createIndex({ createdAt: -1 }),
-    Payment.collection.createIndex({ invoiceId: 1, receivedDate: 1 }),
-    Message.collection.createIndex({ leadId: 1, createdAt: 1 }),
-    Notification.collection.createIndex({ userId: 1, createdAt: -1 }),
-    User.collection.createIndex({ createdAt: -1 }),
-    UnitFinancial.collection.createIndex({ unitId: 1 }),
-  ]);
+  const jobs: [string, () => Promise<unknown>][] = [
+    ["invoices.createdAt",            () => Invoice.collection.createIndex({ createdAt: -1 })],
+    ["units.createdAt",               () => Unit.collection.createIndex({ createdAt: -1 })],
+    ["unitfiles.unitId_uploadedAt",   () => UnitFile.collection.createIndex({ unitId: 1, uploadedAt: 1 })],
+    ["leads.createdAt",               () => Lead.collection.createIndex({ createdAt: -1 })],
+    ["payments.invoiceId_receivedDate", () => Payment.collection.createIndex({ invoiceId: 1, receivedDate: 1 })],
+  ];
 
-  // Also sync any other schema-declared indexes
-  await Promise.all([
-    Lead.createIndexes(),
-    Invoice.createIndexes(),
-    Unit.createIndexes(),
-    UnitFile.createIndexes(),
-    Payment.createIndexes(),
-  ]);
+  const results: Record<string, string> = {};
+  for (const [name, fn] of jobs) {
+    try {
+      await fn();
+      results[name] = "ok";
+    } catch (e) {
+      results[name] = e instanceof Error ? e.message : String(e);
+    }
+  }
 
-  const indexes = {
-    invoices: await Invoice.collection.indexes(),
-    units: await Unit.collection.indexes(),
-    unitfiles: await UnitFile.collection.indexes(),
-  };
-
-  return NextResponse.json({ ok: true, message: "Indexes ensured", indexes });
+  return NextResponse.json({ ok: true, results });
 }
