@@ -43,18 +43,28 @@ export default async function InvoicesPage() {
 
   const filter = isElevated ? {} : { createdBy: session!.user.id };
 
-  const [raw, stats] = await Promise.all([
-    Invoice.find(filter)
-      .select("-uploadedPdf.data")
-      .populate("createdBy", "name email")
-      .populate("leadId", "customerName")
-      .sort({ createdAt: -1 })
-      .allowDiskUse(true)
-      .lean(),
-    getStats(filter),
-  ]);
-
-  const invoices = JSON.parse(JSON.stringify(raw));
+  let invoices, stats;
+  try {
+    const [raw, statsResult] = await Promise.all([
+      Invoice.find(filter)
+        .select("-uploadedPdf.data")
+        .populate("createdBy", "name email")
+        .populate("leadId", "customerName")
+        .sort({ createdAt: -1 })
+        .allowDiskUse(true)
+        .lean(),
+      getStats(filter),
+    ]);
+    invoices = JSON.parse(JSON.stringify(raw));
+    stats = statsResult;
+  } catch (e) {
+    return (
+      <div style={{ padding: 24, fontFamily: "monospace", whiteSpace: "pre-wrap", color: "#cf222e" }}>
+        __diag invoices list crash{"\n"}
+        {e instanceof Error ? (e.stack ?? e.message) : String(e)}
+      </div>
+    );
+  }
 
   return (
     <div style={{ display: "flex", flexDirection: "column", flex: 1 }}>
