@@ -45,6 +45,7 @@ export default async function InvoicesPage() {
 
   const [raw, stats] = await Promise.all([
     Invoice.find(filter)
+      .select("-uploadedPdf.data")
       .populate("createdBy", "name email")
       .populate("leadId", "customerName")
       .sort({ createdAt: -1 })

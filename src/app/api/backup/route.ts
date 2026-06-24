@@ -21,7 +21,7 @@ export async function GET() {
 
   const [leads, invoices, payments, units, financials] = await Promise.all([
     Lead.find().populate("createdBy", "name email").lean(),
-    Invoice.find().populate("createdBy", "name email").populate("approvedBy", "name").populate("leadId", "customerName").lean(),
+    Invoice.find().select("-uploadedPdf.data").populate("createdBy", "name email").populate("approvedBy", "name").populate("leadId", "customerName").lean(),
     Payment.find().populate("invoiceId", "unit chassisNo").populate("recordedBy", "name email").lean(),
     Unit.find().populate("createdBy", "name email").populate("invoiceId", "unit chassisNo").lean(),
     UnitFinancial.find().populate("unitId", "make carModel year chassis").lean(),
