@@ -225,7 +225,7 @@ export default function UnitDetail({ unit, documents: initialDocs, role, payment
               <p style={{ fontSize: "12px", color: "#8c959f", marginTop: "4px" }}>
                 Chassis: <strong style={{ color: "#656d76" }}>{display.chassis}</strong>
                 {unit.createdBy && ` · Added by ${unit.createdBy.name}`}
-                {" · "}{new Date(unit.createdAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
+                {" · "}{new Date(unit.createdAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" })}
               </p>
             </div>
           </div>
@@ -329,10 +329,10 @@ export default function UnitDetail({ unit, documents: initialDocs, role, payment
               </div>
             ) : (
               <>
-                <DataRow label="Engine CC"     value={`${(display.engineCC ?? 0).toLocaleString()} cc`} />
+                <DataRow label="Engine CC"     value={`${(display.engineCC ?? 0).toLocaleString("en-US")} cc`} />
                 <DataRow label="Drive"         value={display.drive} />
                 <DataRow label="Fuel"          value={display.fuel} />
-                <DataRow label="Mileage"       value={`${(display.mileage ?? 0).toLocaleString()} km`} />
+                <DataRow label="Mileage"       value={`${(display.mileage ?? 0).toLocaleString("en-US")} km`} />
                 <DataRow label="Transmission"  value={display.transmission} />
                 <DataRow label="Steering"      value={display.steering} />
                 <DataRow label="Doors / Seats" value={`${display.doors} doors · ${display.seats} seats`} />
@@ -405,7 +405,7 @@ export default function UnitDetail({ unit, documents: initialDocs, role, payment
                 <tr key={p._id} style={{ borderBottom: i < payments.length - 1 ? "1px solid #f0f2f4" : "none" }}>
                   <td style={{ padding: "11px 16px", color: "#8c959f", fontWeight: 600 }}>{i + 1}</td>
                   <td style={{ padding: "11px 16px", whiteSpace: "nowrap" }}>
-                    {new Date(p.receivedDate).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
+                    {new Date(p.receivedDate).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" })}
                   </td>
                   <td style={{ padding: "11px 16px", fontWeight: 600, color: "#1f2328" }}>${fmt(p.sellingPrice)}</td>
                   <td style={{ padding: "11px 16px", fontWeight: 700, color: "#059669" }}>${fmt(p.amountReceived)}</td>

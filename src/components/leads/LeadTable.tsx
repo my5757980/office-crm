@@ -109,7 +109,7 @@ export default function LeadTable({ leads, showCreatedBy = false }: { leads: Pop
                   <td style={{ padding: "13px 18px", color: "#656d76", fontSize: "12px" }}>{lead.createdBy?.name}</td>
                 )}
                 <td style={{ padding: "13px 18px", color: "#8c959f", fontSize: "12px", whiteSpace: "nowrap" }}>
-                  {new Date(lead.createdAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
+                  {new Date(lead.createdAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" })}
                 </td>
               </tr>
             );

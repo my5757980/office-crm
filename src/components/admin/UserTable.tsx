@@ -393,7 +393,7 @@ export default function UserTable({ users: initialUsers, currentRole }: { users:
                   </span>
                 </td>
                 <td style={{ padding: "13px 18px", color: "#8c959f", fontSize: "12px", whiteSpace: "nowrap" }}>
-                  {new Date(user.createdAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
+                  {new Date(user.createdAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" })}
                 </td>
                 <td style={{ padding: "13px 18px", textAlign: "right" }}>
                   <div style={{ display: "flex", gap: "6px", justifyContent: "flex-end", flexWrap: "wrap" }}>
