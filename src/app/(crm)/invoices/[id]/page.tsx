@@ -19,6 +19,7 @@ export default async function InvoiceDetailPage({
   await dbConnect();
 
   const raw = await Invoice.findById(id)
+    .select("-uploadedPdf.data")
     .populate("createdBy", "name email")
     .populate("approvedBy", "name")
     .populate("leadId", "customerName contactPerson country port")

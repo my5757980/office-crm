@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import InvoiceStatusBadge from "./InvoiceStatusBadge";
@@ -29,7 +29,7 @@ interface InvoiceDetailProps {
     leadId?: { customerName: string; contactPerson: string } | null;
     createdBy?: { name: string; email: string } | null;
     approvedBy?: { name: string } | null;
-    uploadedPdf?: { data: string; filename: string; uploadedAt: string } | null;
+    uploadedPdf?: { data?: string; filename: string; uploadedAt: string } | null;
   };
   role: string;
 }
@@ -53,6 +53,19 @@ export default function InvoiceDetail({ invoice, role, unitId }: InvoiceDetailPr
   const [dlLoading, setDlLoading] = useState<"sbk" | "jdm" | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadedPdf, setUploadedPdf] = useState(invoice.uploadedPdf ?? null);
+  const [pdfLoading, setPdfLoading] = useState(false);
+
+  useEffect(() => {
+    if (!invoice.uploadedPdf || invoice.uploadedPdf.data) return;
+    setPdfLoading(true);
+    fetch(`/api/invoices/${invoice._id}/pdf`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((json) => {
+        if (json?.data) setUploadedPdf((prev) => (prev ? { ...prev, data: json.data } : prev));
+      })
+      .finally(() => setPdfLoading(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [invoice._id]);
 
   const [editModal, setEditModal] = useState(false);
   const [editSaving, setEditSaving] = useState(false);
@@ -552,11 +565,17 @@ export default function InvoiceDetail({ invoice, role, unitId }: InvoiceDetailPr
           {/* PDF Preview */}
           {uploadedPdf && (
             <div style={{ padding: "0" }}>
-              <iframe
-                src={`data:application/pdf;base64,${uploadedPdf.data}`}
-                style={{ width: "100%", height: "600px", border: "none", display: "block" }}
-                title="Invoice PDF"
-              />
+              {uploadedPdf.data ? (
+                <iframe
+                  src={`data:application/pdf;base64,${uploadedPdf.data}`}
+                  style={{ width: "100%", height: "600px", border: "none", display: "block" }}
+                  title="Invoice PDF"
+                />
+              ) : (
+                <div style={{ padding: "32px 24px", textAlign: "center", color: "#8c959f", fontSize: "13px" }}>
+                  {pdfLoading ? "Loading PDF preview…" : "Could not load PDF preview"}
+                </div>
+              )}
             </div>
           )}
 
