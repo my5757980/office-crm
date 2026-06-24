@@ -105,7 +105,7 @@ export default function ChatWidget({ myId }: { myId: string }) {
   };
 
   const fmtTime = (d: string) =>
-    new Date(d).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+    new Date(d).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "UTC" });
 
   return (
     <>

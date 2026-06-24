@@ -124,7 +124,7 @@ export default function LeadDetail({ lead, canEdit, canChangeStatus, canDelete, 
                 {s?.label ?? lead.status}
               </span>
               <span style={{ fontSize: "12px", color: "#8c959f" }}>
-                Added by <strong style={{ color: "#656d76" }}>{lead.createdBy?.name}</strong> · {new Date(lead.createdAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
+                Added by <strong style={{ color: "#656d76" }}>{lead.createdBy?.name}</strong> · {new Date(lead.createdAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" })}
               </span>
             </div>
           </div>

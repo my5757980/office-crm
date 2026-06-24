@@ -138,7 +138,7 @@ export default function LeadChat({ leadId, messages, currentUserName }: LeadChat
                   {msg.message}
                 </div>
                 <span style={{ fontSize: "10px", color: "#8c959f", marginTop: "4px", padding: "0 2px" }}>
-                  {new Date(msg.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                  {new Date(msg.createdAt).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "UTC" })}
                 </span>
               </div>
             </div>

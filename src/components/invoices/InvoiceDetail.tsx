@@ -193,7 +193,7 @@ export default function InvoiceDetail({ invoice, role, unitId }: InvoiceDetailPr
               <div style={{ display: "flex", alignItems: "center", gap: "10px", marginTop: "6px", flexWrap: "wrap" }}>
                 <InvoiceStatusBadge status={invoice.status} />
                 <span style={{ fontSize: "12px", color: "#8c959f" }}>
-                  {new Date(invoice.createdAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
+                  {new Date(invoice.createdAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" })}
                 </span>
                 {invoice.createdBy && (
                   <span style={{ fontSize: "12px", color: "#8c959f" }}>
@@ -446,7 +446,7 @@ export default function InvoiceDetail({ invoice, role, unitId }: InvoiceDetailPr
         <div className="hidden print:block" style={{ textAlign: "center", padding: "24px", borderBottom: "1px solid #d0d7de" }}>
           <h1 style={{ fontSize: "28px", fontWeight: 700, color: "#1f2328" }}>INVOICE</h1>
           <p style={{ color: "#656d76", fontSize: "13px", marginTop: "6px" }}>
-            Customer: {invoice.leadId?.customerName} · Date: {new Date(invoice.createdAt).toLocaleDateString()} · Status: {invoice.status.toUpperCase()}
+            Customer: {invoice.leadId?.customerName} · Date: {new Date(invoice.createdAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" })} · Status: {invoice.status.toUpperCase()}
           </p>
         </div>
 
@@ -495,7 +495,7 @@ export default function InvoiceDetail({ invoice, role, unitId }: InvoiceDetailPr
                 <p style={{ fontSize: "13px", fontWeight: 600, color: "#1f2328" }}>{label}</p>
                 <p style={{ fontSize: "11px", color: "#8c959f", marginTop: "2px" }}>{sub}</p>
               </div>
-              <p style={{ fontSize: "16px", fontWeight: 700, color: "#1f2328" }}>{value.toLocaleString()}</p>
+              <p style={{ fontSize: "16px", fontWeight: 700, color: "#1f2328" }}>{value.toLocaleString("en-US")}</p>
             </div>
           ))}
         </div>
