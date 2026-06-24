@@ -22,7 +22,7 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
   if (!invoice) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const isElevated = ["admin", "manager", "super_admin"].includes(session.user.role);
-  const isOwner = (invoice.createdBy as { _id: { toString(): string } })._id.toString() === session.user.id;
+  const isOwner = (invoice.createdBy as { _id?: { toString(): string } } | null)?._id?.toString() === session.user.id;
 
   if (!isElevated && !isOwner) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
