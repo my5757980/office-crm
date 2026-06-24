@@ -56,7 +56,7 @@ export default async function AdminLeadsPage({
   const page  = Math.max(parseInt(params.page || "1") || 1, 1);
 
   const [leads, matchTotal, agents, allLeads] = await Promise.all([
-    Lead.find(filter).populate("createdBy", "name email").sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).lean(),
+    Lead.find(filter).populate("createdBy", "name email").sort({ createdAt: -1 }).allowDiskUse(true).skip((page - 1) * limit).limit(limit).lean(),
     Lead.countDocuments(filter),
     User.find({ role: "user" }, "name email").sort({ name: 1 }).lean(),
     Lead.find(countQuery).select("createdBy").lean(),
@@ -93,7 +93,7 @@ export default async function AdminLeadsPage({
       { $match: { createdBy: new mongoose.Types.ObjectId(session.user.id) } },
       { $group: { _id: "$country", count: { $sum: 1 } } },
       { $sort: { _id: 1 } },
-    ]);
+    ]).allowDiskUse(true);
     unassignedData = grouped.map((g: { _id: string; count: number }) => ({ country: g._id, count: g.count }));
   }
 

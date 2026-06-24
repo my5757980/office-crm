@@ -26,6 +26,7 @@ export async function GET(req: NextRequest) {
     ],
   })
     .sort({ createdAt: 1 })
+    .allowDiskUse(true)
     .lean();
 
   return NextResponse.json(messages.map(m => ({

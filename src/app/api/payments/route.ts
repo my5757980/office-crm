@@ -46,6 +46,7 @@ export async function GET(request: NextRequest) {
   const payments = await Payment.find({ invoiceId })
     .populate("recordedBy", "name")
     .sort({ receivedDate: 1 })
+    .allowDiskUse(true)
     .lean();
 
   return NextResponse.json({ payments });

@@ -35,7 +35,7 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
   if (!lead) return NextResponse.json({ error: "Not found" }, { status: 404 });
   if (!allowed) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  const messages = await Message.find({ leadId: id }).sort({ createdAt: 1 }).lean();
+  const messages = await Message.find({ leadId: id }).sort({ createdAt: 1 }).allowDiskUse(true).lean();
 
   return NextResponse.json({ lead, messages });
 }
