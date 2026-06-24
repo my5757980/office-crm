@@ -48,6 +48,7 @@ export default async function InvoicesPage() {
       .populate("createdBy", "name email")
       .populate("leadId", "customerName")
       .sort({ createdAt: -1 })
+      .allowDiskUse(true)
       .lean(),
     getStats(filter),
   ]);

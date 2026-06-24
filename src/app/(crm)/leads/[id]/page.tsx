@@ -35,8 +35,8 @@ export default async function LeadDetailPage({
   const canReassign       = ["super_admin", "manager"].includes(role);
 
   const [messages, agents] = await Promise.all([
-    Message.find({ leadId: id }).sort({ createdAt: 1 }).lean(),
-    canReassign ? User.find({ role: "user" }, "name email").sort({ name: 1 }).lean() : Promise.resolve([]),
+    Message.find({ leadId: id }).sort({ createdAt: 1 }).allowDiskUse(true).lean(),
+    canReassign ? User.find({ role: "user" }, "name email").sort({ name: 1 }).allowDiskUse(true).lean() : Promise.resolve([]),
   ]);
 
   const leadData     = JSON.parse(JSON.stringify(lead));

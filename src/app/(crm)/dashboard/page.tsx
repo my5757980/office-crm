@@ -46,7 +46,7 @@ async function getLeadsData(userId: string, role: string, searchParams: Record<s
   const { limit, page } = parsePaging(searchParams);
 
   const [leads, matchTotal, total, newCount, inProgress, closed] = await Promise.all([
-    Lead.find(filter).populate("createdBy", "name email").sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).lean(),
+    Lead.find(filter).populate("createdBy", "name email").sort({ createdAt: -1 }).allowDiskUse(true).skip((page - 1) * limit).limit(limit).lean(),
     Lead.countDocuments(filter),
     Lead.countDocuments(base),
     Lead.countDocuments({ ...base, status: "new" }),
@@ -77,6 +77,7 @@ async function getCustomersData(userId: string, role: string, searchParams: Reco
     Lead.find(filter)
       .populate("createdBy", "name email")
       .sort({ createdAt: -1 })
+      .allowDiskUse(true)
       .skip((page - 1) * limit)
       .limit(limit)
       .lean(),

@@ -58,9 +58,9 @@ export async function GET(req: NextRequest) {
   const match = { createdBy: userOid, createdAt: { $gte: start, $lte: end } };
 
   const [leads, invoices, units] = await Promise.all([
-    Lead.find(match).select("customerName phone createdAt status").sort({ createdAt: -1 }).lean(),
-    Invoice.find(match).select("unit cnfPrice consignee createdAt").sort({ createdAt: -1 }).lean(),
-    Unit.find(match).select("unit chassisNo color createdAt").sort({ createdAt: -1 }).lean(),
+    Lead.find(match).select("customerName phone createdAt status").sort({ createdAt: -1 }).allowDiskUse(true).lean(),
+    Invoice.find(match).select("unit cnfPrice consignee createdAt").sort({ createdAt: -1 }).allowDiskUse(true).lean(),
+    Unit.find(match).select("unit chassisNo color createdAt").sort({ createdAt: -1 }).allowDiskUse(true).lean(),
   ]);
 
   return NextResponse.json({ leads, invoices, units });

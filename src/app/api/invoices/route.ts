@@ -86,6 +86,7 @@ export async function GET() {
     .populate("createdBy", "name email")
     .populate("leadId", "customerName")
     .sort({ createdAt: -1 })
+    .allowDiskUse(true)
     .lean();
 
   return NextResponse.json({ invoices });

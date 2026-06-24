@@ -26,7 +26,7 @@ export async function GET() {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   await dbConnect();
-  const users = await User.find({}).sort({ createdAt: -1 }).lean();
+  const users = await User.find({}).sort({ createdAt: -1 }).allowDiskUse(true).lean();
   return NextResponse.json({ users: JSON.parse(JSON.stringify(users)) });
 }
 

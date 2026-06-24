@@ -38,6 +38,7 @@ export default async function UnitDetailPage({
       .select("receiptImage receivedDate sellingPrice amountReceived exchangeRate yenAmount recordedBy")
       .populate("recordedBy", "name")
       .sort({ receivedDate: 1 })
+      .allowDiskUse(true)
       .lean(),
     UnitFile.findOne({ unitId: id, mimetype: /^image\// }).select("_id").lean(),
   ]);

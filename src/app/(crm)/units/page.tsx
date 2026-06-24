@@ -32,12 +32,14 @@ export default async function UnitsPage() {
         .populate("invoiceId", "cnfPrice")
         .populate("createdBy", "name")
         .sort({ createdAt: -1 })
+        .allowDiskUse(true)
         .lean();
     } else {
       units = await Unit.find({})
         .populate("invoiceId", "cnfPrice")
         .populate("createdBy", "name")
         .sort({ createdAt: -1 })
+        .allowDiskUse(true)
         .lean();
     }
 

@@ -44,6 +44,7 @@ export async function GET(request: NextRequest) {
   const leads = await Lead.find(filter)
     .populate("createdBy", "name email")
     .sort({ createdAt: -1 })
+    .allowDiskUse(true)
     .skip((page - 1) * limit)
     .limit(limit)
     .lean();

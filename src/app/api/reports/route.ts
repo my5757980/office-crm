@@ -58,7 +58,7 @@ async function aggregate(Model: typeof Lead | typeof Invoice | typeof Unit, star
     { $unwind: { path: "$u", preserveNullAndEmptyArrays: true } },
     { $project: { _id: 0, userId: { $toString: "$_id" }, name: { $ifNull: ["$u.name", "Unknown"] }, count: 1 } },
     { $sort: { name: 1 } },
-  ]);
+  ]).allowDiskUse(true);
   return rows as AggRow[];
 }
 

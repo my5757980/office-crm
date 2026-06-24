@@ -11,6 +11,7 @@ export async function GET() {
 
   const notifications = await Notification.find({ userId: session.user.id })
     .sort({ createdAt: -1 })
+    .allowDiskUse(true)
     .limit(20)
     .lean();
 
