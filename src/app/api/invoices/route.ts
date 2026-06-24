@@ -83,6 +83,7 @@ export async function GET() {
   const filter = isElevated ? {} : { createdBy: session.user.id };
 
   const invoices = await Invoice.find(filter)
+    .select("-uploadedPdf.data")
     .populate("createdBy", "name email")
     .populate("leadId", "customerName")
     .sort({ createdAt: -1 })
