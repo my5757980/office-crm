@@ -18,23 +18,34 @@ export default async function InvoiceDetailPage({
 
   await dbConnect();
 
-  const raw = await Invoice.findById(id)
-    .populate("createdBy", "name email")
-    .populate("approvedBy", "name")
-    .populate("leadId", "customerName contactPerson country port")
-    .lean();
+  let raw, role, isElevated, isOwner, existingUnit, invoice, unitId;
+  try {
+    raw = await Invoice.findById(id)
+      .populate("createdBy", "name email")
+      .populate("approvedBy", "name")
+      .populate("leadId", "customerName contactPerson country port")
+      .lean();
 
-  if (!raw) notFound();
+    if (!raw) notFound();
 
-  const role = session!.user.role;
-  const isElevated = ["admin", "manager", "super_admin"].includes(role);
-  const isOwner = (raw.createdBy as { _id: { toString(): string } })._id.toString() === session!.user.id;
+    role = session!.user.role;
+    isElevated = ["admin", "manager", "super_admin"].includes(role);
+    isOwner = (raw.createdBy as { _id: { toString(): string } })._id.toString() === session!.user.id;
 
-  if (!isElevated && !isOwner) notFound();
+    if (!isElevated && !isOwner) notFound();
 
-  const existingUnit = await Unit.findOne({ invoiceId: id }).select("_id").lean();
-  const invoice = JSON.parse(JSON.stringify(raw));
-  const unitId = existingUnit ? existingUnit._id.toString() : null;
+    existingUnit = await Unit.findOne({ invoiceId: id }).select("_id").lean();
+    invoice = JSON.parse(JSON.stringify(raw));
+    unitId = existingUnit ? existingUnit._id.toString() : null;
+  } catch (e) {
+    if (e instanceof Error && (e as { digest?: string }).digest === "NEXT_NOT_FOUND") throw e;
+    return (
+      <div style={{ padding: 24, fontFamily: "monospace", whiteSpace: "pre-wrap", color: "#cf222e" }}>
+        __diag invoice detail crash for id={id}{"\n"}
+        {e instanceof Error ? (e.stack ?? e.message) : String(e)}
+      </div>
+    );
+  }
 
   return (
     <div style={{ display: "flex", flexDirection: "column", flex: 1 }}>
