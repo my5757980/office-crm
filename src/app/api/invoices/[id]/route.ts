@@ -14,6 +14,7 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
   const { id } = await params;
 
   const invoice = await Invoice.findById(id)
+    .select("-uploadedPdf.data")
     .populate("createdBy", "name email")
     .populate("approvedBy", "name")
     .populate("leadId", "customerName contactPerson country port")
