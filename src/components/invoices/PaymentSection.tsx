@@ -81,17 +81,27 @@ export default function PaymentSection({ invoiceId, role, invoiceCnfPrice }: Pay
   const [receiptFile, setReceiptFile] = useState<{ data: string; filename: string } | null>(null);
   const [receiptPreview, setReceiptPreview] = useState<string>("");
 
-  const fetchPayments = async () => {
+  const fetchPayments = async (signal?: AbortSignal) => {
     setLoading(true);
-    const res = await fetch(`/api/payments?invoiceId=${invoiceId}`);
-    if (res.ok) {
-      const data = await res.json();
-      setPayments(data.payments);
+    try {
+      const res = await fetch(`/api/payments?invoiceId=${invoiceId}`, { signal });
+      if (res.ok) {
+        const data = await res.json();
+        setPayments(data.payments);
+      }
+    } catch {
+      // aborted on unmount — ignore
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
-  useEffect(() => { fetchPayments(); }, [invoiceId]);
+  useEffect(() => {
+    const controller = new AbortController();
+    fetchPayments(controller.signal);
+    return () => controller.abort();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [invoiceId]);
 
   const totalReceived = payments.reduce((s, p) => s + p.amountReceived, 0);
   const balance       = (invoiceCnfPrice ?? 0) - totalReceived;
