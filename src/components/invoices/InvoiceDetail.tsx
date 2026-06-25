@@ -57,13 +57,16 @@ export default function InvoiceDetail({ invoice, role, unitId }: InvoiceDetailPr
 
   useEffect(() => {
     if (!invoice.uploadedPdf || invoice.uploadedPdf.data) return;
+    const controller = new AbortController();
     setPdfLoading(true);
-    fetch(`/api/invoices/${invoice._id}/pdf`)
+    fetch(`/api/invoices/${invoice._id}/pdf`, { signal: controller.signal })
       .then((res) => (res.ok ? res.json() : null))
       .then((json) => {
         if (json?.data) setUploadedPdf((prev) => (prev ? { ...prev, data: json.data } : prev));
       })
+      .catch(() => {})
       .finally(() => setPdfLoading(false));
+    return () => controller.abort();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [invoice._id]);
 
