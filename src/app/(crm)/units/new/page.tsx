@@ -26,6 +26,7 @@ export default async function NewUnitPage({
           style={{
             display: "inline-flex", alignItems: "center", gap: "6px",
             fontSize: "13px", fontWeight: 500, color: "#656d76", textDecoration: "none",
+            alignSelf: "flex-start",
           }}
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">

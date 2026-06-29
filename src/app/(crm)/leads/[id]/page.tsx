@@ -54,7 +54,7 @@ export default async function LeadDetailPage({
           style={{
             display: "inline-flex", alignItems: "center", gap: "6px",
             fontSize: "13px", fontWeight: 500, color: "#656d76", textDecoration: "none",
-            transition: "color 150ms",
+            transition: "color 150ms", alignSelf: "flex-start",
           }}
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
