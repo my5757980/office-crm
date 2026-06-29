@@ -108,6 +108,7 @@ export default function InvoiceRequestPage() {
         <Link href={`/leads/${lead._id}`} style={{
           display: "inline-flex", alignItems: "center", gap: "6px",
           fontSize: "13px", fontWeight: 500, color: "#656d76", textDecoration: "none",
+          alignSelf: "flex-start",
         }}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <line x1="19" y1="12" x2="5" y2="12" /><polyline points="12 19 5 12 12 5" />
