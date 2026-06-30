@@ -34,17 +34,25 @@ export default async function InvoiceDetailPage({
   const session = await auth();
   const { id } = await params;
 
-  await dbConnect();
-
-  const fetched = await Promise.all([
-    Invoice.findById(id)
-      .select("-uploadedPdf.data")
-      .populate("createdBy", "name email")
-      .populate("approvedBy", "name")
-      .populate("leadId", "customerName contactPerson country port")
-      .lean(),
-    Unit.findOne({ invoiceId: id }).select("_id").lean(),
-  ]).catch(() => null);
+  let fetched: [unknown, unknown] | null = null;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      if (attempt > 0) await new Promise<void>((r) => setTimeout(r, 500 * attempt));
+      await dbConnect();
+      fetched = await Promise.all([
+        Invoice.findById(id)
+          .select("-uploadedPdf.data")
+          .populate("createdBy", "name email")
+          .populate("approvedBy", "name")
+          .populate("leadId", "customerName contactPerson country port")
+          .lean(),
+        Unit.findOne({ invoiceId: id }).select("_id").lean(),
+      ]) as [unknown, unknown];
+      break;
+    } catch {
+      if (attempt === 2) fetched = null;
+    }
+  }
 
   if (!fetched) {
     return (
@@ -88,7 +96,8 @@ export default async function InvoiceDetailPage({
     );
   }
 
-  const [raw, existingUnit] = fetched;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [raw, existingUnit] = fetched as [any, { _id: { toString(): string } } | null];
 
   if (!raw) notFound();
 
@@ -99,7 +108,7 @@ export default async function InvoiceDetailPage({
   if (!isElevated && !isOwner) notFound();
 
   const invoice = JSON.parse(JSON.stringify(raw));
-  const unitId = existingUnit ? (existingUnit._id as { toString(): string }).toString() : null;
+  const unitId = existingUnit ? existingUnit._id.toString() : null;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", flex: 1 }}>
