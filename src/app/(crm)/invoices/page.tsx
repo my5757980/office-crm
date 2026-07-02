@@ -39,7 +39,7 @@ export default async function InvoicesPage() {
   const session = await auth();
   const role = session!.user.role;
   const isElevated = ["admin", "manager", "super_admin"].includes(role);
-  const isSupervisor = role === "super_admin";
+  const isSupervisor = ["super_admin", "manager"].includes(role);
 
   const filter = isElevated ? {} : { createdBy: session!.user.id };
 

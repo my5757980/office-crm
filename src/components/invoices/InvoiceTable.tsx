@@ -34,7 +34,7 @@ const thStyle: React.CSSProperties = {
 };
 
 export default function InvoiceTable({ invoices, showAgent = false, role, paidInvoiceIds = [] }: Props) {
-  const isSupervisor = role === "super_admin";
+  const isSupervisor = role === "super_admin" || role === "manager";
   const paidSet = useMemo(() => new Set(paidInvoiceIds), [paidInvoiceIds]);
 
   const [selectedMonth, setSelectedMonth] = useState("");

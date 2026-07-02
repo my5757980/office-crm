@@ -7,7 +7,7 @@ import LeadForm from "@/components/leads/LeadForm";
 import { LeadFormData } from "@/lib/validations";
 import TopBar from "@/components/layout/TopBar";
 
-const CAN_EDIT = ["super_admin"];
+const CAN_EDIT = ["super_admin", "manager"];
 
 export default function EditLeadPage() {
   const router = useRouter();
