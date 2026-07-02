@@ -41,24 +41,43 @@ export default async function InvoicesPage() {
   const isElevated = ["admin", "manager", "super_admin"].includes(role);
   const isSupervisor = role === "super_admin";
 
-  await dbConnect();
-
   const filter = isElevated ? {} : { createdBy: session!.user.id };
 
-  const [raw, stats, paidIdsRaw] = await Promise.all([
-    Invoice.find(filter)
-      .select("-uploadedPdf.data")
-      .populate("createdBy", "name email")
-      .populate("leadId", "customerName")
-      .sort({ createdAt: -1 })
-      .allowDiskUse(true)
-      .lean(),
-    getStats(filter),
-    isSupervisor ? Payment.distinct("invoiceId") : Promise.resolve([]),
-  ]);
+  // Retry loop for cold-start resilience
+  let raw: unknown[] = [];
+  let stats = { pending: 0, approved: 0, sent: 0 };
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      if (attempt > 0) await new Promise<void>((r) => setTimeout(r, 500 * attempt));
+      await dbConnect();
+      [raw, stats] = await Promise.all([
+        Invoice.find(filter)
+          .select("-uploadedPdf.data")
+          .populate("createdBy", "name email")
+          .populate("leadId", "customerName")
+          .sort({ createdAt: -1 })
+          .allowDiskUse(true)
+          .lean() as Promise<unknown[]>,
+        getStats(filter),
+      ]);
+      break;
+    } catch {
+      if (attempt === 2) raw = [];
+    }
+  }
+
+  // Payment IDs — fail gracefully so invoices page never breaks
+  let paidInvoiceIds: string[] = [];
+  if (isSupervisor) {
+    try {
+      const ids = await Payment.distinct("invoiceId");
+      paidInvoiceIds = (ids as { toString(): string }[]).map(id => id.toString());
+    } catch {
+      // silently skip — payment badges won't show
+    }
+  }
 
   const invoices = JSON.parse(JSON.stringify(raw));
-  const paidInvoiceIds: string[] = (paidIdsRaw as { toString(): string }[]).map(id => id.toString());
   const paidSet = new Set(paidInvoiceIds);
   const paymentReceivedCount = (raw as { _id: { toString(): string }; status: string }[])
     .filter(inv => inv.status === "sent" && paidSet.has(inv._id.toString()))
