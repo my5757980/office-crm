@@ -1,8 +1,9 @@
 const statusConfig: Record<string, { label: string; bg: string; color: string; dot: string }> = {
-  pending:  { label: "Pending",  bg: "#fef3c7", color: "#92400e", dot: "#f59e0b" },
-  approved: { label: "Approved", bg: "#d1fae5", color: "#065f46", dot: "#10b981" },
-  rejected: { label: "Rejected", bg: "#ffebe9", color: "#cf222e", dot: "#f85149" },
-  sent:     { label: "Sent",     bg: "#dbeafe", color: "#1d4ed8", dot: "#3b82f6" },
+  pending:          { label: "Pending",          bg: "#fef3c7", color: "#92400e", dot: "#f59e0b" },
+  approved:         { label: "Approved",         bg: "#d1fae5", color: "#065f46", dot: "#10b981" },
+  rejected:         { label: "Rejected",         bg: "#ffebe9", color: "#cf222e", dot: "#f85149" },
+  sent:             { label: "Sent",             bg: "#dbeafe", color: "#1d4ed8", dot: "#3b82f6" },
+  payment_received: { label: "Payment Received", bg: "#dcfce7", color: "#15803d", dot: "#22c55e" },
 };
 
 export default function InvoiceStatusBadge({ status }: { status: string }) {
