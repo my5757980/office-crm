@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth";
 import dbConnect from "@/lib/db";
 import Invoice from "@/models/Invoice";
+import Payment from "@/models/Payment";
 import InvoiceTable from "@/components/invoices/InvoiceTable";
 import TopBar from "@/components/layout/TopBar";
 
@@ -13,7 +14,7 @@ async function getStats(filter: Record<string, unknown>) {
   return { pending, approved, sent };
 }
 
-function StatCard({ label, value, icon, bg, accent }: { label: string; value: number; icon: string; bg: string; accent: string }) {
+function StatCard({ label, value, icon, bg }: { label: string; value: number; icon: string; bg: string }) {
   return (
     <div style={{
       background: "#ffffff",
@@ -38,12 +39,13 @@ export default async function InvoicesPage() {
   const session = await auth();
   const role = session!.user.role;
   const isElevated = ["admin", "manager", "super_admin"].includes(role);
+  const isSupervisor = role === "super_admin";
 
   await dbConnect();
 
   const filter = isElevated ? {} : { createdBy: session!.user.id };
 
-  const [raw, stats] = await Promise.all([
+  const [raw, stats, paidIdsRaw] = await Promise.all([
     Invoice.find(filter)
       .select("-uploadedPdf.data")
       .populate("createdBy", "name email")
@@ -52,9 +54,15 @@ export default async function InvoicesPage() {
       .allowDiskUse(true)
       .lean(),
     getStats(filter),
+    isSupervisor ? Payment.distinct("invoiceId") : Promise.resolve([]),
   ]);
 
   const invoices = JSON.parse(JSON.stringify(raw));
+  const paidInvoiceIds: string[] = (paidIdsRaw as { toString(): string }[]).map(id => id.toString());
+  const paidSet = new Set(paidInvoiceIds);
+  const paymentReceivedCount = (raw as { _id: { toString(): string }; status: string }[])
+    .filter(inv => inv.status === "sent" && paidSet.has(inv._id.toString()))
+    .length;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", flex: 1 }}>
@@ -70,11 +78,14 @@ export default async function InvoicesPage() {
         </div>
 
         {/* Stats */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "14px" }}>
-          <StatCard label="Total"    value={invoices.length}  icon="📄" bg="#eff6ff" accent="#2563eb" />
-          <StatCard label="Pending"  value={stats.pending}    icon="⏳" bg="#fffbeb" accent="#d97706" />
-          <StatCard label="Approved" value={stats.approved}   icon="✅" bg="#f0fdf4" accent="#16a34a" />
-          <StatCard label="Sent"     value={stats.sent}       icon="📬" bg="#faf5ff" accent="#7c3aed" />
+        <div style={{ display: "grid", gridTemplateColumns: `repeat(${isSupervisor ? 5 : 4}, 1fr)`, gap: "14px" }}>
+          <StatCard label="Total"            value={invoices.length}       icon="📄" bg="#eff6ff" />
+          <StatCard label="Pending"          value={stats.pending}         icon="⏳" bg="#fffbeb" />
+          <StatCard label="Approved"         value={stats.approved}        icon="✅" bg="#f0fdf4" />
+          <StatCard label="Sent"             value={stats.sent}            icon="📬" bg="#faf5ff" />
+          {isSupervisor && (
+            <StatCard label="Payment Received" value={paymentReceivedCount} icon="💰" bg="#dcfce7" />
+          )}
         </div>
 
         {/* Table */}
@@ -86,12 +97,12 @@ export default async function InvoicesPage() {
           boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
           flex: 1,
         }}>
-          <div style={{ padding: "14px 20px", borderBottom: "1px solid #f0f2f4" }}>
-            <span style={{ fontSize: "13px", fontWeight: 600, color: "#1f2328" }}>
-              Invoice Requests · <span style={{ color: "#656d76", fontWeight: 400 }}>{invoices.length} record{invoices.length !== 1 ? "s" : ""}</span>
-            </span>
-          </div>
-          <InvoiceTable invoices={invoices} showAgent={isElevated} />
+          <InvoiceTable
+            invoices={invoices}
+            showAgent={isElevated}
+            role={role}
+            paidInvoiceIds={paidInvoiceIds}
+          />
         </div>
       </div>
     </div>
