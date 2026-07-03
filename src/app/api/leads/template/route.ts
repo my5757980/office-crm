@@ -7,7 +7,7 @@ export const runtime = "nodejs";
 const CAN_IMPORT = ["super_admin"];
 
 // Column order the importer expects — keep in sync with /api/leads/import
-export const TEMPLATE_HEADERS = [
+const TEMPLATE_HEADERS = [
   "Contact Person",
   "Customer Name",
   "Phone",
