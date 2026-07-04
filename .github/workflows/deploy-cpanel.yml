@@ -6,6 +6,7 @@ on:
 
 jobs:
   deploy:
+    if: github.repository == 'my5757980/sbk-crm'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
