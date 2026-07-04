@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 
 const MONGODB_URI = process.env.MONGODB_URI;
+const MONGODB_DB_NAME = process.env.MONGODB_DB_NAME || "office-crm";
 
 interface MongooseCache {
   conn: typeof mongoose | null;
@@ -29,6 +30,7 @@ async function dbConnect(): Promise<typeof mongoose> {
   if (!cached.promise) {
     cached.promise = mongoose
       .connect(MONGODB_URI, {
+        dbName: MONGODB_DB_NAME,
         bufferCommands: false,
         serverSelectionTimeoutMS: 8000,
         socketTimeoutMS: 20000,
