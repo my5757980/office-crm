@@ -51,27 +51,27 @@ export default function ChatWidget({ myId }: { myId: string }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Heartbeat — update lastSeen every 30s while widget is mounted
+  // Heartbeat — update lastSeen every 60s while widget is mounted
   useEffect(() => {
     const beat = () => fetch("/api/chat/heartbeat", { method: "POST" }).catch(() => {});
     beat();
-    heartRef.current = setInterval(beat, 30_000);
+    heartRef.current = setInterval(beat, 60_000);
     return () => { if (heartRef.current) clearInterval(heartRef.current); };
   }, []);
 
-  // Poll users every 10s (for unread badge + online status)
+  // Poll users every 30s (for unread badge + online status)
   useEffect(() => {
     fetchUsers();
-    const id = setInterval(fetchUsers, 10_000);
+    const id = setInterval(fetchUsers, 30_000);
     return () => clearInterval(id);
   }, [fetchUsers]);
 
-  // Poll messages every 3s when conversation is open
+  // Poll messages every 5s when conversation is open
   useEffect(() => {
     if (pollRef.current) clearInterval(pollRef.current);
     if (!activeUser) return;
     fetchMsgs(activeUser._id);
-    pollRef.current = setInterval(() => fetchMsgs(activeUser._id), 3_000);
+    pollRef.current = setInterval(() => fetchMsgs(activeUser._id), 5_000);
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
   }, [activeUser, fetchMsgs]);
 
