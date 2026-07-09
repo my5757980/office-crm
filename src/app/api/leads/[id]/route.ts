@@ -123,9 +123,16 @@ export async function DELETE(request: NextRequest, { params }: RouteContext) {
 
   try {
     await query(`DELETE FROM messages WHERE lead_id = $1`, [id]);
+    await query(`DELETE FROM notifications WHERE lead_id = $1`, [id]);
     await query(`DELETE FROM leads WHERE id = $1`, [id]);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes("foreign key constraint")) {
+      return NextResponse.json(
+        { error: "Cannot delete — this lead still has invoices recorded against it. Remove those first." },
+        { status: 409 }
+      );
+    }
     return NextResponse.json({ error: `Could not delete lead: ${msg}` }, { status: 409 });
   }
 
