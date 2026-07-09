@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import dbConnect from "@/lib/db";
-import Unit from "@/models/Unit";
-import Invoice from "@/models/Invoice";
-import UnitFinancial from "@/models/UnitFinancial";
+import { queryOne, genId } from "@/lib/pg";
+import { serializeUnitFinancial } from "@/lib/serialize";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -15,20 +13,19 @@ export async function GET(_req: NextRequest, { params }: RouteContext) {
   if (!CAN_EDIT.includes(session.user.role))
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  await dbConnect();
   const { id } = await params;
 
-  const unit = await Unit.findById(id).select("invoiceId").lean();
+  const unit = await queryOne<{ invoice_id: string }>(`SELECT invoice_id FROM units WHERE id = $1`, [id]);
   if (!unit) return NextResponse.json({ error: "Unit not found" }, { status: 404 });
 
   const [invoice, financial] = await Promise.all([
-    Invoice.findById(unit.invoiceId).select("cnfPrice").lean(),
-    UnitFinancial.findOne({ unitId: id }).lean(),
+    queryOne<{ cnf_price: string }>(`SELECT cnf_price FROM invoices WHERE id = $1`, [unit.invoice_id]),
+    queryOne<Record<string, unknown>>(`SELECT * FROM unit_financials WHERE unit_id = $1`, [id]),
   ]);
 
   return NextResponse.json({
-    financial: financial ? JSON.parse(JSON.stringify(financial)) : null,
-    sellingPrice: invoice?.cnfPrice ?? 0,
+    financial: financial ? serializeUnitFinancial(financial) : null,
+    sellingPrice: invoice ? Number(invoice.cnf_price) : 0,
   });
 }
 
@@ -38,20 +35,36 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
   if (!CAN_EDIT.includes(session.user.role))
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  await dbConnect();
   const { id } = await params;
   const body = await request.json();
 
-  const unit = await Unit.findById(id).select("invoiceId").lean();
+  const unit = await queryOne<{ invoice_id: string }>(`SELECT invoice_id FROM units WHERE id = $1`, [id]);
   if (!unit) return NextResponse.json({ error: "Unit not found" }, { status: 404 });
 
-  const invoice = await Invoice.findById(unit.invoiceId).select("cnfPrice").lean();
-  const sellingPrice = invoice?.cnfPrice ?? 0;
+  const invoice = await queryOne<{ cnf_price: string }>(`SELECT cnf_price FROM invoices WHERE id = $1`, [unit.invoice_id]);
+  const sellingPrice = invoice ? Number(invoice.cnf_price) : 0;
 
   const currency: "JPY" | "USD" = body.currency === "USD" ? "USD" : "JPY";
 
-  let costOfUnitJPY = 0;
-  let costOfUnitUSD = 0;
+  const upsert = async (fields: {
+    lotNo: string; auctionName: string; buying: number; domestic: number; storage: number; inspect: number;
+    repairs: number; misc: number; agencyFee: number; freight: number; dhl: number; exchangeRate: number;
+    costUSD: number; costOfUnitJPY: number; costOfUnitUSD: number; profit: number;
+  }) => {
+    return queryOne<Record<string, unknown>>(
+      `INSERT INTO unit_financials (id, unit_id, currency, lot_no, auction_name, buying, domestic, storage, inspect, repairs, misc, agency_fee, freight, dhl, exchange_rate, cost_usd, cost_of_unit_jpy, cost_of_unit_usd, selling_price, profit, created_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
+       ON CONFLICT (unit_id) DO UPDATE SET
+         currency = EXCLUDED.currency, lot_no = EXCLUDED.lot_no, auction_name = EXCLUDED.auction_name,
+         buying = EXCLUDED.buying, domestic = EXCLUDED.domestic, storage = EXCLUDED.storage, inspect = EXCLUDED.inspect,
+         repairs = EXCLUDED.repairs, misc = EXCLUDED.misc, agency_fee = EXCLUDED.agency_fee, freight = EXCLUDED.freight,
+         dhl = EXCLUDED.dhl, exchange_rate = EXCLUDED.exchange_rate, cost_usd = EXCLUDED.cost_usd,
+         cost_of_unit_jpy = EXCLUDED.cost_of_unit_jpy, cost_of_unit_usd = EXCLUDED.cost_of_unit_usd,
+         selling_price = EXCLUDED.selling_price, profit = EXCLUDED.profit, created_by = EXCLUDED.created_by, updated_at = now()
+       RETURNING *`,
+      [genId(), id, currency, fields.lotNo, fields.auctionName, fields.buying, fields.domestic, fields.storage, fields.inspect, fields.repairs, fields.misc, fields.agencyFee, fields.freight, fields.dhl, fields.exchangeRate, fields.costUSD, fields.costOfUnitJPY, fields.costOfUnitUSD, sellingPrice, fields.profit, session.user.id]
+    );
+  };
 
   if (currency === "JPY") {
     const lotNo      = String(body.lotNo ?? "").trim();
@@ -67,42 +80,18 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
     const dhl       = Number(body.dhl)       || 0;
     const exchangeRate = Number(body.exchangeRate) || 1;
 
-    costOfUnitJPY = buying + domestic + storage + inspect + repairs + misc + agencyFee + freight + dhl;
-    costOfUnitUSD = exchangeRate > 0 ? costOfUnitJPY / exchangeRate : 0;
-
+    const costOfUnitJPY = buying + domestic + storage + inspect + repairs + misc + agencyFee + freight + dhl;
+    const costOfUnitUSD = exchangeRate > 0 ? costOfUnitJPY / exchangeRate : 0;
     const profit = sellingPrice - costOfUnitUSD;
 
-    const record = await UnitFinancial.findOneAndUpdate(
-      { unitId: id },
-      {
-        unitId: id, currency,
-        lotNo, auctionName,
-        buying, domestic, storage, inspect, repairs, misc, agencyFee, freight, dhl,
-        exchangeRate, costUSD: 0,
-        costOfUnitJPY, costOfUnitUSD,
-        sellingPrice, profit,
-        createdBy: session.user.id,
-      },
-      { upsert: true, new: true }
-    );
-    return NextResponse.json({ financial: record });
+    const record = await upsert({ lotNo, auctionName, buying, domestic, storage, inspect, repairs, misc, agencyFee, freight, dhl, exchangeRate, costUSD: 0, costOfUnitJPY, costOfUnitUSD, profit });
+    return NextResponse.json({ financial: record ? serializeUnitFinancial(record) : null });
   } else {
     const costUSD  = Number(body.costUSD) || 0;
-    costOfUnitUSD  = costUSD;
+    const costOfUnitUSD = costUSD;
     const profit   = sellingPrice - costUSD;
 
-    const record = await UnitFinancial.findOneAndUpdate(
-      { unitId: id },
-      {
-        unitId: id, currency,
-        buying: 0, domestic: 0, storage: 0, inspect: 0, repairs: 0,
-        misc: 0, agencyFee: 0, freight: 0, dhl: 0, exchangeRate: 0,
-        costUSD, costOfUnitJPY: 0, costOfUnitUSD,
-        sellingPrice, profit,
-        createdBy: session.user.id,
-      },
-      { upsert: true, new: true }
-    );
-    return NextResponse.json({ financial: record });
+    const record = await upsert({ lotNo: "", auctionName: "", buying: 0, domestic: 0, storage: 0, inspect: 0, repairs: 0, misc: 0, agencyFee: 0, freight: 0, dhl: 0, exchangeRate: 0, costUSD, costOfUnitJPY: 0, costOfUnitUSD, profit });
+    return NextResponse.json({ financial: record ? serializeUnitFinancial(record) : null });
   }
 }

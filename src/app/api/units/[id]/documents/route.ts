@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import dbConnect from "@/lib/db";
-import Unit from "@/models/Unit";
-import UnitFile from "@/models/UnitFile";
-import { DOCUMENT_FOLDERS } from "@/models/Unit";
+import { queryOne, genId } from "@/lib/pg";
+import { DOCUMENT_FOLDERS } from "@/lib/constants";
+import { serializeUnitFile } from "@/lib/serialize";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -15,10 +14,9 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
   if (!CAN_UPLOAD.includes(session.user.role))
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  await dbConnect();
   const { id } = await params;
 
-  const unit = await Unit.findById(id);
+  const unit = await queryOne(`SELECT id FROM units WHERE id = $1`, [id]);
   if (!unit) return NextResponse.json({ error: "Unit not found" }, { status: 404 });
 
   const formData = await request.formData();
@@ -32,24 +30,10 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
   const bytes  = await file.arrayBuffer();
   const buffer = Buffer.from(bytes);
 
-  const doc = await UnitFile.create({
-    unitId:     id,
-    folder,
-    filename:   file.name,
-    mimetype:   file.type || "application/octet-stream",
-    size:       file.size,
-    data:       buffer,
-    uploadedAt: new Date(),
-  });
+  const row = await queryOne<Record<string, unknown>>(
+    `INSERT INTO unit_files (id, unit_id, folder, filename, mimetype, size, data) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, unit_id, folder, filename, mimetype, size, uploaded_at`,
+    [genId(), id, folder, file.name, file.type || "application/octet-stream", file.size, buffer]
+  );
 
-  return NextResponse.json({
-    file: {
-      _id:        doc._id,
-      folder:     doc.folder,
-      filename:   doc.filename,
-      mimetype:   doc.mimetype,
-      size:       doc.size,
-      uploadedAt: doc.uploadedAt,
-    },
-  }, { status: 201 });
+  return NextResponse.json({ file: row ? serializeUnitFile(row) : null }, { status: 201 });
 }

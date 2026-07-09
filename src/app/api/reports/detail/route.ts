@@ -1,10 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import dbConnect from "@/lib/db";
-import Lead from "@/models/Lead";
-import Invoice from "@/models/Invoice";
-import Unit from "@/models/Unit";
-import mongoose from "mongoose";
+import { query } from "@/lib/pg";
+import { serializeLead, serializeInvoice, serializeUnit } from "@/lib/serialize";
 
 function getRange(type: string, from?: string | null, to?: string | null, date?: string | null) {
   const now = new Date();
@@ -48,20 +45,20 @@ export async function GET(req: NextRequest) {
   if (!["daily", "weekly", "monthly", "custom"].includes(type))
     return NextResponse.json({ error: "Invalid type" }, { status: 400 });
 
-  await dbConnect();
+  if (!/^[0-9a-f]{24}$/i.test(userId))
+    return NextResponse.json({ error: "Invalid userId" }, { status: 400 });
+
   const { start, end } = getRange(type, from, to, date);
 
-  let userOid: mongoose.Types.ObjectId;
-  try { userOid = new mongoose.Types.ObjectId(userId); }
-  catch { return NextResponse.json({ error: "Invalid userId" }, { status: 400 }); }
-
-  const match = { createdBy: userOid, createdAt: { $gte: start, $lte: end } };
-
-  const [leads, invoices, units] = await Promise.all([
-    Lead.find(match).select("customerName phone createdAt status").sort({ createdAt: -1 }).allowDiskUse(true).lean(),
-    Invoice.find(match).select("unit cnfPrice consignee createdAt").sort({ createdAt: -1 }).allowDiskUse(true).lean(),
-    Unit.find(match).select("unit chassisNo color createdAt").sort({ createdAt: -1 }).allowDiskUse(true).lean(),
+  const [leadRows, invoiceRows, unitRows] = await Promise.all([
+    query(`SELECT id, customer_name, phone, created_at, status FROM leads WHERE created_by = $1 AND created_at >= $2 AND created_at <= $3 ORDER BY created_at DESC`, [userId, start, end]),
+    query(`SELECT * FROM invoices WHERE created_by = $1 AND created_at >= $2 AND created_at <= $3 ORDER BY created_at DESC`, [userId, start, end]),
+    query(`SELECT * FROM units WHERE created_by = $1 AND created_at >= $2 AND created_at <= $3 ORDER BY created_at DESC`, [userId, start, end]),
   ]);
+
+  const leads = leadRows.map(serializeLead);
+  const invoices = invoiceRows.map(serializeInvoice);
+  const units = unitRows.map(serializeUnit);
 
   return NextResponse.json({ leads, invoices, units });
 }

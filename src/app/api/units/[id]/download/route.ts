@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import dbConnect from "@/lib/db";
-import Unit from "@/models/Unit";
-import UnitFile from "@/models/UnitFile";
+import { query, queryOne } from "@/lib/pg";
 import { zipChunks, zipByteLength, safeSegment, type ZipEntry } from "@/lib/zip";
 
 export const runtime = "nodejs";
@@ -24,17 +22,22 @@ export async function GET(_req: NextRequest, { params }: RouteContext) {
   if (!CAN_DOWNLOAD.includes(session.user.role))
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  await dbConnect();
   const { id } = await params;
 
-  const unit = await Unit.findById(id).select("chassis make carModel year").lean();
+  const unit = await queryOne<{ chassis: string; make: string; car_model: string }>(
+    `SELECT chassis, make, car_model FROM units WHERE id = $1`,
+    [id]
+  );
   if (!unit) return NextResponse.json({ error: "Unit not found" }, { status: 404 });
 
-  const files = await UnitFile.find({ unitId: id }).lean();
+  const files = await query<{ folder: string; filename: string; data: Buffer }>(
+    `SELECT folder, filename, data FROM unit_files WHERE unit_id = $1`,
+    [id]
+  );
   if (files.length === 0)
     return NextResponse.json({ error: "No documents to download for this unit" }, { status: 404 });
 
-  const rootFolder = safeSegment(unit.chassis || `${unit.make}-${unit.carModel}`);
+  const rootFolder = safeSegment(unit.chassis || `${unit.make}-${unit.car_model}`);
 
   // Track duplicate filenames within the same folder so nothing gets overwritten
   const seen: Record<string, number> = {};

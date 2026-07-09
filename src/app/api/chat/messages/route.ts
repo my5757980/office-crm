@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import dbConnect from "@/lib/db";
-import ChatMessage from "@/models/ChatMessage";
-import mongoose from "mongoose";
+import { query, queryOne, genId } from "@/lib/pg";
+import { serializeChatMessage } from "@/lib/serialize";
 
 export async function GET(req: NextRequest) {
   const session = await auth();
@@ -11,32 +10,17 @@ export async function GET(req: NextRequest) {
   const withId = req.nextUrl.searchParams.get("with");
   if (!withId) return NextResponse.json({ error: "with param required" }, { status: 400 });
 
-  await dbConnect();
-
-  const myId    = new mongoose.Types.ObjectId(session.user.id);
-  const otherId = new mongoose.Types.ObjectId(withId);
+  const myId = session.user.id;
 
   // Mark incoming messages as read
-  await ChatMessage.updateMany({ from: otherId, to: myId, read: false }, { read: true });
+  await query(`UPDATE chat_messages SET read = true WHERE from_user = $1 AND to_user = $2 AND read = false`, [withId, myId]);
 
-  const messages = await ChatMessage.find({
-    $or: [
-      { from: myId,    to: otherId },
-      { from: otherId, to: myId    },
-    ],
-  })
-    .sort({ createdAt: 1 })
-    .allowDiskUse(true)
-    .lean();
+  const rows = await query(
+    `SELECT * FROM chat_messages WHERE (from_user = $1 AND to_user = $2) OR (from_user = $2 AND to_user = $1) ORDER BY created_at ASC`,
+    [myId, withId]
+  );
 
-  return NextResponse.json(messages.map(m => ({
-    _id:       m._id.toString(),
-    from:      m.from.toString(),
-    to:        m.to.toString(),
-    text:      m.text,
-    read:      m.read,
-    createdAt: m.createdAt,
-  })));
+  return NextResponse.json(rows.map(serializeChatMessage));
 }
 
 export async function POST(req: NextRequest) {
@@ -46,13 +30,11 @@ export async function POST(req: NextRequest) {
   const { to, text } = await req.json();
   if (!to || !text?.trim()) return NextResponse.json({ error: "to and text required" }, { status: 400 });
 
-  await dbConnect();
+  const id = genId();
+  await queryOne(
+    `INSERT INTO chat_messages (id, from_user, to_user, text) VALUES ($1, $2, $3, $4)`,
+    [id, session.user.id, to, text.trim()]
+  );
 
-  const msg = await ChatMessage.create({
-    from: new mongoose.Types.ObjectId(session.user.id),
-    to:   new mongoose.Types.ObjectId(to),
-    text: text.trim(),
-  });
-
-  return NextResponse.json({ _id: msg._id.toString(), ok: true });
+  return NextResponse.json({ _id: id, ok: true });
 }

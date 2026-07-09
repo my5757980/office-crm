@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import dbConnect from "@/lib/db";
-import Payment from "@/models/Payment";
-import Unit from "@/models/Unit";
+import { query, queryOne } from "@/lib/pg";
+import { serializePayment, serializeUnit } from "@/lib/serialize";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -12,10 +11,9 @@ export async function DELETE(_req: NextRequest, { params }: RouteContext) {
   if (!["manager", "super_admin"].includes(session.user.role))
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  await dbConnect();
   const { id } = await params;
 
-  const payment = await Payment.findByIdAndDelete(id);
+  const payment = await queryOne(`DELETE FROM payments WHERE id = $1 RETURNING id`, [id]);
   if (!payment) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   return NextResponse.json({ success: true });
@@ -25,13 +23,15 @@ export async function GET(_req: NextRequest, { params }: RouteContext) {
   const session = await auth();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  await dbConnect();
   const { id } = await params;
 
-  const payment = await Payment.findById(id).populate("recordedBy", "name").lean();
-  if (!payment) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  const row = await queryOne<Record<string, unknown>>(
+    `SELECT p.*, u.name AS recorded_by_name FROM payments p LEFT JOIN users u ON u.id = p.recorded_by WHERE p.id = $1`,
+    [id]
+  );
+  if (!row) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  const unit = await Unit.findOne({ paymentId: id }).lean();
+  const unitRow = await queryOne(`SELECT * FROM units WHERE payment_id = $1`, [id]);
 
-  return NextResponse.json({ payment, unit });
+  return NextResponse.json({ payment: serializePayment(row), unit: unitRow ? serializeUnit(unitRow) : null });
 }

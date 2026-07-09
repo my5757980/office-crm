@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import dbConnect from "@/lib/db";
-import Lead from "@/models/Lead";
+import { query, genId } from "@/lib/pg";
 import ExcelJS from "exceljs";
 import countriesPorts from "@/data/countries_ports.json";
 
@@ -50,8 +49,6 @@ export async function POST(request: NextRequest) {
 
   const ws = wb.worksheets[0];
   if (!ws) return NextResponse.json({ error: "Excel file has no sheet" }, { status: 400 });
-
-  await dbConnect();
 
   // Column index by header name (row 1)
   const headerRow = ws.getRow(1);
@@ -117,7 +114,7 @@ export async function POST(request: NextRequest) {
   // Skip phones that already exist in the CRM
   if (toCreate.length > 0) {
     const phones = toCreate.map(l => l.phone as string);
-    const existing = await Lead.find({ phone: { $in: phones } }).select("phone").lean();
+    const existing = await query<{ phone: string }>(`SELECT phone FROM leads WHERE phone = ANY($1)`, [phones]);
     const existingSet = new Set(existing.map(e => e.phone));
     for (let i = toCreate.length - 1; i >= 0; i--) {
       if (existingSet.has(toCreate[i].phone as string)) {
@@ -128,9 +125,13 @@ export async function POST(request: NextRequest) {
   }
 
   let imported = 0;
-  if (toCreate.length > 0) {
-    const created = await Lead.insertMany(toCreate, { ordered: false });
-    imported = created.length;
+  for (const lead of toCreate) {
+    await query(
+      `INSERT INTO leads (id, contact_person, customer_name, phone, email, country, country_code, port, address, status, is_customer, created_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'new', false, $10)`,
+      [genId(), lead.contactPerson, lead.customerName, lead.phone, lead.email || null, lead.country, lead.countryCode, lead.port, lead.address || null, lead.createdBy]
+    );
+    imported++;
   }
 
   return NextResponse.json({ imported, skipped });

@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import dbConnect from "@/lib/db";
-import Lead from "@/models/Lead";
-import Invoice from "@/models/Invoice";
-import Unit from "@/models/Unit";
+import { query } from "@/lib/pg";
 
 type AggRow = { userId: string; name: string; count: number };
 
@@ -50,16 +47,16 @@ function getRange(type: string, from?: string | null, to?: string | null, date?:
   return { start, end, label };
 }
 
-async function aggregate(Model: typeof Lead | typeof Invoice | typeof Unit, start: Date, end: Date): Promise<AggRow[]> {
-  const rows = await Model.aggregate([
-    { $match: { createdAt: { $gte: start, $lte: end } } },
-    { $group: { _id: "$createdBy", count: { $sum: 1 } } },
-    { $lookup: { from: "users", localField: "_id", foreignField: "_id", as: "u" } },
-    { $unwind: { path: "$u", preserveNullAndEmptyArrays: true } },
-    { $project: { _id: 0, userId: { $toString: "$_id" }, name: { $ifNull: ["$u.name", "Unknown"] }, count: 1 } },
-    { $sort: { name: 1 } },
-  ]).allowDiskUse(true);
-  return rows as AggRow[];
+async function aggregate(table: "leads" | "invoices" | "units", start: Date, end: Date): Promise<AggRow[]> {
+  const rows = await query<{ user_id: string; name: string; count: string }>(
+    `SELECT t.created_by AS user_id, COALESCE(u.name, 'Unknown') AS name, count(*) AS count
+     FROM ${table} t LEFT JOIN users u ON u.id = t.created_by
+     WHERE t.created_at >= $1 AND t.created_at <= $2
+     GROUP BY t.created_by, u.name
+     ORDER BY name ASC`,
+    [start, end]
+  );
+  return rows.map(r => ({ userId: r.user_id, name: r.name, count: Number(r.count) }));
 }
 
 export async function GET(req: NextRequest) {
@@ -79,14 +76,12 @@ export async function GET(req: NextRequest) {
   if (type === "custom" && (!from || !to))
     return NextResponse.json({ error: "from and to dates required for custom range" }, { status: 400 });
 
-  await dbConnect();
-
   const { start, end, label } = getRange(type, from, to, date);
 
   const [leadRows, invoiceRows, unitRows] = await Promise.all([
-    aggregate(Lead    as Parameters<typeof aggregate>[0], start, end),
-    aggregate(Invoice as Parameters<typeof aggregate>[0], start, end),
-    aggregate(Unit    as Parameters<typeof aggregate>[0], start, end),
+    aggregate("leads", start, end),
+    aggregate("invoices", start, end),
+    aggregate("units", start, end),
   ]);
 
   const map = new Map<string, { name: string; leads: number; invoices: number; units: number }>();

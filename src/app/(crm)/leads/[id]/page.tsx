@@ -1,9 +1,7 @@
 import { auth } from "@/lib/auth";
 import { notFound } from "next/navigation";
-import dbConnect from "@/lib/db";
-import Lead from "@/models/Lead";
-import Message from "@/models/Message";
-import User from "@/models/User";
+import { query, queryOne } from "@/lib/pg";
+import { serializeLead, serializeMessage } from "@/lib/serialize";
 import LeadDetail from "@/components/leads/LeadDetail";
 import LeadChat from "@/components/leads/LeadChat";
 import TopBar from "@/components/layout/TopBar";
@@ -17,14 +15,15 @@ export default async function LeadDetailPage({
   const session = await auth();
   const { id } = await params;
 
-  await dbConnect();
-
-  const lead = await Lead.findById(id).populate("createdBy", "name email").lean();
-  if (!lead) notFound();
+  const row = await queryOne<Record<string, unknown>>(
+    `SELECT l.*, u.name AS created_by_name, u.email AS created_by_email FROM leads l LEFT JOIN users u ON u.id = l.created_by WHERE l.id = $1`,
+    [id]
+  );
+  if (!row) notFound();
 
   const role = session!.user.role;
   const canViewAll = ["admin", "manager", "super_admin"].includes(role);
-  const isOwner    = (lead.createdBy as { _id: { toString(): string } })._id.toString() === session!.user.id;
+  const isOwner    = row.created_by === session!.user.id;
 
   if (!canViewAll && !isOwner) notFound();
 
@@ -34,16 +33,16 @@ export default async function LeadDetailPage({
   const canRequestInvoice = role === "user" && isOwner;
   const canReassign       = ["super_admin", "manager"].includes(role);
 
-  const [messages, agents] = await Promise.all([
-    Message.find({ leadId: id }).sort({ createdAt: 1 }).allowDiskUse(true).lean(),
-    canReassign ? User.find({ role: "user" }, "name email").sort({ name: 1 }).allowDiskUse(true).lean() : Promise.resolve([]),
+  const [messageRows, agentRows] = await Promise.all([
+    query(`SELECT * FROM messages WHERE lead_id = $1 ORDER BY created_at ASC`, [id]),
+    canReassign ? query(`SELECT id, name, email FROM users WHERE role = 'user' ORDER BY name ASC`) : Promise.resolve([]),
   ]);
 
-  const leadData     = JSON.parse(JSON.stringify(lead));
-  const messagesData = JSON.parse(JSON.stringify(messages));
-  const agentsData   = JSON.parse(JSON.stringify(agents));
+  const leadData     = serializeLead(row);
+  const messagesData = messageRows.map(serializeMessage);
+  const agentsData   = agentRows.map((a: Record<string, unknown>) => ({ _id: a.id as string, name: a.name as string, email: a.email as string }));
 
-  const backHref = lead.isCustomer ? "/dashboard?tab=customers" : "/dashboard";
+  const backHref = row.is_customer ? "/dashboard?tab=customers" : "/dashboard";
 
   return (
     <div style={{ display: "flex", flexDirection: "column", flex: 1 }}>
@@ -60,7 +59,7 @@ export default async function LeadDetailPage({
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <line x1="19" y1="12" x2="5" y2="12" /><polyline points="12 19 5 12 12 5" />
           </svg>
-          {lead.isCustomer ? "Back to Customers" : "Back to Dashboard"}
+          {row.is_customer ? "Back to Customers" : "Back to Dashboard"}
         </Link>
 
         <LeadDetail

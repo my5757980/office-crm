@@ -47,3 +47,4 @@ seed-prod-users.mjs
 *.docx
 *.doc
 .env.production.temp
+.env*.local

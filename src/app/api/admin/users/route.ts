@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import dbConnect from "@/lib/db";
-import User from "@/models/User";
+import { query, queryOne, genId } from "@/lib/pg";
+import { serializeUser } from "@/lib/serialize";
 import bcryptjs from "bcryptjs";
 import { z } from "zod";
 
@@ -25,9 +25,8 @@ export async function GET() {
   if (!session || !CAN_MANAGE.includes(session.user.role))
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  await dbConnect();
-  const users = await User.find({}).sort({ createdAt: -1 }).allowDiskUse(true).lean();
-  return NextResponse.json({ users: JSON.parse(JSON.stringify(users)) });
+  const rows = await query(`SELECT * FROM users ORDER BY created_at DESC`);
+  return NextResponse.json({ users: rows.map(serializeUser) });
 }
 
 export async function POST(request: NextRequest) {
@@ -38,23 +37,19 @@ export async function POST(request: NextRequest) {
   const allowedRole = getAllowedRole(session.user.role);
   if (!allowedRole) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  await dbConnect();
   const body = await request.json();
   const parsed = createSchema.safeParse({ ...body, role: allowedRole });
   if (!parsed.success)
     return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
 
-  const existing = await User.findOne({ email: parsed.data.email.toLowerCase() });
+  const existing = await queryOne(`SELECT id FROM users WHERE email = $1`, [parsed.data.email.toLowerCase()]);
   if (existing) return NextResponse.json({ error: "Email already in use" }, { status: 400 });
 
   const hashed = await bcryptjs.hash(parsed.data.password, 12);
-  const user = await User.create({
-    name:     parsed.data.name,
-    email:    parsed.data.email.toLowerCase(),
-    password: hashed,
-    role:     allowedRole,
-  });
+  const row = await queryOne(
+    `INSERT INTO users (id, name, email, password, role) VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+    [genId(), parsed.data.name, parsed.data.email.toLowerCase(), hashed, allowedRole]
+  );
 
-  const { password: _, ...safe } = user.toObject();
-  return NextResponse.json({ user: safe }, { status: 201 });
+  return NextResponse.json({ user: row ? serializeUser(row) : null }, { status: 201 });
 }

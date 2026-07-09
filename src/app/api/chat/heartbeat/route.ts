@@ -1,13 +1,11 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import dbConnect from "@/lib/db";
-import User from "@/models/User";
+import { query } from "@/lib/pg";
 
 export async function POST() {
   const session = await auth();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  await dbConnect();
-  await User.findByIdAndUpdate(session.user.id, { lastSeen: new Date() });
+  await query(`UPDATE users SET last_seen = now() WHERE id = $1`, [session.user.id]);
   return NextResponse.json({ ok: true });
 }

@@ -1,11 +1,8 @@
 import { auth } from "@/lib/auth";
 import { notFound } from "next/navigation";
-import dbConnect from "@/lib/db";
-import Unit from "@/models/Unit";
-import UnitFile from "@/models/UnitFile";
-import Payment from "@/models/Payment";
-import Invoice from "@/models/Invoice";
-import { DOCUMENT_FOLDERS } from "@/models/Unit";
+import { query, queryOne } from "@/lib/pg";
+import { DOCUMENT_FOLDERS } from "@/lib/constants";
+import { serializeUnit, serializeUnitFile, serializePayment } from "@/lib/serialize";
 import UnitDetail from "@/components/units/UnitDetail";
 import TopBar from "@/components/layout/TopBar";
 import Link from "next/link";
@@ -21,38 +18,44 @@ export default async function UnitDetailPage({
   const role = session!.user.role;
   if (!["user", "manager", "super_admin"].includes(role)) notFound();
 
-  await dbConnect();
+  const unitRow = await queryOne<Record<string, unknown>>(
+    `SELECT u.*, us.name AS created_by_name FROM units u LEFT JOIN users us ON us.id = u.created_by WHERE u.id = $1`,
+    [id]
+  );
+  if (!unitRow) notFound();
 
-  const unit = await Unit.findById(id).populate("createdBy", "name").lean();
-  if (!unit) notFound();
-
-  const invoice = await Invoice.findById(unit.invoiceId).select("createdBy cnfPrice").lean();
+  const invoice = await queryOne<{ created_by: string; cnf_price: string }>(
+    `SELECT created_by, cnf_price FROM invoices WHERE id = $1`,
+    [unitRow.invoice_id as string]
+  );
 
   if (role === "user") {
-    if (!invoice || invoice.createdBy?.toString() !== session!.user.id) notFound();
+    if (!invoice || invoice.created_by !== session!.user.id) notFound();
   }
 
-  const [files, payments, coverFile] = await Promise.all([
-    UnitFile.find({ unitId: id }).select("-data").lean(),
-    Payment.find({ invoiceId: unit.invoiceId })
-      .select("receiptImage receivedDate sellingPrice amountReceived exchangeRate yenAmount recordedBy")
-      .populate("recordedBy", "name")
-      .sort({ receivedDate: 1 })
-      .allowDiskUse(true)
-      .lean(),
-    UnitFile.findOne({ unitId: id, mimetype: /^image\// }).select("_id").lean(),
+  const [fileRows, paymentRows, coverFile] = await Promise.all([
+    query(`SELECT id, unit_id, folder, filename, mimetype, size, uploaded_at FROM unit_files WHERE unit_id = $1`, [id]),
+    query(
+      `SELECT p.receipt_image_data, p.receipt_image_filename, p.receipt_image_uploaded_at, p.received_date, p.selling_price, p.amount_received, p.exchange_rate, p.yen_amount, p.recorded_by, p.id, p.invoice_id, p.created_at,
+              u.name AS recorded_by_name
+       FROM payments p LEFT JOIN users u ON u.id = p.recorded_by
+       WHERE p.invoice_id = $1 ORDER BY p.received_date ASC`,
+      [unitRow.invoice_id as string]
+    ),
+    queryOne<{ id: string }>(`SELECT id FROM unit_files WHERE unit_id = $1 AND mimetype LIKE 'image/%' LIMIT 1`, [id]),
   ]);
 
+  const files = fileRows.map(serializeUnitFile);
   const documents: Record<string, typeof files> = {};
   for (const folder of DOCUMENT_FOLDERS) {
     documents[folder] = files.filter(f => f.folder === folder);
   }
 
-  const unitData        = JSON.parse(JSON.stringify(unit));
-  const docsData        = JSON.parse(JSON.stringify(documents));
-  const paymentsData    = JSON.parse(JSON.stringify(payments));
-  const coverFileId     = coverFile ? coverFile._id.toString() : null;
-  const invoiceCnfPrice = invoice?.cnfPrice ?? undefined;
+  const unitData        = serializeUnit(unitRow);
+  const docsData        = documents;
+  const paymentsData    = paymentRows.map(serializePayment);
+  const coverFileId     = coverFile ? coverFile.id : null;
+  const invoiceCnfPrice = invoice ? Number(invoice.cnf_price) : undefined;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", flex: 1 }}>
