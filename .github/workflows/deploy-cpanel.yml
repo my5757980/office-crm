@@ -33,18 +33,20 @@ jobs:
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
 
-      - name: Upload build to server
+      - name: Upload build and package files to server
         run: |
-          scp -i ~/.ssh/deploy_key -P ${{ secrets.SSH_PORT }} next-build.tar.gz \
-            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/home/${{ secrets.SSH_USER }}/crmglobal.sbkautotrading.com/next-build.tar.gz
+          scp -i ~/.ssh/deploy_key -P ${{ secrets.SSH_PORT }} next-build.tar.gz package.json package-lock.json \
+            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/home/${{ secrets.SSH_USER }}/crmglobal.sbkautotrading.com/
 
-      - name: Extract and restart on server
+      - name: Extract, install deps and restart on server
         run: |
           ssh -i ~/.ssh/deploy_key -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} '
+            source /home/${{ secrets.SSH_USER }}/nodevenv/crmglobal.sbkautotrading.com/20/bin/activate &&
             cd /home/${{ secrets.SSH_USER }}/crmglobal.sbkautotrading.com &&
             rm -rf .next &&
             tar -xzf next-build.tar.gz &&
             chmod -R 777 .next &&
+            npm install --omit=dev &&
             mkdir -p tmp &&
             touch tmp/restart.txt
           '
