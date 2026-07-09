@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import dbConnect from "@/lib/db";
-import Invoice from "@/models/Invoice";
+import { queryOne } from "@/lib/pg";
 import ExcelJS from "exceljs";
 import fs from "fs";
 import path from "path";
@@ -72,11 +71,28 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   if (!session || !CAN_DOWNLOAD.includes(session.user.role))
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  await dbConnect();
   const { id } = await params;
 
-  const inv = await Invoice.findById(id).lean();
-  if (!inv) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  const row = await queryOne<Record<string, unknown>>(`SELECT * FROM invoices WHERE id = $1`, [id]);
+  if (!row) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  const inv = {
+    createdAt: row.created_at as string,
+    advancePercent: row.advance_percent != null ? Number(row.advance_percent) : 50,
+    cnfPrice: Number(row.cnf_price),
+    unit: row.unit as string,
+    consignee: {
+      name: row.consignee_name as string,
+      address: row.consignee_address as string,
+      phone: row.consignee_phone as string,
+      port: row.consignee_port as string,
+      country: row.consignee_country as string,
+    },
+    chassisNo: row.chassis_no as string,
+    year: row.year as string,
+    color: row.color as string,
+    engineNo: row.engine_no as string,
+  };
 
   const date        = new Date(inv.createdAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
   const invNo       = `JDM-${String(id).slice(-5).toUpperCase()}`;

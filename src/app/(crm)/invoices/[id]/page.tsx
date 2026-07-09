@@ -1,8 +1,8 @@
+import type { ComponentProps } from "react";
 import { auth } from "@/lib/auth";
 import { notFound } from "next/navigation";
-import dbConnect from "@/lib/db";
-import Invoice from "@/models/Invoice";
-import Unit from "@/models/Unit";
+import { queryOne } from "@/lib/pg";
+import { serializeInvoice } from "@/lib/serialize";
 import InvoiceDetail from "@/components/invoices/InvoiceDetail";
 import PaymentSection from "@/components/invoices/PaymentSection";
 import TopBar from "@/components/layout/TopBar";
@@ -34,20 +34,28 @@ export default async function InvoiceDetailPage({
   const session = await auth();
   const { id } = await params;
 
-  let fetched: [unknown, unknown] | null = null;
+  const INVOICE_SELECT = `
+    SELECT i.id, i.lead_id, i.created_by, i.approved_by, i.consignee_name, i.consignee_address, i.consignee_phone, i.consignee_country, i.consignee_port,
+           i.unit, i.chassis_no, i.engine_no, i.color, i.year, i.salesperson, i.fuel, i.transmission, i.m3_rate, i.exchange_rate, i.push_price, i.cnf_price,
+           i.advance_percent, i.status, i.rejection_note, i.created_at, i.updated_at,
+           u.name AS created_by_name, u.email AS created_by_email,
+           a.name AS approved_by_name,
+           l.customer_name AS lead_customer_name, l.contact_person AS lead_contact_person, l.country AS lead_country, l.port AS lead_port
+    FROM invoices i
+    LEFT JOIN users u ON u.id = i.created_by
+    LEFT JOIN users a ON a.id = i.approved_by
+    LEFT JOIN leads l ON l.id = i.lead_id
+    WHERE i.id = $1
+  `;
+
+  let fetched: [Record<string, unknown> | null, { id: string } | null] | null = null;
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
       if (attempt > 0) await new Promise<void>((r) => setTimeout(r, 500 * attempt));
-      await dbConnect();
       fetched = await Promise.all([
-        Invoice.findById(id)
-          .select("-uploadedPdf.data")
-          .populate("createdBy", "name email")
-          .populate("approvedBy", "name")
-          .populate("leadId", "customerName contactPerson country port")
-          .lean(),
-        Unit.findOne({ invoiceId: id }).select("_id").lean(),
-      ]) as [unknown, unknown];
+        queryOne<Record<string, unknown>>(INVOICE_SELECT, [id]),
+        queryOne<{ id: string }>(`SELECT id FROM units WHERE invoice_id = $1`, [id]),
+      ]);
       break;
     } catch {
       if (attempt === 2) fetched = null;
@@ -96,19 +104,18 @@ export default async function InvoiceDetailPage({
     );
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [raw, existingUnit] = fetched as [any, { _id: { toString(): string } } | null];
+  const [raw, existingUnit] = fetched;
 
   if (!raw) notFound();
 
   const role = session!.user.role;
   const isElevated = ["admin", "manager", "super_admin"].includes(role);
-  const isOwner = (raw.createdBy as { _id?: { toString(): string } } | null)?._id?.toString() === session!.user.id;
+  const isOwner = raw.created_by === session!.user.id;
 
   if (!isElevated && !isOwner) notFound();
 
-  const invoice = JSON.parse(JSON.stringify(raw));
-  const unitId = existingUnit ? existingUnit._id.toString() : null;
+  const invoice = serializeInvoice(raw);
+  const unitId = existingUnit ? existingUnit.id : null;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", flex: 1 }}>
@@ -118,13 +125,14 @@ export default async function InvoiceDetailPage({
       <div style={{ flex: 1, padding: "24px", display: "flex", flexDirection: "column", gap: "16px" }}>
         {backLink}
 
-        <InvoiceDetail invoice={invoice} role={role} unitId={unitId} />
+        {/* leadId is always the joined { customerName, contactPerson, ... } object here — this query always joins leads */}
+        <InvoiceDetail invoice={invoice as unknown as ComponentProps<typeof InvoiceDetail>["invoice"]} role={role} unitId={unitId} />
 
         {["admin", "manager", "super_admin"].includes(role) && (
           <PaymentSection
             invoiceId={id}
             role={role}
-            invoiceCnfPrice={raw.cnfPrice}
+            invoiceCnfPrice={invoice.cnfPrice}
           />
         )}
       </div>

@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import dbConnect from "@/lib/db";
-import Lead from "@/models/Lead";
-import Invoice from "@/models/Invoice";
-import Unit from "@/models/Unit";
+import { query } from "@/lib/pg";
 
 export const runtime = "nodejs";
 
@@ -24,22 +21,19 @@ export async function POST(request: NextRequest) {
   if (!country || !userId)
     return NextResponse.json({ error: "country and userId are required" }, { status: 400 });
 
-  await dbConnect();
-
   // Only the supervisor's own (unassigned/imported) leads for this country
-  const leads = await Lead.find({ country, createdBy: session.user.id }).select("_id").lean();
+  const leads = await query<{ id: string }>(`SELECT id FROM leads WHERE country = $1 AND created_by = $2`, [country, session.user.id]);
   if (leads.length === 0)
     return NextResponse.json({ reassigned: 0, message: "No unassigned leads for this country" });
 
-  const leadIds = leads.map(l => l._id);
-  const invoices = await Invoice.find({ leadId: { $in: leadIds } }).select("_id").lean();
-  const invoiceIds = invoices.map(i => i._id);
+  const leadIds = leads.map(l => l.id);
 
-  await Promise.all([
-    Lead.updateMany({ _id: { $in: leadIds } },              { $set: { createdBy: userId } }),
-    Invoice.updateMany({ leadId: { $in: leadIds } },        { $set: { createdBy: userId } }),
-    Unit.updateMany({ invoiceId: { $in: invoiceIds } },     { $set: { createdBy: userId } }),
-  ]);
+  await query(`UPDATE leads SET created_by = $1 WHERE id = ANY($2)`, [userId, leadIds]);
+  await query(`UPDATE invoices SET created_by = $1 WHERE lead_id = ANY($2)`, [userId, leadIds]);
+  await query(
+    `UPDATE units SET created_by = $1 WHERE invoice_id IN (SELECT id FROM invoices WHERE lead_id = ANY($2))`,
+    [userId, leadIds]
+  );
 
   return NextResponse.json({ reassigned: leadIds.length });
 }

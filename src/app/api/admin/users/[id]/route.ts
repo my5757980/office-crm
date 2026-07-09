@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import dbConnect from "@/lib/db";
-import User from "@/models/User";
+import { queryOne } from "@/lib/pg";
+import { serializeUser } from "@/lib/serialize";
 import bcryptjs from "bcryptjs";
 
 type RouteContext = { params: Promise<{ id: string }> };
@@ -22,17 +22,18 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  await dbConnect();
   const { id } = await params;
   const body = await request.json();
 
-  const target = await User.findById(id);
+  const target = await queryOne<{ id: string; role: string }>(`SELECT id, role FROM users WHERE id = $1`, [id]);
   if (!target) return NextResponse.json({ error: "User not found" }, { status: 404 });
 
-  const updates: Record<string, unknown> = {};
+  const setClauses: string[] = [];
+  const setParams: unknown[] = [];
+  const setP = (v: unknown) => { setParams.push(v); return `$${setParams.length}`; };
 
-  if ("role" in body) updates.role = body.role;
-  if ("isActive" in body) updates.isActive = body.isActive;
+  if ("role" in body) setClauses.push(`role = ${setP(body.role)}`);
+  if ("isActive" in body) setClauses.push(`is_active = ${setP(body.isActive)}`);
 
   if ("password" in body) {
     const allowed = RESET_ALLOWED[session.user.role] ?? [];
@@ -44,9 +45,16 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
     }
     if (!body.password || body.password.length < 6)
       return NextResponse.json({ error: "Password must be at least 6 characters" }, { status: 400 });
-    updates.password = await bcryptjs.hash(body.password, 12);
+    setClauses.push(`password = ${setP(await bcryptjs.hash(body.password, 12))}`);
   }
 
-  const user = await User.findByIdAndUpdate(id, updates, { new: true }).lean();
-  return NextResponse.json({ user });
+  if (setClauses.length === 0)
+    return NextResponse.json({ error: "Nothing to update" }, { status: 400 });
+
+  setClauses.push(`updated_at = now()`);
+  const row = await queryOne<Record<string, unknown>>(
+    `UPDATE users SET ${setClauses.join(", ")} WHERE id = ${setP(id)} RETURNING *`,
+    setParams
+  );
+  return NextResponse.json({ user: row ? serializeUser(row) : null });
 }

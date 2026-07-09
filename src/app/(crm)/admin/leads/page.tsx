@@ -1,10 +1,8 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
-import mongoose from "mongoose";
-import dbConnect from "@/lib/db";
-import Lead from "@/models/Lead";
-import User from "@/models/User";
+import { query } from "@/lib/pg";
+import { serializeLead } from "@/lib/serialize";
 import LeadTable from "@/components/leads/LeadTable";
 import LeadFilters from "@/components/leads/LeadFilters";
 import LeadPagination from "@/components/leads/LeadPagination";
@@ -12,10 +10,6 @@ import BulkLeadTools from "@/components/leads/BulkLeadTools";
 import TopBar from "@/components/layout/TopBar";
 
 const ELEVATED = ["admin", "manager", "super_admin"];
-
-function escapeRegex(s: string) {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
 
 export default async function AdminLeadsPage({
   searchParams,
@@ -25,49 +19,56 @@ export default async function AdminLeadsPage({
   const session = await auth();
   if (!session || !ELEVATED.includes(session.user.role)) redirect("/dashboard");
 
-  await dbConnect();
   const params = await searchParams;
 
   // Date range (applied to both the leads table AND the per-agent counts)
-  const dateFilter: Record<string, Date> = {};
-  if (params.from) dateFilter.$gte = new Date(params.from);
-  if (params.to) {
-    const end = new Date(params.to);
-    end.setHours(23, 59, 59, 999);
-    dateFilter.$lte = end;
-  }
-  const hasDate = Object.keys(dateFilter).length > 0;
+  const dateFrom = params.from ? new Date(params.from) : null;
+  const dateTo = params.to ? (() => { const d = new Date(params.to); d.setHours(23, 59, 59, 999); return d; })() : null;
 
-  const filter: Record<string, unknown> = {};
-  if (params.search) {
-    const rx = { $regex: escapeRegex(params.search.trim()), $options: "i" };
-    filter.$or = [{ customerName: rx }, { contactPerson: rx }, { phone: rx }];
-  }
-  if (params.country)   filter.country = params.country;
-  if (params.status)    filter.status = params.status;
-  if (params.agentId)   filter.createdBy = params.agentId;
-  if (hasDate)          filter.createdAt = dateFilter;
+  const where: string[] = [];
+  const filterParams: unknown[] = [];
+  const p = (v: unknown) => { filterParams.push(v); return `$${filterParams.length}`; };
+
+  if (params.search) where.push(`(l.customer_name ILIKE ${p(`%${params.search.trim()}%`)} OR l.contact_person ILIKE ${p(`%${params.search.trim()}%`)} OR l.phone ILIKE ${p(`%${params.search.trim()}%`)})`);
+  if (params.country) where.push(`l.country = ${p(params.country)}`);
+  if (params.status)  where.push(`l.status = ${p(params.status)}`);
+  if (params.agentId) where.push(`l.created_by = ${p(params.agentId)}`);
+  if (dateFrom)        where.push(`l.created_at >= ${p(dateFrom)}`);
+  if (dateTo)          where.push(`l.created_at <= ${p(dateTo)}`);
+  const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
 
   // Per-agent counts respect the selected date (but not agent/search/status)
-  const countQuery = hasDate ? { createdAt: dateFilter } : {};
+  const countWhere: string[] = [];
+  const countParams: unknown[] = [];
+  const cp = (v: unknown) => { countParams.push(v); return `$${countParams.length}`; };
+  if (dateFrom) countWhere.push(`created_at >= ${cp(dateFrom)}`);
+  if (dateTo)   countWhere.push(`created_at <= ${cp(dateTo)}`);
+  const countWhereSql = countWhere.length ? `WHERE ${countWhere.join(" AND ")}` : "";
 
   // Pagination
   const limit = Math.min(Math.max(parseInt(params.limit || "50") || 50, 1), 500);
   const page  = Math.max(parseInt(params.page || "1") || 1, 1);
 
-  const [leads, matchTotal, agents, allLeads] = await Promise.all([
-    Lead.find(filter).populate("createdBy", "name email").sort({ createdAt: -1 }).allowDiskUse(true).skip((page - 1) * limit).limit(limit).lean(),
-    Lead.countDocuments(filter),
-    User.find({ role: "user" }, "name email").sort({ name: 1 }).lean(),
-    Lead.find(countQuery).select("createdBy").lean(),
+  const totalCountParams = [...filterParams];
+  const pageParams = [...filterParams, limit, (page - 1) * limit];
+
+  const [leadRows, totalRow, agentRows, agentCounts] = await Promise.all([
+    query(
+      `SELECT l.*, u.name AS created_by_name, u.email AS created_by_email FROM leads l LEFT JOIN users u ON u.id = l.created_by
+       ${whereSql} ORDER BY l.created_at DESC LIMIT $${pageParams.length - 1} OFFSET $${pageParams.length}`,
+      pageParams
+    ),
+    query<{ count: string }>(`SELECT count(*) FROM leads l ${whereSql}`, totalCountParams),
+    query<{ id: string; name: string; email: string }>(`SELECT id, name, email FROM users WHERE role = 'user' ORDER BY name ASC`),
+    query<{ created_by: string; count: string }>(`SELECT created_by, count(*) FROM leads ${countWhereSql} GROUP BY created_by`, countParams),
   ]);
+  const matchTotal = Number(totalRow[0]?.count ?? 0);
   const totalPages = Math.max(Math.ceil(matchTotal / limit), 1);
 
   // Count leads per agent
   const countMap: Record<string, number> = {};
-  for (const l of allLeads) {
-    const id = l.createdBy?.toString();
-    if (id) countMap[id] = (countMap[id] ?? 0) + 1;
+  for (const r of agentCounts) {
+    if (r.created_by) countMap[r.created_by] = Number(r.count);
   }
 
   // Preserve current filters (date/search/status) when toggling an agent card
@@ -82,19 +83,18 @@ export default async function AdminLeadsPage({
     return qs ? `/admin/leads?${qs}` : "/admin/leads";
   };
 
-  const leadsData  = JSON.parse(JSON.stringify(leads));
-  const agentsData = JSON.parse(JSON.stringify(agents));
+  const leadsData  = leadRows.map(serializeLead);
+  const agentsData = agentRows.map(a => ({ _id: a.id, name: a.name, email: a.email }));
 
   // Supervisor-only: imported (unassigned) leads grouped by country
   const isSupervisor = session.user.role === "super_admin";
   let unassignedData: { country: string; count: number }[] = [];
   if (isSupervisor) {
-    const grouped = await Lead.aggregate([
-      { $match: { createdBy: new mongoose.Types.ObjectId(session.user.id) } },
-      { $group: { _id: "$country", count: { $sum: 1 } } },
-      { $sort: { _id: 1 } },
-    ]).allowDiskUse(true);
-    unassignedData = grouped.map((g: { _id: string; count: number }) => ({ country: g._id, count: g.count }));
+    const grouped = await query<{ country: string; count: string }>(
+      `SELECT country, count(*) FROM leads WHERE created_by = $1 GROUP BY country ORDER BY country ASC`,
+      [session.user.id]
+    );
+    unassignedData = grouped.map(g => ({ country: g.country, count: Number(g.count) }));
   }
 
   return (

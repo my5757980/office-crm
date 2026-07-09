@@ -6,21 +6,11 @@ import LeadFilters from "@/components/leads/LeadFilters";
 import LeadPagination from "@/components/leads/LeadPagination";
 import TopBar from "@/components/layout/TopBar";
 import Link from "next/link";
-import dbConnect from "@/lib/db";
-import Lead from "@/models/Lead";
-import Invoice from "@/models/Invoice";
+import { query } from "@/lib/pg";
+import { serializeLead } from "@/lib/serialize";
 
 const ELEVATED = ["admin", "manager", "super_admin"];
 
-// Escape user input so regex special chars (e.g. "+" in phone numbers) don't break the query
-function escapeRegex(s: string) {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-// Search across customer name, contact person and phone
-function searchOr(search: string) {
-  const rx = { $regex: escapeRegex(search.trim()), $options: "i" };
-  return [{ customerName: rx }, { contactPerson: rx }, { phone: rx }];
-}
 function parsePaging(searchParams: Record<string, string>) {
   const limit = Math.min(Math.max(parseInt(searchParams.limit || "50") || 50, 1), 500);
   const page  = Math.max(parseInt(searchParams.page || "1") || 1, 1);
@@ -28,81 +18,95 @@ function parsePaging(searchParams: Record<string, string>) {
 }
 
 async function getLeadsData(userId: string, role: string, searchParams: Record<string, string>) {
-  await dbConnect();
   const isElevated = ELEVATED.includes(role);
-  const base: Record<string, unknown> = isElevated
-    ? { isCustomer: { $ne: true } }
-    : { createdBy: userId, isCustomer: { $ne: true } };
 
-  const filter: Record<string, unknown> = { ...base };
-  if (searchParams.search) filter.$or = searchOr(searchParams.search);
-  if (searchParams.status) filter.status = searchParams.status;
-  if (searchParams.from || searchParams.to) {
-    filter.createdAt = {};
-    if (searchParams.from) (filter.createdAt as Record<string, Date>).$gte = new Date(searchParams.from);
-    if (searchParams.to)   (filter.createdAt as Record<string, Date>).$lte = new Date(searchParams.to);
-  }
+  const baseWhere: string[] = ["(is_customer IS NOT TRUE)"];
+  const baseParams: unknown[] = [];
+  const bp = (v: unknown) => { baseParams.push(v); return `$${baseParams.length}`; };
+  if (!isElevated) baseWhere.push(`created_by = ${bp(userId)}`);
+  const baseWhereSql = baseWhere.join(" AND ");
+
+  const where: string[] = [...baseWhere];
+  const params: unknown[] = [...baseParams];
+  const p = (v: unknown) => { params.push(v); return `$${params.length}`; };
+  if (searchParams.search) where.push(`(customer_name ILIKE ${p(`%${searchParams.search.trim()}%`)} OR contact_person ILIKE ${p(`%${searchParams.search.trim()}%`)} OR phone ILIKE ${p(`%${searchParams.search.trim()}%`)})`);
+  if (searchParams.status) where.push(`status = ${p(searchParams.status)}`);
+  if (searchParams.from) where.push(`created_at >= ${p(new Date(searchParams.from))}`);
+  if (searchParams.to)   where.push(`created_at <= ${p(new Date(searchParams.to))}`);
+  const whereSql = `WHERE ${where.join(" AND ")}`;
 
   const { limit, page } = parsePaging(searchParams);
+  const pageParams = [...params, limit, (page - 1) * limit];
 
-  const [leads, matchTotal, total, newCount, inProgress, closed] = await Promise.all([
-    Lead.find(filter).populate("createdBy", "name email").sort({ createdAt: -1 }).allowDiskUse(true).skip((page - 1) * limit).limit(limit).lean(),
-    Lead.countDocuments(filter),
-    Lead.countDocuments(base),
-    Lead.countDocuments({ ...base, status: "new" }),
-    Lead.countDocuments({ ...base, status: "in_progress" }),
-    Lead.countDocuments({ ...base, status: "closed" }),
+  const [leadRows, totalRow, totalCountRow, newCountRow, inProgressRow, closedRow] = await Promise.all([
+    query(
+      `SELECT l.*, u.name AS created_by_name, u.email AS created_by_email FROM leads l LEFT JOIN users u ON u.id = l.created_by
+       ${whereSql} ORDER BY l.created_at DESC LIMIT $${pageParams.length - 1} OFFSET $${pageParams.length}`,
+      pageParams
+    ),
+    query<{ count: string }>(`SELECT count(*) FROM leads ${whereSql}`, params),
+    query<{ count: string }>(`SELECT count(*) FROM leads WHERE ${baseWhereSql}`, baseParams),
+    query<{ count: string }>(`SELECT count(*) FROM leads WHERE ${baseWhereSql} AND status = 'new'`, baseParams),
+    query<{ count: string }>(`SELECT count(*) FROM leads WHERE ${baseWhereSql} AND status = 'in_progress'`, baseParams),
+    query<{ count: string }>(`SELECT count(*) FROM leads WHERE ${baseWhereSql} AND status = 'closed'`, baseParams),
   ]);
 
+  const matchTotal = Number(totalRow[0]?.count ?? 0);
+
   return {
-    leads: JSON.parse(JSON.stringify(leads)),
-    stats: { total, newCount, inProgress, closed },
+    leads: leadRows.map(serializeLead),
+    stats: {
+      total: Number(totalCountRow[0]?.count ?? 0),
+      newCount: Number(newCountRow[0]?.count ?? 0),
+      inProgress: Number(inProgressRow[0]?.count ?? 0),
+      closed: Number(closedRow[0]?.count ?? 0),
+    },
     page, limit, matchTotal, totalPages: Math.max(Math.ceil(matchTotal / limit), 1),
   };
 }
 
 async function getCustomersData(userId: string, role: string, searchParams: Record<string, string>) {
-  await dbConnect();
   const isElevated = ELEVATED.includes(role);
-  const base: Record<string, unknown> = isElevated
-    ? { isCustomer: true }
-    : { createdBy: userId, isCustomer: true };
 
-  const filter: Record<string, unknown> = { ...base };
-  if (searchParams.search) filter.$or = searchOr(searchParams.search);
+  const where: string[] = ["is_customer = true"];
+  const params: unknown[] = [];
+  const p = (v: unknown) => { params.push(v); return `$${params.length}`; };
+  if (!isElevated) where.push(`created_by = ${p(userId)}`);
+  if (searchParams.search) where.push(`(customer_name ILIKE ${p(`%${searchParams.search.trim()}%`)} OR contact_person ILIKE ${p(`%${searchParams.search.trim()}%`)} OR phone ILIKE ${p(`%${searchParams.search.trim()}%`)})`);
+  const whereSql = `WHERE ${where.join(" AND ")}`;
 
   const { limit, page } = parsePaging(searchParams);
+  const pageParams = [...params, limit, (page - 1) * limit];
 
-  const [customers, matchTotal] = await Promise.all([
-    Lead.find(filter)
-      .populate("createdBy", "name email")
-      .sort({ createdAt: -1 })
-      .allowDiskUse(true)
-      .skip((page - 1) * limit)
-      .limit(limit)
-      .lean(),
-    Lead.countDocuments(filter),
+  const [customerRows, totalRow] = await Promise.all([
+    query(
+      `SELECT l.*, u.name AS created_by_name, u.email AS created_by_email FROM leads l LEFT JOIN users u ON u.id = l.created_by
+       ${whereSql} ORDER BY l.created_at DESC LIMIT $${pageParams.length - 1} OFFSET $${pageParams.length}`,
+      pageParams
+    ),
+    query<{ count: string }>(`SELECT count(*) FROM leads l ${whereSql}`, params),
   ]);
+  const matchTotal = Number(totalRow[0]?.count ?? 0);
 
-  const customerIds = customers.map(c => c._id);
-  const invoiceDocs = customerIds.length > 0
-    ? await Invoice.find({ leadId: { $in: customerIds } }, "leadId status").lean()
+  const customerIds = customerRows.map(c => c.id as string);
+  const invoiceRows = customerIds.length > 0
+    ? await query<{ lead_id: string; status: string }>(`SELECT lead_id, status FROM invoices WHERE lead_id = ANY($1)`, [customerIds])
     : [];
 
   const countMap: Record<string, { total: number; pending: number }> = {};
-  for (const inv of invoiceDocs) {
-    const key = inv.leadId.toString();
+  for (const inv of invoiceRows) {
+    const key = inv.lead_id;
     if (!countMap[key]) countMap[key] = { total: 0, pending: 0 };
     countMap[key].total++;
     if (inv.status === "pending") countMap[key].pending++;
   }
 
   const totalPending = Object.values(countMap).reduce((s, v) => s + v.pending, 0);
-  const totalInvoices = invoiceDocs.length;
+  const totalInvoices = invoiceRows.length;
 
   return {
-    customers: JSON.parse(JSON.stringify(customers)),
-    invoiceCounts: JSON.parse(JSON.stringify(countMap)),
+    customers: customerRows.map(serializeLead),
+    invoiceCounts: countMap,
     stats: { total: matchTotal, totalInvoices, totalPending },
     page, limit, matchTotal, totalPages: Math.max(Math.ceil(matchTotal / limit), 1),
   };

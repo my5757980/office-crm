@@ -1,15 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import dbConnect from "@/lib/db";
-import Unit from "@/models/Unit";
-import UnitFile from "@/models/UnitFile";
-import { DOCUMENT_FOLDERS } from "@/models/Unit";
+import { query, queryOne } from "@/lib/pg";
+import { DOCUMENT_FOLDERS } from "@/lib/constants";
+import { serializeUnit, serializeUnitFile } from "@/lib/serialize";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
 const CAN_EDIT = ["manager", "super_admin"];
 
-const EDITABLE_FIELDS = ["make","carModel","year","color","chassis","engineCC","drive","fuel","mileage","transmission","steering","doors","seats","location"];
+const EDITABLE_FIELD_TO_COLUMN: Record<string, string> = {
+  make: "make", carModel: "car_model", year: "year", color: "color", chassis: "chassis",
+  engineCC: "engine_cc", drive: "drive", fuel: "fuel", mileage: "mileage",
+  transmission: "transmission", steering: "steering", doors: "doors", seats: "seats", location: "location",
+};
 
 export async function PATCH(request: NextRequest, { params }: RouteContext) {
   const session = await auth();
@@ -17,40 +20,50 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
   if (!CAN_EDIT.includes(session.user.role))
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  await dbConnect();
   const { id } = await params;
   const body = await request.json();
 
-  const updates: Record<string, unknown> = {};
-  for (const key of EDITABLE_FIELDS) {
-    if (key in body) updates[key] = body[key];
+  const setClauses: string[] = [];
+  const setParams: unknown[] = [];
+  const setP = (v: unknown) => { setParams.push(v); return `$${setParams.length}`; };
+  for (const [key, column] of Object.entries(EDITABLE_FIELD_TO_COLUMN)) {
+    if (key in body) setClauses.push(`${column} = ${setP(body[key])}`);
   }
 
-  if (Object.keys(updates).length === 0)
+  if (setClauses.length === 0)
     return NextResponse.json({ error: "Nothing to update" }, { status: 400 });
 
-  const unit = await Unit.findByIdAndUpdate(id, updates, { new: true });
-  if (!unit) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  const row = await queryOne<Record<string, unknown>>(
+    `UPDATE units SET ${setClauses.join(", ")} WHERE id = ${setP(id)} RETURNING *`,
+    setParams
+  );
+  if (!row) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  return NextResponse.json({ unit });
+  return NextResponse.json({ unit: serializeUnit(row) });
 }
 
 export async function GET(_req: NextRequest, { params }: RouteContext) {
   const session = await auth();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  await dbConnect();
   const { id } = await params;
 
-  const unit = await Unit.findById(id).populate("createdBy", "name").lean();
-  if (!unit) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  const row = await queryOne<Record<string, unknown>>(
+    `SELECT u.*, us.name AS created_by_name FROM units u LEFT JOIN users us ON us.id = u.created_by WHERE u.id = $1`,
+    [id]
+  );
+  if (!row) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  const files = await UnitFile.find({ unitId: id }).select("-data").lean();
+  const fileRows = await query(
+    `SELECT id, unit_id, folder, filename, mimetype, size, uploaded_at FROM unit_files WHERE unit_id = $1`,
+    [id]
+  );
+  const files = fileRows.map(serializeUnitFile);
 
   const documents: Record<string, typeof files> = {};
   for (const folder of DOCUMENT_FOLDERS) {
     documents[folder] = files.filter((f) => f.folder === folder);
   }
 
-  return NextResponse.json({ unit, documents });
+  return NextResponse.json({ unit: serializeUnit(row), documents });
 }

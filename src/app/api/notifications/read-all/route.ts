@@ -1,15 +1,12 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import dbConnect from "@/lib/db";
-import Notification from "@/models/Notification";
+import { query } from "@/lib/pg";
 
 export async function PATCH() {
   const session = await auth();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  await dbConnect();
-
-  await Notification.updateMany({ userId: session.user.id, read: false }, { read: true });
+  await query(`UPDATE notifications SET read = true WHERE user_id = $1 AND read = false`, [session.user.id]);
 
   return NextResponse.json({ success: true });
 }

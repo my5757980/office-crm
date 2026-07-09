@@ -1,11 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import dbConnect from "@/lib/db";
-import Lead from "@/models/Lead";
-import Invoice from "@/models/Invoice";
-import Payment from "@/models/Payment";
-import Unit from "@/models/Unit";
-import UnitFinancial from "@/models/UnitFinancial";
+import { query } from "@/lib/pg";
 import ExcelJS from "exceljs";
 
 export async function GET() {
@@ -17,14 +12,20 @@ export async function GET() {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  await dbConnect();
-
   const [leads, invoices, payments, units, financials] = await Promise.all([
-    Lead.find().populate("createdBy", "name email").lean(),
-    Invoice.find().select("-uploadedPdf.data").populate("createdBy", "name email").populate("approvedBy", "name").populate("leadId", "customerName").lean(),
-    Payment.find().populate("invoiceId", "unit chassisNo").populate("recordedBy", "name email").lean(),
-    Unit.find().populate("createdBy", "name email").populate("invoiceId", "unit chassisNo").lean(),
-    UnitFinancial.find().populate("unitId", "make carModel year chassis").lean(),
+    query(`SELECT l.*, u.name AS created_by_name FROM leads l LEFT JOIN users u ON u.id = l.created_by`),
+    query(`SELECT i.id, i.lead_id, i.created_by, i.approved_by, i.consignee_name, i.unit, i.chassis_no, i.engine_no, i.color, i.year,
+                  i.m3_rate, i.exchange_rate, i.push_price, i.cnf_price, i.status, i.created_at,
+                  cu.name AS created_by_name, au.name AS approved_by_name, ld.customer_name AS lead_customer_name
+           FROM invoices i
+           LEFT JOIN users cu ON cu.id = i.created_by
+           LEFT JOIN users au ON au.id = i.approved_by
+           LEFT JOIN leads ld ON ld.id = i.lead_id`),
+    query(`SELECT p.*, i.unit AS invoice_unit, i.chassis_no AS invoice_chassis_no, u.name AS recorded_by_name
+           FROM payments p LEFT JOIN invoices i ON i.id = p.invoice_id LEFT JOIN users u ON u.id = p.recorded_by`),
+    query(`SELECT un.*, u.name AS created_by_name FROM units un LEFT JOIN users u ON u.id = un.created_by`),
+    query(`SELECT f.*, un.chassis AS unit_chassis, un.year AS unit_year, un.make AS unit_make, un.car_model AS unit_car_model
+           FROM unit_financials f LEFT JOIN units un ON un.id = f.unit_id`),
   ]);
 
   const wb = new ExcelJS.Workbook();
@@ -70,16 +71,16 @@ export async function GET() {
   leads.forEach((l: any, i) => {
     wsLeads.addRow({
       no: i + 1,
-      customerName:  l.customerName ?? "",
-      contactPerson: l.contactPerson ?? "",
+      customerName:  l.customer_name ?? "",
+      contactPerson: l.contact_person ?? "",
       phone:         l.phone ?? "",
       email:         l.email ?? "",
       country:       l.country ?? "",
       port:          l.port ?? "",
       status:        l.status ?? "",
-      isCustomer:    l.isCustomer ? "Yes" : "No",
-      agent:         l.createdBy?.name ?? "",
-      createdAt:     l.createdAt ? new Date(l.createdAt).toLocaleDateString("en-GB") : "",
+      isCustomer:    l.is_customer ? "Yes" : "No",
+      agent:         l.created_by_name ?? "",
+      createdAt:     l.created_at ? new Date(l.created_at).toLocaleDateString("en-GB") : "",
     });
   });
 
@@ -106,20 +107,20 @@ export async function GET() {
   invoices.forEach((inv: any, i) => {
     wsInvoices.addRow({
       no:           i + 1,
-      customer:     inv.leadId?.customerName ?? inv.consignee?.name ?? "",
+      customer:     inv.lead_customer_name ?? inv.consignee_name ?? "",
       unit:         inv.unit ?? "",
-      chassisNo:    inv.chassisNo ?? "",
-      engineNo:     inv.engineNo ?? "",
+      chassisNo:    inv.chassis_no ?? "",
+      engineNo:     inv.engine_no ?? "",
       color:        inv.color ?? "",
       year:         inv.year ?? "",
-      m3Rate:       inv.m3Rate ?? 0,
-      exchangeRate: inv.exchangeRate ?? 0,
-      pushPrice:    inv.pushPrice ?? 0,
-      cnfPrice:     inv.cnfPrice ?? 0,
+      m3Rate:       Number(inv.m3_rate) || 0,
+      exchangeRate: Number(inv.exchange_rate) || 0,
+      pushPrice:    Number(inv.push_price) || 0,
+      cnfPrice:     Number(inv.cnf_price) || 0,
       status:       inv.status ?? "",
-      createdBy:    inv.createdBy?.name ?? "",
-      approvedBy:   inv.approvedBy?.name ?? "",
-      createdAt:    inv.createdAt ? new Date(inv.createdAt).toLocaleDateString("en-GB") : "",
+      createdBy:    inv.created_by_name ?? "",
+      approvedBy:   inv.approved_by_name ?? "",
+      createdAt:    inv.created_at ? new Date(inv.created_at).toLocaleDateString("en-GB") : "",
     });
   });
 
@@ -141,15 +142,15 @@ export async function GET() {
   payments.forEach((p: any, i) => {
     wsPayments.addRow({
       no:             i + 1,
-      invoiceUnit:    p.invoiceId?.unit ?? "",
-      chassisNo:      p.invoiceId?.chassisNo ?? "",
-      sellingPrice:   p.sellingPrice ?? 0,
-      amountReceived: p.amountReceived ?? 0,
-      receivedDate:   p.receivedDate ? new Date(p.receivedDate).toLocaleDateString("en-GB") : "",
-      exchangeRate:   p.exchangeRate ?? 0,
-      yenAmount:      p.yenAmount ?? 0,
-      recordedBy:     p.recordedBy?.name ?? "",
-      createdAt:      p.createdAt ? new Date(p.createdAt).toLocaleDateString("en-GB") : "",
+      invoiceUnit:    p.invoice_unit ?? "",
+      chassisNo:      p.invoice_chassis_no ?? "",
+      sellingPrice:   Number(p.selling_price) || 0,
+      amountReceived: Number(p.amount_received) || 0,
+      receivedDate:   p.received_date ? new Date(p.received_date).toLocaleDateString("en-GB") : "",
+      exchangeRate:   Number(p.exchange_rate) || 0,
+      yenAmount:      Number(p.yen_amount) || 0,
+      recordedBy:     p.recorded_by_name ?? "",
+      createdAt:      p.created_at ? new Date(p.created_at).toLocaleDateString("en-GB") : "",
     });
   });
 
@@ -179,11 +180,11 @@ export async function GET() {
     wsUnits.addRow({
       no:           i + 1,
       make:         u.make ?? "",
-      carModel:     u.carModel ?? "",
+      carModel:     u.car_model ?? "",
       year:         u.year ?? "",
       color:        u.color ?? "",
       chassis:      u.chassis ?? "",
-      engineCC:     u.engineCC ?? 0,
+      engineCC:     u.engine_cc ?? 0,
       drive:        u.drive ?? "",
       fuel:         u.fuel ?? "",
       mileage:      u.mileage ?? 0,
@@ -192,8 +193,8 @@ export async function GET() {
       doors:        u.doors ?? 0,
       seats:        u.seats ?? 0,
       location:     u.location ?? "",
-      createdBy:    u.createdBy?.name ?? "",
-      createdAt:    u.createdAt ? new Date(u.createdAt).toLocaleDateString("en-GB") : "",
+      createdBy:    u.created_by_name ?? "",
+      createdAt:    u.created_at ? new Date(u.created_at).toLocaleDateString("en-GB") : "",
     });
   });
 
@@ -234,27 +235,27 @@ export async function GET() {
     const isJPY = f.currency === "JPY";
     wsFinancial.addRow({
       no:            i + 1,
-      chassis:       f.unitId?.chassis ?? "",
-      vehicle:       f.unitId ? `${f.unitId.year} ${f.unitId.make} ${f.unitId.carModel}` : "",
+      chassis:       f.unit_chassis ?? "",
+      vehicle:       f.unit_id ? `${f.unit_year} ${f.unit_make} ${f.unit_car_model}` : "",
       currency:      f.currency ?? "",
-      lotNo:         f.lotNo ?? "",
-      auctionName:   f.auctionName ?? "",
-      buying:        isJPY ? (f.buying ?? 0) : "",
-      domestic:      isJPY ? (f.domestic ?? 0) : "",
-      storage:       isJPY ? (f.storage ?? 0) : "",
-      inspect:       isJPY ? (f.inspect ?? 0) : "",
-      repairs:       isJPY ? (f.repairs ?? 0) : "",
-      misc:          isJPY ? (f.misc ?? 0) : "",
-      agencyFee:     isJPY ? (f.agencyFee ?? 0) : "",
-      freight:       isJPY ? (f.freight ?? 0) : "",
-      dhl:           isJPY ? (f.dhl ?? 0) : "",
-      costOfUnitJPY: isJPY ? (f.costOfUnitJPY ?? 0) : "",
-      exchangeRate:  isJPY ? (f.exchangeRate ?? 0) : "",
-      costOfUnitUSD: isJPY ? (f.costOfUnitUSD ?? 0) : "",
-      directCostUSD: isJPY ? "" : (f.costUSD ?? 0),
-      sellingPrice:  f.sellingPrice ?? 0,
-      profit:        f.profit ?? 0,
-      updatedAt:     f.updatedAt ? new Date(f.updatedAt).toLocaleDateString("en-GB") : "",
+      lotNo:         f.lot_no ?? "",
+      auctionName:   f.auction_name ?? "",
+      buying:        isJPY ? (Number(f.buying) || 0) : "",
+      domestic:      isJPY ? (Number(f.domestic) || 0) : "",
+      storage:       isJPY ? (Number(f.storage) || 0) : "",
+      inspect:       isJPY ? (Number(f.inspect) || 0) : "",
+      repairs:       isJPY ? (Number(f.repairs) || 0) : "",
+      misc:          isJPY ? (Number(f.misc) || 0) : "",
+      agencyFee:     isJPY ? (Number(f.agency_fee) || 0) : "",
+      freight:       isJPY ? (Number(f.freight) || 0) : "",
+      dhl:           isJPY ? (Number(f.dhl) || 0) : "",
+      costOfUnitJPY: isJPY ? (Number(f.cost_of_unit_jpy) || 0) : "",
+      exchangeRate:  isJPY ? (Number(f.exchange_rate) || 0) : "",
+      costOfUnitUSD: isJPY ? (Number(f.cost_of_unit_usd) || 0) : "",
+      directCostUSD: isJPY ? "" : (Number(f.cost_usd) || 0),
+      sellingPrice:  Number(f.selling_price) || 0,
+      profit:        Number(f.profit) || 0,
+      updatedAt:     f.updated_at ? new Date(f.updated_at).toLocaleDateString("en-GB") : "",
     });
   });
 

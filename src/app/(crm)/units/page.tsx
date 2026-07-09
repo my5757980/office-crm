@@ -1,80 +1,63 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import dbConnect from "@/lib/db";
-import Unit from "@/models/Unit";
-import UnitFile from "@/models/UnitFile";
-import Invoice from "@/models/Invoice";
-import UnitFinancial from "@/models/UnitFinancial";
-import User from "@/models/User"; // ensure schema registered for .populate("createdBy")
+import { query } from "@/lib/pg";
+import { serializeUnit } from "@/lib/serialize";
 import TopBar from "@/components/layout/TopBar";
 import UnitsTable from "@/components/units/UnitsTable";
-
-// touch import so tree-shaking can't drop the User model registration
-void User;
 
 export default async function UnitsPage() {
   const session = await auth();
   const role = session!.user.role;
   if (!["user", "manager", "super_admin"].includes(role)) redirect("/dashboard");
 
-  await dbConnect();
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let units: any[] = [];
+  let unitsData: ReturnType<typeof serializeUnit>[] = [];
   const coverMap: Record<string, string> = {};
   const profitMap: Record<string, number | null> = {};
 
   try {
-    if (role === "user") {
-      const myInvoices = await Invoice.find({ createdBy: session!.user.id }).select("_id").lean();
-      const invoiceIds = myInvoices.map(i => i._id);
-      units = await Unit.find({ invoiceId: { $in: invoiceIds } })
-        .populate("invoiceId", "cnfPrice")
-        .populate("createdBy", "name")
-        .sort({ createdAt: -1 })
-        .allowDiskUse(true)
-        .lean();
-    } else {
-      units = await Unit.find({})
-        .populate("invoiceId", "cnfPrice")
-        .populate("createdBy", "name")
-        .sort({ createdAt: -1 })
-        .allowDiskUse(true)
-        .lean();
-    }
+    const rows = role === "user"
+      ? await query(
+          `SELECT un.*, u.name AS created_by_name FROM units un
+           LEFT JOIN users u ON u.id = un.created_by
+           WHERE un.invoice_id IN (SELECT id FROM invoices WHERE created_by = $1)
+           ORDER BY un.created_at DESC`,
+          [session!.user.id]
+        )
+      : await query(
+          `SELECT un.*, u.name AS created_by_name FROM units un LEFT JOIN users u ON u.id = un.created_by ORDER BY un.created_at DESC`
+        );
 
-    const unitIds = units.map(u => u._id);
-    // NOTE: no DB .sort() here — sorting the unitfiles collection (which holds
-    // image buffers) blows MongoDB's 32MB in-memory sort limit. We only need
-    // one cover image per unit, so we sort the tiny projected result in JS.
-    const coverFiles = await UnitFile.find({ unitId: { $in: unitIds }, mimetype: /^image\// })
-      .select("unitId _id uploadedAt").lean();
-    coverFiles.sort((a, b) => {
-      const ta = a.uploadedAt ? new Date(a.uploadedAt).getTime() : 0;
-      const tb = b.uploadedAt ? new Date(b.uploadedAt).getTime() : 0;
-      return ta - tb;
-    });
+    const unitIds = rows.map((u: Record<string, unknown>) => u.id as string);
 
-    let financials: { unitId: unknown; profit: number }[] = [];
-    if (role === "manager") {
-      financials = await UnitFinancial.find({ unitId: { $in: unitIds } }).select("unitId profit").lean() as typeof financials;
+    const coverFiles = unitIds.length > 0
+      ? await query<{ unit_id: string; id: string; uploaded_at: string | null }>(
+          `SELECT unit_id, id, uploaded_at FROM unit_files WHERE unit_id = ANY($1) AND mimetype LIKE 'image/%' ORDER BY uploaded_at ASC`,
+          [unitIds]
+        )
+      : [];
+
+    let financials: { unit_id: string; profit: string }[] = [];
+    if (role === "manager" && unitIds.length > 0) {
+      financials = await query<{ unit_id: string; profit: string }>(
+        `SELECT unit_id, profit FROM unit_financials WHERE unit_id = ANY($1)`,
+        [unitIds]
+      );
     }
 
     for (const f of coverFiles) {
-      if (!f.unitId) continue;
-      const key = f.unitId.toString();
-      if (!coverMap[key]) coverMap[key] = (f._id as { toString(): string }).toString();
+      if (!f.unit_id) continue;
+      if (!coverMap[f.unit_id]) coverMap[f.unit_id] = f.id;
     }
     for (const f of financials) {
-      if (!f.unitId) continue;
-      profitMap[(f.unitId as { toString(): string }).toString()] = f.profit;
+      if (!f.unit_id) continue;
+      profitMap[f.unit_id] = Number(f.profit);
     }
+
+    unitsData = rows.map(serializeUnit);
   } catch (err) {
     console.error("Units page query failed:", err);
-    units = [];
+    unitsData = [];
   }
-
-  const unitsData = JSON.parse(JSON.stringify(units));
 
   return (
     <div style={{ display: "flex", flexDirection: "column", flex: 1 }}>

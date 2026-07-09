@@ -1,20 +1,18 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import dbConnect from "@/lib/db";
-import Notification from "@/models/Notification";
+import { query } from "@/lib/pg";
+import { serializeNotification } from "@/lib/serialize";
 
 export async function GET() {
   const session = await auth();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  await dbConnect();
+  const rows = await query(
+    `SELECT * FROM notifications WHERE user_id = $1 ORDER BY created_at DESC LIMIT 20`,
+    [session.user.id]
+  );
 
-  const notifications = await Notification.find({ userId: session.user.id })
-    .sort({ createdAt: -1 })
-    .allowDiskUse(true)
-    .limit(20)
-    .lean();
-
+  const notifications = rows.map(serializeNotification);
   const unreadCount = notifications.filter((n) => !n.read).length;
 
   return NextResponse.json({ notifications, unreadCount });

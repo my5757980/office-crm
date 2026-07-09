@@ -1,17 +1,18 @@
+import type { ComponentProps } from "react";
 import { auth } from "@/lib/auth";
-import dbConnect from "@/lib/db";
-import Invoice from "@/models/Invoice";
-import Payment from "@/models/Payment";
+import { query } from "@/lib/pg";
+import { serializeInvoice } from "@/lib/serialize";
 import InvoiceTable from "@/components/invoices/InvoiceTable";
 import TopBar from "@/components/layout/TopBar";
 
-async function getStats(filter: Record<string, unknown>) {
-  const [pending, approved, sent] = await Promise.all([
-    Invoice.countDocuments({ ...filter, status: "pending" }),
-    Invoice.countDocuments({ ...filter, status: "approved" }),
-    Invoice.countDocuments({ ...filter, status: "sent" }),
-  ]);
-  return { pending, approved, sent };
+async function getStats(whereSql: string, params: unknown[]) {
+  const rows = await query<{ status: string; count: string }>(
+    `SELECT status, count(*) FROM invoices i ${whereSql} GROUP BY status`,
+    params
+  );
+  const map: Record<string, number> = {};
+  for (const r of rows) map[r.status] = Number(r.count);
+  return { pending: map.pending ?? 0, approved: map.approved ?? 0, sent: map.sent ?? 0 };
 }
 
 function StatCard({ label, value, icon, bg }: { label: string; value: number; icon: string; bg: string }) {
@@ -41,28 +42,36 @@ export default async function InvoicesPage() {
   const isElevated = ["admin", "manager", "super_admin"].includes(role);
   const isSupervisor = ["super_admin", "manager"].includes(role);
 
-  const filter = isElevated ? {} : { createdBy: session!.user.id };
+  const whereSql = isElevated ? "" : "WHERE i.created_by = $1";
+  const params = isElevated ? [] : [session!.user.id];
 
   // Retry loop for cold-start resilience
-  let raw: unknown[] = [];
+  let invoices: ReturnType<typeof serializeInvoice>[] = [];
   let stats = { pending: 0, approved: 0, sent: 0 };
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
       if (attempt > 0) await new Promise<void>((r) => setTimeout(r, 500 * attempt));
-      await dbConnect();
-      [raw, stats] = await Promise.all([
-        Invoice.find(filter)
-          .select("-uploadedPdf.data")
-          .populate("createdBy", "name email")
-          .populate("leadId", "customerName")
-          .sort({ createdAt: -1 })
-          .allowDiskUse(true)
-          .lean() as Promise<unknown[]>,
-        getStats(filter),
+      const [rows, statsResult] = await Promise.all([
+        query(
+          `SELECT i.id, i.lead_id, i.created_by, i.approved_by, i.consignee_name, i.consignee_address, i.consignee_phone, i.consignee_country, i.consignee_port,
+                  i.unit, i.chassis_no, i.engine_no, i.color, i.year, i.salesperson, i.fuel, i.transmission, i.m3_rate, i.exchange_rate, i.push_price, i.cnf_price,
+                  i.advance_percent, i.status, i.rejection_note, i.created_at, i.updated_at,
+                  u.name AS created_by_name, u.email AS created_by_email,
+                  l.customer_name AS lead_customer_name
+           FROM invoices i
+           LEFT JOIN users u ON u.id = i.created_by
+           LEFT JOIN leads l ON l.id = i.lead_id
+           ${whereSql}
+           ORDER BY i.created_at DESC`,
+          params
+        ),
+        getStats(whereSql, params),
       ]);
+      invoices = rows.map(serializeInvoice);
+      stats = statsResult;
       break;
     } catch {
-      if (attempt === 2) raw = [];
+      if (attempt === 2) invoices = [];
     }
   }
 
@@ -70,17 +79,16 @@ export default async function InvoicesPage() {
   let paidInvoiceIds: string[] = [];
   if (isSupervisor) {
     try {
-      const ids = await Payment.distinct("invoiceId");
-      paidInvoiceIds = (ids as { toString(): string }[]).map(id => id.toString());
+      const rows = await query<{ invoice_id: string }>(`SELECT DISTINCT invoice_id FROM payments`);
+      paidInvoiceIds = rows.map(r => r.invoice_id);
     } catch {
       // silently skip — payment badges won't show
     }
   }
 
-  const invoices = JSON.parse(JSON.stringify(raw));
   const paidSet = new Set(paidInvoiceIds);
-  const paymentReceivedCount = (raw as { _id: { toString(): string }; status: string }[])
-    .filter(inv => inv.status === "sent" && paidSet.has(inv._id.toString()))
+  const paymentReceivedCount = invoices
+    .filter(inv => inv.status === "sent" && paidSet.has(inv._id as string))
     .length;
 
   return (
@@ -117,7 +125,7 @@ export default async function InvoicesPage() {
           flex: 1,
         }}>
           <InvoiceTable
-            invoices={invoices}
+            invoices={invoices as unknown as ComponentProps<typeof InvoiceTable>["invoices"]}
             showAgent={isElevated}
             role={role}
             paidInvoiceIds={paidInvoiceIds}
