@@ -268,43 +268,49 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const body = await req.json();
+  try {
+    const body = await req.json();
 
-  if (body.action === "schema") {
-    await localQuery(SCHEMA_SQL);
-    return NextResponse.json({ ok: true });
-  }
-
-  if (body.action === "copy") {
-    const { table, offset, limit } = body as { table: string; offset: number; limit: number };
-    const cols = TABLE_COLUMNS[table];
-    if (!cols) return NextResponse.json({ error: "unknown table" }, { status: 400 });
-
-    const rows = await neonQuery<Record<string, unknown>>(
-      `SELECT ${cols.join(",")} FROM ${table} ORDER BY id LIMIT $1 OFFSET $2`,
-      [limit, offset]
-    );
-
-    const placeholders = cols.map((_, i) => `$${i + 1}`).join(",");
-    let inserted = 0;
-    for (const row of rows) {
-      const values = cols.map((c) => row[c]);
-      await localQuery(
-        `INSERT INTO ${table} (${cols.join(",")}) VALUES (${placeholders}) ON CONFLICT (id) DO NOTHING`,
-        values
-      );
-      inserted++;
+    if (body.action === "schema") {
+      await localQuery(SCHEMA_SQL);
+      return NextResponse.json({ ok: true });
     }
 
-    return NextResponse.json({ ok: true, rowsRead: rows.length, inserted });
-  }
+    if (body.action === "copy") {
+      const { table, offset, limit } = body as { table: string; offset: number; limit: number };
+      const cols = TABLE_COLUMNS[table];
+      if (!cols) return NextResponse.json({ error: "unknown table" }, { status: 400 });
 
-  if (body.action === "count") {
-    const { table } = body as { table: string };
-    if (!TABLE_COLUMNS[table]) return NextResponse.json({ error: "unknown table" }, { status: 400 });
-    const r = await localQuery<{ count: string }>(`SELECT count(*) FROM ${table}`);
-    return NextResponse.json({ table, count: Number(r[0].count) });
-  }
+      const rows = await neonQuery<Record<string, unknown>>(
+        `SELECT ${cols.join(",")} FROM ${table} ORDER BY id LIMIT $1 OFFSET $2`,
+        [limit, offset]
+      );
 
-  return NextResponse.json({ error: "unknown action" }, { status: 400 });
+      const placeholders = cols.map((_, i) => `$${i + 1}`).join(",");
+      let inserted = 0;
+      for (const row of rows) {
+        const values = cols.map((c) => row[c]);
+        await localQuery(
+          `INSERT INTO ${table} (${cols.join(",")}) VALUES (${placeholders}) ON CONFLICT (id) DO NOTHING`,
+          values
+        );
+        inserted++;
+      }
+
+      return NextResponse.json({ ok: true, rowsRead: rows.length, inserted });
+    }
+
+    if (body.action === "count") {
+      const { table } = body as { table: string };
+      if (!TABLE_COLUMNS[table]) return NextResponse.json({ error: "unknown table" }, { status: 400 });
+      const r = await localQuery<{ count: string }>(`SELECT count(*) FROM ${table}`);
+      return NextResponse.json({ table, count: Number(r[0].count) });
+    }
+
+    return NextResponse.json({ error: "unknown action" }, { status: 400 });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    const stack = err instanceof Error ? err.stack : undefined;
+    return NextResponse.json({ error: message, stack }, { status: 500 });
+  }
 }
