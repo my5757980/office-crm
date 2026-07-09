@@ -144,9 +144,18 @@ export async function DELETE(request: NextRequest, { params }: RouteContext) {
   if (!invoice) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   try {
+    // Notifications referencing this invoice are just transient alerts —
+    // clear them so the FK constraint doesn't block the delete.
+    await query(`DELETE FROM notifications WHERE invoice_id = $1`, [id]);
     await query(`DELETE FROM invoices WHERE id = $1`, [id]);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes("foreign key constraint")) {
+      return NextResponse.json(
+        { error: "Cannot delete — this invoice still has payments or units recorded against it. Remove those first." },
+        { status: 409 }
+      );
+    }
     return NextResponse.json({ error: `Could not delete invoice: ${msg}` }, { status: 409 });
   }
 

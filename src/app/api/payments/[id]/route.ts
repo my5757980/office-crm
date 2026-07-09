@@ -13,6 +13,9 @@ export async function DELETE(_req: NextRequest, { params }: RouteContext) {
 
   const { id } = await params;
 
+  // Units may reference this payment (optional link) — clear it before deleting
+  // so the FK constraint doesn't block the delete.
+  await query(`UPDATE units SET payment_id = NULL WHERE payment_id = $1`, [id]);
   const payment = await queryOne(`DELETE FROM payments WHERE id = $1 RETURNING id`, [id]);
   if (!payment) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
