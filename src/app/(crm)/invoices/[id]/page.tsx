@@ -38,6 +38,7 @@ export default async function InvoiceDetailPage({
     SELECT i.id, i.lead_id, i.created_by, i.approved_by, i.consignee_name, i.consignee_address, i.consignee_phone, i.consignee_country, i.consignee_port,
            i.unit, i.chassis_no, i.engine_no, i.color, i.year, i.salesperson, i.fuel, i.transmission, i.m3_rate, i.exchange_rate, i.push_price, i.cnf_price,
            i.advance_percent, i.status, i.rejection_note, i.created_at, i.updated_at,
+           i.uploaded_pdf_filename, i.uploaded_pdf_uploaded_at, (i.uploaded_pdf_data IS NOT NULL) AS has_uploaded_pdf,
            u.name AS created_by_name, u.email AS created_by_email,
            a.name AS approved_by_name,
            l.customer_name AS lead_customer_name, l.contact_person AS lead_contact_person, l.country AS lead_country, l.port AS lead_port
