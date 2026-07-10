@@ -90,8 +90,8 @@ export function serializeInvoice(row: Record<string, unknown>) {
     advancePercent: numOrUndef(row.advance_percent) as number,
     status: str(row.status) as "pending" | "approved" | "rejected" | "sent",
     rejectionNote: strOrUndef(row.rejection_note),
-    uploadedPdf: row.uploaded_pdf_data
-      ? { data: str(row.uploaded_pdf_data), filename: str(row.uploaded_pdf_filename), uploadedAt: str(row.uploaded_pdf_uploaded_at) }
+    uploadedPdf: row.uploaded_pdf_data || row.has_uploaded_pdf
+      ? { data: strOrUndef(row.uploaded_pdf_data), filename: str(row.uploaded_pdf_filename), uploadedAt: str(row.uploaded_pdf_uploaded_at) }
       : undefined,
     createdAt: str(row.created_at),
     updatedAt: str(row.updated_at),
