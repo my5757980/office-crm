@@ -129,6 +129,4 @@ Stated plainly rather than left to be discovered:
 
 - **No automated test suite.** `scripts/gen-test-docs.mjs` generates test documents; there is no
   unit or integration test run in CI.
-- **`src/src/`** is a leftover `create-next-app` scaffold nested one level too deep. It is dead
-  code — nothing imports it — and is scheduled for deletion.
 - Backup (`/api/backup`) is manual, not scheduled.
