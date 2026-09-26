@@ -35,7 +35,7 @@ export default async function InvoiceDetailPage({
   const { id } = await params;
 
   const INVOICE_SELECT = `
-    SELECT i.id, i.lead_id, i.created_by, i.approved_by, i.consignee_name, i.consignee_address, i.consignee_phone, i.consignee_country, i.consignee_port,
+    SELECT i.id, i.lead_id, i.created_by, i.approved_by, i.consignee_name, i.consignee_address, i.consignee_phone, i.consignee_email, i.consignee_country, i.consignee_port,
            i.unit, i.chassis_no, i.engine_no, i.color, i.year, i.salesperson, i.fuel, i.transmission, i.m3_rate, i.exchange_rate, i.push_price, i.cnf_price,
            i.advance_percent, i.status, i.rejection_note, i.created_at, i.updated_at,
            i.uploaded_pdf_filename, i.uploaded_pdf_uploaded_at, (i.uploaded_pdf_data IS NOT NULL) AS has_uploaded_pdf,

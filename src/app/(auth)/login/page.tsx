@@ -1,7 +1,16 @@
 import Link from "next/link";
 import LoginForm from "@/components/auth/LoginForm";
 
-export default function LoginPage() {
+// Set by /api/auth/sso when "CRM Global" on the website could not sign in.
+const SSO_NOTES: Record<string, string> = {
+  nomatch: "No CRM account matches your website login. Please sign in with your CRM email and password.",
+  invalid: "That website sign-in link has expired or is not valid. Click CRM Global again, or sign in below.",
+};
+
+export default async function LoginPage({ searchParams }: { searchParams: Promise<{ sso?: string }> }) {
+  const { sso } = await searchParams;
+  const ssoNote = sso ? SSO_NOTES[sso] : undefined;
+
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "center", marginBottom: "28px" }}>
@@ -19,6 +28,11 @@ export default function LoginPage() {
           <h1 style={{ fontSize: "22px", fontWeight: 700, color: "#1f2328" }}>Welcome back</h1>
           <p style={{ fontSize: "13px", color: "#656d76", marginTop: "4px" }}>Sign in to your account to continue</p>
         </div>
+        {ssoNote && (
+          <div style={{ background: "#fff8c5", border: "1px solid #d4a72c66", borderRadius: "8px", padding: "10px 14px", fontSize: "13px", color: "#7d4e00", marginBottom: "18px" }}>
+            {ssoNote}
+          </div>
+        )}
         <LoginForm />
       </div>
 

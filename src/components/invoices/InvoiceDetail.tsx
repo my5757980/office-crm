@@ -25,7 +25,7 @@ interface InvoiceDetailProps {
     cnfPrice: number;
     advancePercent?: number;
     createdAt: string;
-    consignee: { name: string; address: string; phone: string; country: string; port: string };
+    consignee: { name: string; address: string; phone: string; email?: string; country: string; port: string };
     leadId?: { customerName: string; contactPerson: string } | null;
     createdBy?: { name: string; email: string } | null;
     approvedBy?: { name: string } | null;
@@ -50,7 +50,7 @@ export default function InvoiceDetail({ invoice, role, unitId }: InvoiceDetailPr
   const [rejectModal, setRejectModal] = useState(false);
   const [rejectNote, setRejectNote] = useState("");
 
-  const [dlLoading, setDlLoading] = useState<"sbk" | "jdm" | null>(null);
+  const [dlLoading, setDlLoading] = useState<"sbk" | "jdm" | "sbk-us" | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadedPdf, setUploadedPdf] = useState(invoice.uploadedPdf ?? null);
   const [pdfLoading, setPdfLoading] = useState(false);
@@ -88,6 +88,7 @@ export default function InvoiceDetail({ invoice, role, unitId }: InvoiceDetailPr
     advancePercent: String(invoice.advancePercent ?? 50),
     consigneeName: invoice.consignee.name ?? "",
     consigneePhone: invoice.consignee.phone ?? "",
+    consigneeEmail: invoice.consignee.email ?? "",
     consigneeAddress: invoice.consignee.address ?? "",
     consigneeCountry: invoice.consignee.country ?? "",
     consigneePort: invoice.consignee.port ?? "",
@@ -126,7 +127,7 @@ export default function InvoiceDetail({ invoice, role, unitId }: InvoiceDetailPr
     setUploading(false);
   };
 
-  const downloadInvoice = async (type: "sbk" | "jdm") => {
+  const downloadInvoice = async (type: "sbk" | "jdm" | "sbk-us") => {
     setDlLoading(type);
     try {
       const res = await fetch(`/api/invoices/${invoice._id}/download/${type}`);
@@ -135,9 +136,8 @@ export default function InvoiceDetail({ invoice, role, unitId }: InvoiceDetailPr
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = type === "sbk"
-        ? `SBK-Invoice-${invoice._id.slice(-5).toUpperCase()}.xlsx`
-        : `JDM-Invoice-${invoice._id.slice(-5).toUpperCase()}.xlsx`;
+      const prefix = type === "sbk" ? "SBK" : type === "sbk-us" ? "SBK-US" : "JDM";
+      a.download = `${prefix}-Invoice-${invoice._id.slice(-5).toUpperCase()}.xlsx`;
       a.click();
       URL.revokeObjectURL(url);
     } finally { setDlLoading(null); }
@@ -287,6 +287,27 @@ export default function InvoiceDetail({ invoice, role, unitId }: InvoiceDetailPr
                     <line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 18 15 15"/>
                   </svg>
                   {dlLoading === "sbk" ? "Generating…" : "SBK Invoice (Excel)"}
+                </button>
+
+                <button
+                  onClick={() => downloadInvoice("sbk-us")}
+                  disabled={dlLoading !== null}
+                  style={{
+                    display: "inline-flex", alignItems: "center", gap: "6px",
+                    padding: "7px 14px", borderRadius: "8px",
+                    fontSize: "13px", fontWeight: 600,
+                    color: "white", background: "linear-gradient(135deg, #1d4ed8, #1e3a8a)",
+                    border: "none", cursor: dlLoading ? "not-allowed" : "pointer",
+                    boxShadow: "0 2px 8px rgba(29,78,216,0.3)",
+                    opacity: dlLoading ? 0.7 : 1,
+                    transition: "all 150ms",
+                  }}
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/>
+                    <line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 18 15 15"/>
+                  </svg>
+                  {dlLoading === "sbk-us" ? "Generating…" : "SBK US Invoice (Excel)"}
                 </button>
 
                 <button
@@ -472,6 +493,7 @@ export default function InvoiceDetail({ invoice, role, unitId }: InvoiceDetailPr
             <p style={{ fontSize: "11px", fontWeight: 700, color: "#8c959f", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "4px" }}>Consignee</p>
             <InfoRow label="Name"    value={invoice.consignee.name} />
             <InfoRow label="Phone"   value={invoice.consignee.phone} />
+            <InfoRow label="Email"   value={invoice.consignee.email || "—"} />
             <InfoRow label="Country" value={invoice.consignee.country} />
             <InfoRow label="Port"    value={invoice.consignee.port} />
             <InfoRow label="Address" value={invoice.consignee.address} />
@@ -655,6 +677,7 @@ export default function InvoiceDetail({ invoice, role, unitId }: InvoiceDetailPr
                   {([
                     ["consigneeName",    "Name"],
                     ["consigneePhone",   "Phone"],
+                    ["consigneeEmail",   "Email"],
                     ["consigneeCountry", "Country"],
                     ["consigneePort",    "Port"],
                     ["consigneeAddress", "Address"],

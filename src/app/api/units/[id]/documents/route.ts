@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { queryOne, genId } from "@/lib/pg";
 import { DOCUMENT_FOLDERS } from "@/lib/constants";
 import { serializeUnitFile } from "@/lib/serialize";
+import { syncUnitFileToWooCommerce } from "@/lib/woocommerce";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -34,6 +35,8 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
     `INSERT INTO unit_files (id, unit_id, folder, filename, mimetype, size, data) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, unit_id, folder, filename, mimetype, size, uploaded_at`,
     [genId(), id, folder, file.name, file.type || "application/octet-stream", file.size, buffer]
   );
+
+  await syncUnitFileToWooCommerce(id, folder, file.name, file.type || "application/octet-stream", buffer);
 
   return NextResponse.json({ file: row ? serializeUnitFile(row) : null }, { status: 201 });
 }

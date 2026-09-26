@@ -6,7 +6,7 @@ import { serializeInvoice } from "@/lib/serialize";
 type RouteContext = { params: Promise<{ id: string }> };
 
 const INVOICE_DETAIL_SELECT = `
-  SELECT i.id, i.lead_id, i.created_by, i.approved_by, i.consignee_name, i.consignee_address, i.consignee_phone, i.consignee_country, i.consignee_port,
+  SELECT i.id, i.lead_id, i.created_by, i.approved_by, i.consignee_name, i.consignee_address, i.consignee_phone, i.consignee_email, i.consignee_country, i.consignee_port,
          i.unit, i.chassis_no, i.engine_no, i.color, i.year, i.salesperson, i.fuel, i.transmission, i.m3_rate, i.exchange_rate, i.push_price, i.cnf_price,
          i.advance_percent, i.status, i.rejection_note, i.created_at, i.updated_at,
          i.uploaded_pdf_filename, i.uploaded_pdf_uploaded_at, (i.uploaded_pdf_data IS NOT NULL) AS has_uploaded_pdf,
@@ -50,6 +50,7 @@ const EDIT_FIELD_TO_COLUMN: Record<string, string> = {
   transmission: "transmission",
   consigneeName: "consignee_name",
   consigneePhone: "consignee_phone",
+  consigneeEmail: "consignee_email",
   consigneeAddress: "consignee_address",
   consigneeCountry: "consignee_country",
   consigneePort: "consignee_port",

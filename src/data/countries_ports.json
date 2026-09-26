@@ -6301,6 +6301,12 @@
       "KIGALI"
     ]
   },
+  "SAINT MARTIN": {
+    "code": "MF",
+    "ports": [
+      "PHILIPSBURG"
+    ]
+  },
   "SAMOA": {
     "code": "WS",
     "ports": [
@@ -7292,6 +7298,7 @@
       "MIDDLE CAICOS",
       "NORTH CAICOS",
       "PINE CAY",
+      "PROVIDENCIALES",
       "SALT CAY",
       "SOUTH CAICOS"
     ]

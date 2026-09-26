@@ -13,6 +13,7 @@ interface LeadData {
   customerName: string;
   address: string;
   phone: string;
+  email?: string;
   country: string;
   port: string;
   status: string;
@@ -135,6 +136,7 @@ export default function InvoiceRequestPage() {
               name:    lead.customerName,
               address: lead.address ?? "",
               phone:   lead.phone,
+              email:   lead.email ?? "",
               country: lead.country,
               port:    lead.port,
             }}

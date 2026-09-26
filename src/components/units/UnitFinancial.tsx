@@ -7,6 +7,7 @@ interface FinancialRecord {
   lotNo: string; auctionName: string;
   buying: number; domestic: number; storage: number; inspect: number;
   repairs: number; misc: number; agencyFee: number; freight: number; dhl: number;
+  auctionFee: number; parts: number; ccVanning: number; doc: number;
   exchangeRate: number; costUSD: number;
   costOfUnitJPY: number; costOfUnitUSD: number;
   sellingPrice: number; profit: number;
@@ -36,19 +37,23 @@ function fmtInt(n: number) {
 }
 
 const JPY_FIELDS: { key: string; label: string }[] = [
-  { key: "buying",    label: "BUYING" },
-  { key: "domestic",  label: "DOMESTIC" },
-  { key: "storage",   label: "STORAGE" },
-  { key: "inspect",   label: "INSPECT" },
-  { key: "repairs",   label: "REPAIRS" },
-  { key: "misc",      label: "MISC." },
-  { key: "agencyFee", label: "AGENCY FEE" },
-  { key: "freight",   label: "FREIGHT" },
-  { key: "dhl",       label: "DHL" },
+  { key: "buying",     label: "BUYING" },
+  { key: "domestic",   label: "RIKSO" },
+  { key: "auctionFee", label: "AUCTION FEE" },
+  { key: "repairs",    label: "REPAIRS" },
+  { key: "parts",      label: "PARTS" },
+  { key: "ccVanning",  label: "CC/VANNING" },
+  { key: "freight",    label: "FREIGHT" },
+  { key: "doc",        label: "DOC" },
+  { key: "dhl",        label: "EMS/DHL" },
+  { key: "storage",    label: "STORAGE" },
+  { key: "inspect",    label: "INSPECTION" },
+  { key: "misc",       label: "MISC." },
+  { key: "agencyFee",  label: "AGENCY FEE" },
 ];
 
 function emptyJPY() {
-  return { buying: "", domestic: "", storage: "", inspect: "", repairs: "", misc: "", agencyFee: "", freight: "", dhl: "", exchangeRate: "", lotNo: "", auctionName: "" };
+  return { buying: "", domestic: "", storage: "", inspect: "", repairs: "", misc: "", agencyFee: "", freight: "", dhl: "", auctionFee: "", parts: "", ccVanning: "", doc: "", exchangeRate: "", lotNo: "", auctionName: "" };
 }
 
 export default function UnitFinancial({ unitId }: Props) {
@@ -83,6 +88,10 @@ export default function UnitFinancial({ unitId }: Props) {
             agencyFee: f.agencyFee ? String(f.agencyFee) : "",
             freight: f.freight ? String(f.freight) : "",
             dhl: f.dhl ? String(f.dhl) : "",
+            auctionFee: f.auctionFee ? String(f.auctionFee) : "",
+            parts: f.parts ? String(f.parts) : "",
+            ccVanning: f.ccVanning ? String(f.ccVanning) : "",
+            doc: f.doc ? String(f.doc) : "",
             exchangeRate: f.exchangeRate ? String(f.exchangeRate) : "",
             lotNo: f.lotNo ?? "",
             auctionName: f.auctionName ?? "",
