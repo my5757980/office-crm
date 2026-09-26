@@ -7,7 +7,7 @@ import LeadForm from "@/components/leads/LeadForm";
 import { LeadFormData } from "@/lib/validations";
 import TopBar from "@/components/layout/TopBar";
 
-const CAN_EDIT = ["super_admin", "manager"];
+const CAN_EDIT = ["super_admin", "manager", "user"];
 
 export default function EditLeadPage() {
   const router = useRouter();
@@ -24,7 +24,7 @@ export default function EditLeadPage() {
       return;
     }
     fetch(`/api/leads/${id}`)
-      .then((r) => r.json())
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error("Not allowed"))))
       .then(({ lead }) => {
         setDefaultValues({
           customerName: lead.customerName,
@@ -37,7 +37,8 @@ export default function EditLeadPage() {
           port: lead.port,
         });
         setLoading(false);
-      });
+      })
+      .catch(() => router.replace("/dashboard"));
   }, [id, session, status, router]);
 
   const handleSubmit = async (data: LeadFormData) => {

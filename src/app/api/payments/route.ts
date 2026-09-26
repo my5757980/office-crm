@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { query, queryOne, genId } from "@/lib/pg";
 import { paymentSchema } from "@/lib/validations";
 import { serializePayment } from "@/lib/serialize";
+import { syncPaymentToWooCommerce } from "@/lib/woocommerce";
 
 const CAN_RECORD = ["manager", "super_admin"];
 
@@ -26,6 +27,8 @@ export async function POST(request: NextRequest) {
       d.receiptImage?.data ?? null, d.receiptImage?.filename ?? null, d.receiptImage ? new Date() : null,
     ]
   );
+
+  await syncPaymentToWooCommerce({ invoiceId: d.invoiceId, amountReceived: d.amountReceived, receivedDate: d.receivedDate });
 
   return NextResponse.json({ payment: row ? serializePayment(row) : null }, { status: 201 });
 }

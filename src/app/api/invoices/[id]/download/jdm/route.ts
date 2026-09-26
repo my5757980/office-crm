@@ -85,6 +85,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       name: row.consignee_name as string,
       address: row.consignee_address as string,
       phone: row.consignee_phone as string,
+      email: (row.consignee_email as string) || "",
       port: row.consignee_port as string,
       country: row.consignee_country as string,
     },
@@ -202,14 +203,16 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   set(ws, 13, 2, inv.consignee.address,    {});
   ws.getRow(13).height = 15;
 
-  // ── Row 14: (extra address line — empty) ─────────────────────────────────
+  // ── Row 14: PHONE ────────────────────────────────────────────────────────
   ws.mergeCells(14, 2, 14, 4);
+  set(ws, 14, 1, "PHONE:",                 {});
+  set(ws, 14, 2, inv.consignee.phone,      {});
   ws.getRow(14).height = 15;
 
-  // ── Row 15: PHONE + DATE ─────────────────────────────────────────────────
+  // ── Row 15: EMAIL + DATE ─────────────────────────────────────────────────
   ws.mergeCells(15, 2, 15, 4);
-  set(ws, 15, 1, "PHONE:",                 {});
-  set(ws, 15, 2, inv.consignee.phone,      {});
+  set(ws, 15, 1, "EMAIL:",                 {});
+  set(ws, 15, 2, inv.consignee.email,      {});
   ws.mergeCells(15, 11, 15, 15);
   set(ws, 15, 11, `DATE:${date}`,          { bold: true, h: "center" });
   ws.getRow(15).height = 15;

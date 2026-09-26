@@ -2,11 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { query, queryOne } from "@/lib/pg";
 import { serializeLead, serializeMessage } from "@/lib/serialize";
+import { syncLeadInvoicesToWooCommerce } from "@/lib/woocommerce";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
 const CAN_VIEW_ALL     = ["admin", "manager", "super_admin"];
 const CAN_EDIT_DETAILS  = ["super_admin", "manager"];
+const CAN_REASSIGN      = ["super_admin", "manager"];
 const CAN_CHANGE_STATUS = ["super_admin", "manager"];
 const CAN_DELETE        = ["manager", "admin"];
 
@@ -55,8 +57,9 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
-  const lead = await queryOne(`SELECT id FROM leads WHERE id = $1`, [id]);
+  const lead = await queryOne<{ id: string; created_by: string }>(`SELECT id, created_by FROM leads WHERE id = $1`, [id]);
   if (!lead) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  const isOwner = lead.created_by === session.user.id;
 
   const body = await request.json();
   const setClauses: string[] = [];
@@ -72,7 +75,7 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
 
   // Reassign — sirf Supervisor
   if ("reassignTo" in body) {
-    if (!CAN_EDIT_DETAILS.includes(session.user.role))
+    if (!CAN_REASSIGN.includes(session.user.role))
       return NextResponse.json({ error: "Forbidden — only Supervisor can reassign" }, { status: 403 });
 
     const newAgentId = body.reassignTo;
@@ -87,12 +90,13 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
     await query(`UPDATE notifications SET read = true WHERE lead_id = $1 AND type = 'duplicate_lead'`, [id]);
   }
 
-  // Detail edit — sirf Supervisor
+  // Detail edit — Supervisor/Manager koi bhi lead, agent sirf apni lead
   const detailFields = Object.keys(DETAIL_FIELD_TO_COLUMN);
   const hasDetailFields = detailFields.some(f => f in body);
   if (hasDetailFields) {
-    if (!CAN_EDIT_DETAILS.includes(session.user.role))
-      return NextResponse.json({ error: "Forbidden — only Supervisor can edit lead details" }, { status: 403 });
+    const canEditDetails = CAN_EDIT_DETAILS.includes(session.user.role) || (session.user.role === "user" && isOwner);
+    if (!canEditDetails)
+      return NextResponse.json({ error: "Forbidden — you can only edit your own leads" }, { status: 403 });
     for (const key of detailFields) {
       if (key in body) setClauses.push(`${DETAIL_FIELD_TO_COLUMN[key]} = ${setP(body[key])}`);
     }
@@ -106,6 +110,11 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
     `UPDATE leads SET ${setClauses.join(", ")} WHERE id = ${setP(id)} RETURNING *`,
     setParams
   );
+
+  if ("email" in body) {
+    await syncLeadInvoicesToWooCommerce(id);
+  }
+
   return NextResponse.json({ lead: updatedRow ? serializeLead(updatedRow) : null });
 }
 

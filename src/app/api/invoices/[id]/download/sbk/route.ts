@@ -81,6 +81,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       port: row.consignee_port as string,
       country: row.consignee_country as string,
       phone: row.consignee_phone as string,
+      email: (row.consignee_email as string) || "",
     },
     chassisNo: row.chassis_no as string,
     unit: row.unit as string,
@@ -203,7 +204,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     `: ${inv.consignee.port    || ""}`,
     `: ${inv.consignee.country || ""}`,
     `: ${inv.consignee.phone   || ""}`,
-    ": N/A",
+    `: ${inv.consignee.email   || ""}`,
   ];
   const midLabels   = ["DATE", "DOCUMENT NO", "INVOICE", "SALES PERSON", "SHIPMENT TYPE", "INCOTERM"];
   const midVals     = [`: ${date}`, `: ${docNo}`, `: ${invNo}`, `: ${salesPerson}`, ": RORO", ": C&F"];

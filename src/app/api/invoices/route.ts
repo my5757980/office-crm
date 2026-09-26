@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { query, queryOne, genId } from "@/lib/pg";
 import { invoiceRequestSchema } from "@/lib/validations";
 import { serializeInvoice } from "@/lib/serialize";
+import { syncInvoiceToWooCommerce } from "@/lib/woocommerce";
 
 export async function POST(request: NextRequest) {
   const session = await auth();
@@ -38,12 +39,14 @@ export async function POST(request: NextRequest) {
 
   const invoiceId = genId();
   const invoiceRow = await queryOne(
-    `INSERT INTO invoices (id, lead_id, created_by, consignee_name, consignee_address, consignee_phone, consignee_country, consignee_port, unit, chassis_no, engine_no, color, year, salesperson, fuel, transmission, m3_rate, exchange_rate, push_price, cnf_price, advance_percent)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21) RETURNING *`,
-    [invoiceId, leadId, session.user.id, consignee.name, consignee.address ?? "", consignee.phone, consignee.country, consignee.port, unit, chassisNo, engineNo, color, year ?? "", salesperson ?? "", fuel ?? "", transmission ?? "", m3Rate, exchangeRate, pushPrice, cnfPrice, advancePercent ?? 50]
+    `INSERT INTO invoices (id, lead_id, created_by, consignee_name, consignee_address, consignee_phone, consignee_email, consignee_country, consignee_port, unit, chassis_no, engine_no, color, year, salesperson, fuel, transmission, m3_rate, exchange_rate, push_price, cnf_price, advance_percent)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22) RETURNING *`,
+    [invoiceId, leadId, session.user.id, consignee.name, consignee.address ?? "", consignee.phone, consignee.email ?? "", consignee.country, consignee.port, unit, chassisNo, engineNo, color, year ?? "", salesperson ?? "", fuel ?? "", transmission ?? "", m3Rate, exchangeRate, pushPrice, cnfPrice, advancePercent ?? 50]
   );
 
   await query(`UPDATE leads SET is_customer = true WHERE id = $1`, [leadId]);
+
+  await syncInvoiceToWooCommerce(invoiceId);
 
   const supervisors = await query<{ id: string }>(`SELECT id FROM users WHERE role = 'super_admin'`);
   for (const sup of supervisors) {
@@ -65,7 +68,7 @@ export async function GET() {
   const params = isElevated ? [] : [session.user.id];
 
   const rows = await query(
-    `SELECT i.id, i.lead_id, i.created_by, i.approved_by, i.consignee_name, i.consignee_address, i.consignee_phone, i.consignee_country, i.consignee_port,
+    `SELECT i.id, i.lead_id, i.created_by, i.approved_by, i.consignee_name, i.consignee_address, i.consignee_phone, i.consignee_email, i.consignee_country, i.consignee_port,
             i.unit, i.chassis_no, i.engine_no, i.color, i.year, i.salesperson, i.fuel, i.transmission, i.m3_rate, i.exchange_rate, i.push_price, i.cnf_price,
             i.advance_percent, i.status, i.rejection_note, i.created_at, i.updated_at,
             u.name AS created_by_name, u.email AS created_by_email,

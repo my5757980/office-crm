@@ -48,21 +48,23 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
 
   const upsert = async (fields: {
     lotNo: string; auctionName: string; buying: number; domestic: number; storage: number; inspect: number;
-    repairs: number; misc: number; agencyFee: number; freight: number; dhl: number; exchangeRate: number;
-    costUSD: number; costOfUnitJPY: number; costOfUnitUSD: number; profit: number;
+    repairs: number; misc: number; agencyFee: number; freight: number; dhl: number;
+    auctionFee: number; parts: number; ccVanning: number; doc: number;
+    exchangeRate: number; costUSD: number; costOfUnitJPY: number; costOfUnitUSD: number; profit: number;
   }) => {
     return queryOne<Record<string, unknown>>(
-      `INSERT INTO unit_financials (id, unit_id, currency, lot_no, auction_name, buying, domestic, storage, inspect, repairs, misc, agency_fee, freight, dhl, exchange_rate, cost_usd, cost_of_unit_jpy, cost_of_unit_usd, selling_price, profit, created_by)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
+      `INSERT INTO unit_financials (id, unit_id, currency, lot_no, auction_name, buying, domestic, storage, inspect, repairs, misc, agency_fee, freight, dhl, auction_fee, parts, cc_vanning, doc, exchange_rate, cost_usd, cost_of_unit_jpy, cost_of_unit_usd, selling_price, profit, created_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25)
        ON CONFLICT (unit_id) DO UPDATE SET
          currency = EXCLUDED.currency, lot_no = EXCLUDED.lot_no, auction_name = EXCLUDED.auction_name,
          buying = EXCLUDED.buying, domestic = EXCLUDED.domestic, storage = EXCLUDED.storage, inspect = EXCLUDED.inspect,
          repairs = EXCLUDED.repairs, misc = EXCLUDED.misc, agency_fee = EXCLUDED.agency_fee, freight = EXCLUDED.freight,
-         dhl = EXCLUDED.dhl, exchange_rate = EXCLUDED.exchange_rate, cost_usd = EXCLUDED.cost_usd,
+         dhl = EXCLUDED.dhl, auction_fee = EXCLUDED.auction_fee, parts = EXCLUDED.parts, cc_vanning = EXCLUDED.cc_vanning, doc = EXCLUDED.doc,
+         exchange_rate = EXCLUDED.exchange_rate, cost_usd = EXCLUDED.cost_usd,
          cost_of_unit_jpy = EXCLUDED.cost_of_unit_jpy, cost_of_unit_usd = EXCLUDED.cost_of_unit_usd,
          selling_price = EXCLUDED.selling_price, profit = EXCLUDED.profit, created_by = EXCLUDED.created_by, updated_at = now()
        RETURNING *`,
-      [genId(), id, currency, fields.lotNo, fields.auctionName, fields.buying, fields.domestic, fields.storage, fields.inspect, fields.repairs, fields.misc, fields.agencyFee, fields.freight, fields.dhl, fields.exchangeRate, fields.costUSD, fields.costOfUnitJPY, fields.costOfUnitUSD, sellingPrice, fields.profit, session.user.id]
+      [genId(), id, currency, fields.lotNo, fields.auctionName, fields.buying, fields.domestic, fields.storage, fields.inspect, fields.repairs, fields.misc, fields.agencyFee, fields.freight, fields.dhl, fields.auctionFee, fields.parts, fields.ccVanning, fields.doc, fields.exchangeRate, fields.costUSD, fields.costOfUnitJPY, fields.costOfUnitUSD, sellingPrice, fields.profit, session.user.id]
     );
   };
 
@@ -78,20 +80,26 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
     const agencyFee = Number(body.agencyFee) || 0;
     const freight   = Number(body.freight)   || 0;
     const dhl       = Number(body.dhl)       || 0;
-    const exchangeRate = Number(body.exchangeRate) || 1;
+    const auctionFee = Number(body.auctionFee) || 0;
+    const parts       = Number(body.parts)       || 0;
+    const ccVanning   = Number(body.ccVanning)   || 0;
+    const doc         = Number(body.doc)         || 0;
+    // Was defaulting to 1 when left blank, which silently treated the JPY
+    // total as if it were already in USD (1:1) and produced a huge fake loss.
+    const exchangeRate = Number(body.exchangeRate) || 0;
 
-    const costOfUnitJPY = buying + domestic + storage + inspect + repairs + misc + agencyFee + freight + dhl;
+    const costOfUnitJPY = buying + domestic + storage + inspect + repairs + misc + agencyFee + freight + dhl + auctionFee + parts + ccVanning + doc;
     const costOfUnitUSD = exchangeRate > 0 ? costOfUnitJPY / exchangeRate : 0;
     const profit = sellingPrice - costOfUnitUSD;
 
-    const record = await upsert({ lotNo, auctionName, buying, domestic, storage, inspect, repairs, misc, agencyFee, freight, dhl, exchangeRate, costUSD: 0, costOfUnitJPY, costOfUnitUSD, profit });
+    const record = await upsert({ lotNo, auctionName, buying, domestic, storage, inspect, repairs, misc, agencyFee, freight, dhl, auctionFee, parts, ccVanning, doc, exchangeRate, costUSD: 0, costOfUnitJPY, costOfUnitUSD, profit });
     return NextResponse.json({ financial: record ? serializeUnitFinancial(record) : null });
   } else {
     const costUSD  = Number(body.costUSD) || 0;
     const costOfUnitUSD = costUSD;
     const profit   = sellingPrice - costUSD;
 
-    const record = await upsert({ lotNo: "", auctionName: "", buying: 0, domestic: 0, storage: 0, inspect: 0, repairs: 0, misc: 0, agencyFee: 0, freight: 0, dhl: 0, exchangeRate: 0, costUSD, costOfUnitJPY: 0, costOfUnitUSD, profit });
+    const record = await upsert({ lotNo: "", auctionName: "", buying: 0, domestic: 0, storage: 0, inspect: 0, repairs: 0, misc: 0, agencyFee: 0, freight: 0, dhl: 0, auctionFee: 0, parts: 0, ccVanning: 0, doc: 0, exchangeRate: 0, costUSD, costOfUnitJPY: 0, costOfUnitUSD, profit });
     return NextResponse.json({ financial: record ? serializeUnitFinancial(record) : null });
   }
 }

@@ -27,7 +27,7 @@ export default async function LeadDetailPage({
 
   if (!canViewAll && !isOwner) notFound();
 
-  const canEdit           = ["super_admin", "manager"].includes(role);
+  const canEdit           = ["super_admin", "manager"].includes(role) || (role === "user" && isOwner);
   const canChangeStatus   = ["super_admin", "manager"].includes(role);
   const canDelete         = ["manager", "admin"].includes(role);
   const canRequestInvoice = role === "user" && isOwner;

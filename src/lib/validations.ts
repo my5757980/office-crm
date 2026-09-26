@@ -33,6 +33,7 @@ export const invoiceRequestSchema = z.object({
     name:    z.string().min(1, "Consignee name is required"),
     address: z.string().optional(),
     phone:   z.string().min(1, "Consignee phone is required"),
+    email:   z.string().optional().default(""),
     country: z.string().min(1, "Consignee country is required"),
     port:    z.string().min(1, "Consignee port is required"),
   }),
