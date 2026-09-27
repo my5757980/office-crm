@@ -262,6 +262,9 @@ a, button, input, select, textarea { transition: all 150ms ease; }
   input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]),
   select, textarea { font-size: 16px !important; }
 
+  /* Room below the last card so the floating chat button never hides it */
+  .crm-main { padding-bottom: 76px; }
+
   .pdf-frame { height: 60vh !important; }
   .mobile-only { display: inline-flex !important; }
   .file-del { min-width: 30px; min-height: 30px; }
@@ -394,10 +397,22 @@ a, button, input, select, textarea { transition: all 150ms ease; }
   .resp-table td.rt-action > *, .resp-table td.rt-action > div > * { flex: 1 1 auto; justify-content: center; text-align: center; }
   .resp-table td.rt-action > a { padding: 8px 12px !important; }
   .resp-table td.rt-hide { display: none; }
+  /* A role without row actions (e.g. Supervisor on Users) leaves an empty strip */
+  .resp-table td.rt-action:empty, .resp-table td.rt-action:has(> div:empty) { display: none; }
 }
 @media (min-width: 641px) and (max-width: 1100px) {
   .resp-table td { white-space: nowrap; }
   .resp-table td.rt-head { white-space: normal; min-width: 200px; }
+}
+/* Short atomic values (numbers, dates, badges, codes) never break across lines */
+@media (min-width: 641px) {
+  .resp-table td[data-label="Mileage"], .resp-table td[data-label="Drive / Fuel"],
+  .resp-table td[data-label="Chassis"], .resp-table td[data-label="Chassis No."],
+  .resp-table td[data-label="Color"], .resp-table td[data-label="Status"],
+  .resp-table td[data-label="Date"], .resp-table td[data-label="Since"],
+  .resp-table td[data-label="Joined"], .resp-table td[data-label="Profit"],
+  .resp-table td[data-label="Selling Price"], .resp-table td[data-label="Received"],
+  .resp-table td[data-label="Exchange Rate"], .resp-table td[data-label="Yen Amount"] { white-space: nowrap; }
 }
 
 /* ── Admin: agent chips + bulk import ── */
@@ -446,7 +461,7 @@ a, button, input, select, textarea { transition: all 150ms ease; }
     text-transform: uppercase; letter-spacing: 0.05em;
   }
   .rep-range { flex-wrap: wrap !important; }
-  .rep-range input { flex: 1 1 120px; min-width: 0; }
+  .rep-range input { flex: 1 1 calc(100% - 70px); min-width: 0; }
   .rep-pills { flex-wrap: wrap !important; gap: 8px !important; padding: 12px 14px !important; }
   .rep-pills > button { flex: 1 1 auto; justify-content: center; padding: 7px 10px !important; }
   .rep-list { padding: 0 12px 14px !important; }
@@ -458,6 +473,9 @@ a, button, input, select, textarea { transition: all 150ms ease; }
   .rep-tabs > button { flex: 1 1 0; padding: 7px 4px !important; font-size: 12px !important; }
   .rep-export { width: 100%; justify-content: center; }
   .rep-range > button { width: 100%; }
+}
+@media (max-width: 360px) {
+  .rep-tabs > button { font-size: 11px !important; padding: 7px 2px !important; white-space: nowrap; }
 }
 
 /* ── Login / reset password ── */
