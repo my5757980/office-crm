@@ -11,7 +11,7 @@ export default async function CRMLayout({ children }: { children: React.ReactNod
     <div style={{ display: "flex", height: "100vh", overflow: "hidden", background: "#f6f8fa" }}>
       <Sidebar role={session.user.role} />
       <main
-        className="crm-bg"
+        className="crm-bg crm-main"
         style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", position: "relative" }}
       >
         {children}

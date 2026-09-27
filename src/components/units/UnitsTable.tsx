@@ -97,6 +97,7 @@ export default function UnitsTable({
           <p style={{ fontSize: "13px", color: "#8c959f", marginTop: "4px" }}>Try a different search term</p>
         </div>
       ) : (
+        <div className="table-wrap">
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
           <thead>
             <tr style={{ background: "#f6f8fa", borderBottom: "1px solid #d0d7de" }}>
@@ -169,6 +170,7 @@ export default function UnitsTable({
             })}
           </tbody>
         </table>
+        </div>
       )}
     </>
   );

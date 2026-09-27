@@ -164,3 +164,116 @@ a, button, input, select, textarea { transition: all 150ms ease; }
   body { background: white !important; color: #000 !important; }
   * { box-shadow: none !important; }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   RESPONSIVE LAYER
+   The app is built with inline styles that set the DESKTOP look. These rules
+   only take effect at/below the given breakpoints and use !important to win
+   over inline styles, so the desktop layout is never changed — only small and
+   medium screens get adjusted. Class hooks (crm-sidebar, page-pad, table-wrap,
+   resp-grid, resp-row, resp-col, resp-hide-sm …) are added in the components.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Mobile drawer chrome — hidden on desktop */
+.crm-burger { display: none; }
+.crm-overlay { display: none; }
+
+/* Any table wrapped in .table-wrap scrolls sideways instead of overflowing.
+   Safe on desktop (no effect when the table already fits). */
+.table-wrap { max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+/* ── Tablet and below (≤ 900px): sidebar becomes an off-canvas drawer ── */
+@media (max-width: 900px) {
+  .crm-sidebar {
+    position: fixed !important;
+    top: 0; left: 0; bottom: 0;
+    height: 100% !important;
+    z-index: 1000 !important;
+    transform: translateX(-100%);
+    transition: transform 240ms ease;
+    box-shadow: 0 0 40px rgba(0,0,0,0.45);
+  }
+  .crm-sidebar.open { transform: translateX(0); }
+
+  .crm-burger {
+    display: flex !important;
+    position: fixed; top: 10px; left: 10px; z-index: 1001;
+    width: 42px; height: 42px; align-items: center; justify-content: center;
+    background: #0d1117; color: #e6edf3; border: 1px solid #21262d;
+    border-radius: 9px; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+  }
+  .crm-overlay.open {
+    display: block; position: fixed; inset: 0; z-index: 999;
+    background: rgba(1,4,9,0.55); backdrop-filter: blur(1px);
+    animation: fadeIn 160ms ease;
+  }
+  /* Room for the floating hamburger so it never covers page headings */
+  .crm-main { padding-top: 52px !important; }
+}
+
+/* ── Broad content responsiveness via inline-style attribute selectors ──
+   React serializes inline styles as `prop:value` with no spaces, so we can
+   target the app's inline-styled containers globally without editing every
+   component. Everything is scoped to .crm-main, gated behind media queries,
+   and uses !important, so the DESKTOP layout is never affected. */
+
+/* Tablet & below: multi-column grids drop to two columns */
+@media (max-width: 860px) {
+  .crm-main [style*="grid-template-columns:repeat("] { grid-template-columns: repeat(2, 1fr) !important; }
+}
+
+/* Phone: single column + wrapping header rows */
+@media (max-width: 560px) {
+  .crm-main [style*="grid-template-columns:repeat("] { grid-template-columns: 1fr !important; }
+  .crm-main [style*="display:flex"][style*="justify-content:space-between"] { flex-wrap: wrap !important; }
+}
+
+/* Shrink oversized fixed paddings (vertical value first) on phones/tablets */
+@media (max-width: 768px) {
+  .crm-main [style*="padding:28px"],
+  .crm-main [style*="padding:32px"],
+  .crm-main [style*="padding:36px"],
+  .crm-main [style*="padding:40px"],
+  .crm-main [style*="padding:44px"],
+  .crm-main [style*="padding:48px"],
+  .crm-main [style*="padding:56px"],
+  .crm-main [style*="padding:60px"],
+  .crm-main [style*="padding:64px"] { padding: 16px !important; }
+}
+@media (max-width: 520px) {
+  .crm-main [style*="padding:20px"],
+  .crm-main [style*="padding:24px"] { padding: 13px !important; }
+}
+
+/* Login / auth split screen: hide the brand panel, form goes full width */
+@media (max-width: 820px) {
+  [style*="width:52%"][style*="flex-shrink:0"] { display: none !important; }
+  [style*="width:48%"] { width: 100% !important; }
+}
+
+/* Chat widget panel fits small phones instead of overflowing */
+@media (max-width: 420px) {
+  [style*="width:360px"][style*="height:500px"] {
+    width: calc(100vw - 20px) !important;
+    max-width: 360px !important;
+    height: min(72vh, 500px) !important;
+    right: 10px !important;
+  }
+}
+
+/* ── Class-hook helpers (used where finer control is needed) ── */
+@media (max-width: 768px) {
+  .page-pad, .page-pad-lg { padding: 16px !important; }
+  .resp-grid { grid-template-columns: 1fr !important; }
+  .resp-row { flex-direction: column !important; align-items: stretch !important; }
+  .resp-row > * { width: 100% !important; }
+  .resp-hide-sm { display: none !important; }
+  .resp-modal { width: 94vw !important; max-width: 94vw !important; max-height: 90vh !important; overflow-y: auto !important; }
+  .resp-title { font-size: 20px !important; }
+}
+@media (max-width: 520px) {
+  .page-pad, .page-pad-lg { padding: 12px !important; }
+  .resp-col-sm { flex-direction: column !important; align-items: stretch !important; }
+  .resp-col-sm > * { width: 100% !important; }
+  .resp-full-sm { width: 100% !important; }
+}
