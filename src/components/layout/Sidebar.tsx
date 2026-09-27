@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
+import { useState, useEffect } from "react";
 
 interface SidebarProps { role: string }
 
@@ -55,9 +56,21 @@ export default function Sidebar({ role }: SidebarProps) {
   const pathname = usePathname();
   const roleInfo = roleMap[role] ?? { label: role, color: "#8c959f" };
   const groups = navGroups(role);
+  const [open, setOpen] = useState(false);
+
+  // Close the mobile drawer whenever the route changes
+  useEffect(() => { setOpen(false); }, [pathname]);
 
   return (
-    <aside style={{
+    <>
+      {/* Mobile hamburger (hidden on desktop via CSS) */}
+      <button className="crm-burger" aria-label="Open menu" onClick={() => setOpen(true)}>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="21" y2="18" /></svg>
+      </button>
+      {/* Dark overlay behind the open drawer (mobile only) */}
+      <div className={"crm-overlay" + (open ? " open" : "")} onClick={() => setOpen(false)} />
+
+      <aside className={"crm-sidebar" + (open ? " open" : "")} style={{
       width: "240px",
       flexShrink: 0,
       display: "flex",
@@ -170,6 +183,7 @@ export default function Sidebar({ role }: SidebarProps) {
         </button>
       </div>
     </aside>
+    </>
   );
 }
 
