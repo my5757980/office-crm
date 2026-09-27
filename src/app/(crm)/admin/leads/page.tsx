@@ -113,7 +113,7 @@ export default async function AdminLeadsPage({
 
         {/* Agent stats cards */}
         {agentsData.length > 0 && (
-          <div style={{ display: "flex", flexWrap: "wrap", gap: "10px" }}>
+          <div className="agent-chips" style={{ display: "flex", flexWrap: "wrap", gap: "10px" }}>
             {agentsData.map((agent: { _id: string; name: string; email: string }) => {
               const count = countMap[agent._id] ?? 0;
               const isSelected = params.agentId === agent._id;
@@ -156,7 +156,7 @@ export default async function AdminLeadsPage({
           borderRadius: "10px", overflow: "hidden",
           boxShadow: "0 1px 3px rgba(0,0,0,0.04)", flex: 1,
         }}>
-          <div style={{ padding: "14px 20px", borderBottom: "1px solid #f0f2f4", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div className="card-toolbar" style={{ padding: "14px 20px", borderBottom: "1px solid #f0f2f4", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <span style={{ fontSize: "13px", fontWeight: 600, color: "#1f2328" }}>
               {params.agentId
                 ? `${agentsData.find((a: { _id: string; name: string }) => a._id === params.agentId)?.name ?? "Agent"}'s Leads`

@@ -169,12 +169,12 @@ export default function PaymentSection({ invoiceId, role, invoiceCnfPrice }: Pay
   return (
     <div style={cardStyle}>
       {/* Header */}
-      <div style={{
+      <div className="card-toolbar" style={{
         padding: "14px 24px", borderBottom: "1px solid #d0d7de",
         background: "linear-gradient(135deg, #f6f8fa 0%, #eff6ff 100%)",
         display: "flex", alignItems: "center", justifyContent: "space-between",
       }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/>
           </svg>
@@ -212,7 +212,7 @@ export default function PaymentSection({ invoiceId, role, invoiceCnfPrice }: Pay
       {/* Add Payment Form */}
       {showForm && (
         <div style={{ padding: "20px 24px", borderBottom: "1px solid #f0f2f4", background: "#fafbfc" }}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "14px" }}>
+          <div className="form-grid-3" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "14px" }}>
             <div>
               <label style={labelStyle}>Selling Price ($)</label>
               <input name="sellingPrice" type="number" value={form.sellingPrice} onChange={handleChange} placeholder="e.g. 15000" style={inputStyle} />
@@ -235,7 +235,7 @@ export default function PaymentSection({ invoiceId, role, invoiceCnfPrice }: Pay
             </div>
             <div>
               <label style={labelStyle}>Receipt Image <span style={{ fontWeight: 400, color: "#8c959f" }}>(optional)</span></label>
-              <label style={{
+              <label className="ow-any" style={{
                 display: "flex", alignItems: "center", gap: "8px",
                 padding: "9px 12px", border: "1px dashed #d0d7de", borderRadius: "8px",
                 fontSize: "13px", color: receiptFile ? "#1f2328" : "#8c959f",
@@ -292,7 +292,7 @@ export default function PaymentSection({ invoiceId, role, invoiceCnfPrice }: Pay
         <div>
           {/* Summary Row */}
           {invoiceCnfPrice && (
-            <div style={{
+            <div className="pay-summary" style={{
               display: "grid", gridTemplateColumns: "repeat(3, 1fr)",
               padding: "12px 24px", background: "#f6f8fa", borderBottom: "1px solid #d0d7de", gap: "8px",
             }}>
@@ -313,7 +313,8 @@ export default function PaymentSection({ invoiceId, role, invoiceCnfPrice }: Pay
             </div>
           )}
 
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
+          <div className="table-wrap">
+          <table className="resp-table" style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
             <thead>
               <tr style={{ background: "#f6f8fa", borderBottom: "1px solid #d0d7de" }}>
                 {["#", "Date", "Selling Price", "Received", "Exchange Rate", "Yen Amount", "Recorded By", "Receipt", ...(canAdd ? [""] : [])].map(h => (
@@ -324,16 +325,16 @@ export default function PaymentSection({ invoiceId, role, invoiceCnfPrice }: Pay
             <tbody>
               {payments.map((p, i) => (
                 <tr key={p._id} style={{ borderBottom: i < payments.length - 1 ? "1px solid #f0f2f4" : "none" }}>
-                  <td style={{ padding: "11px 16px", color: "#8c959f", fontWeight: 600 }}>{i + 1}</td>
-                  <td style={{ padding: "11px 16px", whiteSpace: "nowrap" }}>
+                  <td className="rt-hide" data-label="#" style={{ padding: "11px 16px", color: "#8c959f", fontWeight: 600 }}>{i + 1}</td>
+                  <td className="rt-head" data-label="Date" style={{ padding: "11px 16px", whiteSpace: "nowrap" }}>
                     {new Date(p.receivedDate).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" })}
                   </td>
-                  <td style={{ padding: "11px 16px", fontWeight: 600, color: "#1f2328" }}>${fmt(p.sellingPrice)}</td>
-                  <td style={{ padding: "11px 16px", fontWeight: 700, color: "#059669" }}>${fmt(p.amountReceived)}</td>
-                  <td style={{ padding: "11px 16px", color: "#656d76" }}>{p.exchangeRate ?? "—"}</td>
-                  <td style={{ padding: "11px 16px", color: "#656d76" }}>{p.yenAmount != null ? `¥${fmt(p.yenAmount)}` : "—"}</td>
-                  <td style={{ padding: "11px 16px", color: "#656d76", fontSize: "12px" }}>{p.recordedBy?.name ?? "—"}</td>
-                  <td style={{ padding: "11px 16px" }}>
+                  <td data-label="Selling Price" style={{ padding: "11px 16px", fontWeight: 600, color: "#1f2328" }}>${fmt(p.sellingPrice)}</td>
+                  <td data-label="Received" style={{ padding: "11px 16px", fontWeight: 700, color: "#059669" }}>${fmt(p.amountReceived)}</td>
+                  <td data-label="Exchange Rate" style={{ padding: "11px 16px", color: "#656d76" }}>{p.exchangeRate ?? "—"}</td>
+                  <td data-label="Yen Amount" style={{ padding: "11px 16px", color: "#656d76" }}>{p.yenAmount != null ? `¥${fmt(p.yenAmount)}` : "—"}</td>
+                  <td data-label="Recorded By" style={{ padding: "11px 16px", color: "#656d76", fontSize: "12px" }}>{p.recordedBy?.name ?? "—"}</td>
+                  <td data-label="Receipt" style={{ padding: "11px 16px" }}>
                     {p.receiptImage?.data ? (
                       <img
                         src={p.receiptImage.data}
@@ -344,7 +345,7 @@ export default function PaymentSection({ invoiceId, role, invoiceCnfPrice }: Pay
                     ) : <span style={{ fontSize: "12px", color: "#8c959f" }}>—</span>}
                   </td>
                   {canAdd && (
-                    <td style={{ padding: "11px 16px" }}>
+                    <td className="rt-action" data-label="" style={{ padding: "11px 16px" }}>
                       <button
                         onClick={() => handleDelete(p._id)}
                         disabled={deleting === p._id}
@@ -364,6 +365,7 @@ export default function PaymentSection({ invoiceId, role, invoiceCnfPrice }: Pay
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
     </div>

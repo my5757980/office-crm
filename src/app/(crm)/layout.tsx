@@ -8,7 +8,7 @@ export default async function CRMLayout({ children }: { children: React.ReactNod
   if (!session) redirect("/login");
 
   return (
-    <div style={{ display: "flex", height: "100vh", overflow: "hidden", background: "#f6f8fa" }}>
+    <div className="crm-shell" style={{ display: "flex", height: "100vh", overflow: "hidden", background: "#f6f8fa" }}>
       <Sidebar role={session.user.role} />
       <main
         className="crm-bg crm-main"

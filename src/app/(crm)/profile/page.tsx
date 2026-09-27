@@ -129,7 +129,7 @@ export default function ProfilePage() {
             </div>
             <div>
               <p style={{ fontSize: "14px", fontWeight: 600, color: "#1f2328" }}>{session?.user?.name}</p>
-              <p style={{ fontSize: "12px", color: "#656d76" }}>{session?.user?.email} · {role.charAt(0).toUpperCase() + role.slice(1)}</p>
+              <p className="ow-any" style={{ fontSize: "12px", color: "#656d76" }}>{session?.user?.email} · {role.charAt(0).toUpperCase() + role.slice(1)}</p>
             </div>
           </div>
         </div>

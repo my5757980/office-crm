@@ -111,6 +111,7 @@ export default function ChatWidget({ myId }: { myId: string }) {
     <>
       {/* Floating button */}
       <button
+        className="chat-fab"
         onClick={() => setOpen(o => !o)}
         style={{
           position: "fixed", bottom: "24px", right: "24px", zIndex: 900,
@@ -137,7 +138,7 @@ export default function ChatWidget({ myId }: { myId: string }) {
 
       {/* Chat panel */}
       {open && (
-        <div style={{
+        <div className="chat-panel" style={{
           position: "fixed", bottom: "88px", right: "24px", zIndex: 900,
           width: "360px", height: "500px",
           background: "#ffffff", borderRadius: "14px",

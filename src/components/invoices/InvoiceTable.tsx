@@ -67,7 +67,7 @@ export default function InvoiceTable({ invoices, showAgent = false, role, paidIn
 
   return (
     <>
-      <div style={{
+      <div className="card-toolbar" style={{
         padding: "14px 20px",
         borderBottom: "1px solid #f0f2f4",
         display: "flex",
@@ -116,7 +116,7 @@ export default function InvoiceTable({ invoices, showAgent = false, role, paidIn
             </p>
           </div>
         ) : (
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
+          <table className="resp-table" style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
             <thead>
               <tr>
                 <th style={thStyle}>Customer</th>
@@ -141,14 +141,14 @@ export default function InvoiceTable({ invoices, showAgent = false, role, paidIn
                     onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "#f6f8fa"; }}
                     onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
                   >
-                    <td style={{ padding: "13px 18px" }}>
+                    <td className="rt-head" data-label="Customer" style={{ padding: "13px 18px" }}>
                       <span style={{ fontWeight: 600, color: "#1f2328" }}>{inv.leadId?.customerName ?? "—"}</span>
                     </td>
                     {showAgent && (
-                      <td style={{ padding: "13px 18px", color: "#656d76", fontSize: "12px" }}>{inv.createdBy?.name ?? "—"}</td>
+                      <td data-label="Agent" style={{ padding: "13px 18px", color: "#656d76", fontSize: "12px" }}>{inv.createdBy?.name ?? "—"}</td>
                     )}
-                    <td style={{ padding: "13px 18px", color: "#1f2328" }}>{inv.unit}</td>
-                    <td style={{ padding: "13px 18px" }}>
+                    <td data-label="Vehicle" style={{ padding: "13px 18px", color: "#1f2328" }}>{inv.unit}</td>
+                    <td data-label="Chassis No." style={{ padding: "13px 18px" }}>
                       <code style={{
                         fontSize: "11px", fontFamily: "monospace",
                         background: "#f6f8fa", color: "#656d76",
@@ -158,13 +158,13 @@ export default function InvoiceTable({ invoices, showAgent = false, role, paidIn
                         {inv.chassisNo}
                       </code>
                     </td>
-                    <td style={{ padding: "13px 18px" }}>
+                    <td data-label="Status" style={{ padding: "13px 18px" }}>
                       <InvoiceStatusBadge status={displayStatus} />
                     </td>
-                    <td style={{ padding: "13px 18px", color: "#8c959f", fontSize: "12px", whiteSpace: "nowrap" }}>
+                    <td data-label="Date" style={{ padding: "13px 18px", color: "#8c959f", fontSize: "12px", whiteSpace: "nowrap" }}>
                       {new Date(inv.createdAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" })}
                     </td>
-                    <td style={{ padding: "13px 18px", textAlign: "right" }}>
+                    <td className="rt-action" data-label="" style={{ padding: "13px 18px", textAlign: "right" }}>
                       <Link href={`/invoices/${inv._id}`} style={{
                         fontSize: "12px", fontWeight: 600,
                         color: "#2563eb", background: "#eff6ff",

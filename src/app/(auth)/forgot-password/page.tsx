@@ -66,7 +66,7 @@ export default function ForgotPasswordPage() {
         <img src="/logo.png" alt="Logo" style={{ height: "52px", width: "auto", objectFit: "contain" }} />
       </div>
 
-      <div style={{
+      <div className="auth-card" style={{
         background: "#ffffff", border: "1px solid #d0d7de",
         borderRadius: "12px", padding: "32px",
         boxShadow: "0 4px 24px rgba(0,0,0,0.06)",

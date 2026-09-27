@@ -64,9 +64,9 @@ function fmt(n: number) {
 
 function DataRow({ label, value }: { label: string; value: string | number }) {
   return (
-    <div style={{ display: "flex", gap: "12px", padding: "9px 0", borderBottom: "1px solid #f0f2f4" }}>
-      <span style={{ fontSize: "11px", color: "#8c959f", fontWeight: 500, width: "130px", flexShrink: 0, textTransform: "uppercase", letterSpacing: "0.04em" }}>{label}</span>
-      <span style={{ fontSize: "13px", color: "#1f2328", fontWeight: 500 }}>{value}</span>
+    <div className="data-row" style={{ display: "flex", gap: "12px", padding: "9px 0", borderBottom: "1px solid #f0f2f4" }}>
+      <span className="data-row-label" style={{ fontSize: "11px", color: "#8c959f", fontWeight: 500, width: "130px", flexShrink: 0, textTransform: "uppercase", letterSpacing: "0.04em" }}>{label}</span>
+      <span className="data-row-val" style={{ fontSize: "13px", color: "#1f2328", fontWeight: 500 }}>{value}</span>
     </div>
   );
 }
@@ -197,12 +197,12 @@ export default function UnitDetail({ unit, documents: initialDocs, role, payment
     <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
       {/* Unit Header */}
       <div style={cardStyle}>
-        <div style={{
+        <div className="detail-head" style={{
           padding: "20px 24px", borderBottom: "1px solid #d0d7de",
           background: "linear-gradient(135deg, #f6f8fa 0%, #eff6ff 100%)",
           display: "flex", alignItems: "center", justifyContent: "space-between", gap: "16px",
         }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+          <div className="detail-head-main" style={{ display: "flex", alignItems: "center", gap: "16px" }}>
             <div style={{
               width: "48px", height: "48px", borderRadius: "10px", flexShrink: 0,
               background: "linear-gradient(135deg, #059669, #047857)",
@@ -230,7 +230,7 @@ export default function UnitDetail({ unit, documents: initialDocs, role, payment
             </div>
           </div>
           {canManage && !isEditing && (
-            <button onClick={() => setIsEditing(true)} style={{
+            <button className="detail-single-action" onClick={() => setIsEditing(true)} style={{
               display: "inline-flex", alignItems: "center", gap: "6px",
               padding: "7px 14px", borderRadius: "8px", fontSize: "13px", fontWeight: 600,
               color: "#1f2328", background: "#ffffff", border: "1px solid #d0d7de",
@@ -244,7 +244,7 @@ export default function UnitDetail({ unit, documents: initialDocs, role, payment
             </button>
           )}
           {canManage && isEditing && (
-            <div style={{ display: "flex", gap: "8px", flexShrink: 0 }}>
+            <div className="detail-edit-actions" style={{ display: "flex", gap: "8px", flexShrink: 0 }}>
               <button onClick={() => { setIsEditing(false); setSaveError(""); }} style={{
                 padding: "7px 14px", borderRadius: "8px", fontSize: "13px", fontWeight: 600,
                 color: "#656d76", background: "#f6f8fa", border: "1px solid #d0d7de", cursor: "pointer",
@@ -264,8 +264,8 @@ export default function UnitDetail({ unit, documents: initialDocs, role, payment
         )}
 
         {/* Details Grid */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr" }}>
-          <div style={{ padding: "20px 24px", borderRight: "1px solid #f0f2f4" }}>
+        <div className="detail-info-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr" }}>
+          <div className="detail-info-col" style={{ padding: "20px 24px", borderRight: "1px solid #f0f2f4" }}>
             <p style={{ fontSize: "11px", fontWeight: 700, color: "#8c959f", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "8px" }}>Vehicle Info</p>
             {isEditing ? (
               <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
@@ -290,7 +290,7 @@ export default function UnitDetail({ unit, documents: initialDocs, role, payment
               </>
             )}
           </div>
-          <div style={{ padding: "20px 24px" }}>
+          <div className="detail-info-col" style={{ padding: "20px 24px" }}>
             <p style={{ fontSize: "11px", fontWeight: 700, color: "#8c959f", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "8px" }}>Specifications</p>
             {isEditing ? (
               <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
@@ -346,7 +346,7 @@ export default function UnitDetail({ unit, documents: initialDocs, role, payment
       {payments && payments.length > 0 && (
         <div style={cardStyle}>
           {/* Header */}
-          <div style={{
+          <div className="card-toolbar" style={{
             padding: "14px 24px", borderBottom: "1px solid #d0d7de",
             background: "linear-gradient(135deg, #f6f8fa 0%, #eff6ff 100%)",
             display: "flex", alignItems: "center", gap: "10px",
@@ -370,7 +370,7 @@ export default function UnitDetail({ unit, documents: initialDocs, role, payment
 
           {/* Summary Row */}
           {invoiceCnfPrice && (
-            <div style={{
+            <div className="pay-summary" style={{
               display: "grid", gridTemplateColumns: "repeat(3, 1fr)",
               padding: "12px 24px", background: "#f6f8fa", borderBottom: "1px solid #d0d7de", gap: "8px",
             }}>
@@ -392,7 +392,8 @@ export default function UnitDetail({ unit, documents: initialDocs, role, payment
           )}
 
           {/* Payments Table */}
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
+          <div className="table-wrap">
+          <table className="resp-table" style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
             <thead>
               <tr style={{ background: "#f6f8fa", borderBottom: "1px solid #d0d7de" }}>
                 {["#", "Date", "Selling Price", "Received", "Exchange Rate", "Yen Amount", "Recorded By", "Receipt"].map(h => (
@@ -403,16 +404,16 @@ export default function UnitDetail({ unit, documents: initialDocs, role, payment
             <tbody>
               {payments.map((p, i) => (
                 <tr key={p._id} style={{ borderBottom: i < payments.length - 1 ? "1px solid #f0f2f4" : "none" }}>
-                  <td style={{ padding: "11px 16px", color: "#8c959f", fontWeight: 600 }}>{i + 1}</td>
-                  <td style={{ padding: "11px 16px", whiteSpace: "nowrap" }}>
+                  <td className="rt-hide" data-label="#" style={{ padding: "11px 16px", color: "#8c959f", fontWeight: 600 }}>{i + 1}</td>
+                  <td className="rt-head" data-label="Date" style={{ padding: "11px 16px", whiteSpace: "nowrap" }}>
                     {new Date(p.receivedDate).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" })}
                   </td>
-                  <td style={{ padding: "11px 16px", fontWeight: 600, color: "#1f2328" }}>${fmt(p.sellingPrice)}</td>
-                  <td style={{ padding: "11px 16px", fontWeight: 700, color: "#059669" }}>${fmt(p.amountReceived)}</td>
-                  <td style={{ padding: "11px 16px", color: "#656d76" }}>{p.exchangeRate ?? "—"}</td>
-                  <td style={{ padding: "11px 16px", color: "#656d76" }}>{p.yenAmount != null ? `¥${fmt(p.yenAmount)}` : "—"}</td>
-                  <td style={{ padding: "11px 16px", color: "#656d76", fontSize: "12px" }}>{p.recordedBy?.name ?? "—"}</td>
-                  <td style={{ padding: "11px 16px" }}>
+                  <td data-label="Selling Price" style={{ padding: "11px 16px", fontWeight: 600, color: "#1f2328" }}>${fmt(p.sellingPrice)}</td>
+                  <td data-label="Received" style={{ padding: "11px 16px", fontWeight: 700, color: "#059669" }}>${fmt(p.amountReceived)}</td>
+                  <td data-label="Exchange Rate" style={{ padding: "11px 16px", color: "#656d76" }}>{p.exchangeRate ?? "—"}</td>
+                  <td data-label="Yen Amount" style={{ padding: "11px 16px", color: "#656d76" }}>{p.yenAmount != null ? `¥${fmt(p.yenAmount)}` : "—"}</td>
+                  <td data-label="Recorded By" style={{ padding: "11px 16px", color: "#656d76", fontSize: "12px" }}>{p.recordedBy?.name ?? "—"}</td>
+                  <td data-label="Receipt" style={{ padding: "11px 16px" }}>
                     {p.receiptImage?.data ? (
                       <img
                         src={p.receiptImage.data}
@@ -426,12 +427,14 @@ export default function UnitDetail({ unit, documents: initialDocs, role, payment
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
 
       {/* TT Lightbox */}
       {lightbox && (
         <div
+          className="crm-modal"
           onClick={() => setLightbox(null)}
           style={{
             position: "fixed", inset: 0, background: "rgba(0,0,0,0.8)",
@@ -471,7 +474,7 @@ export default function UnitDetail({ unit, documents: initialDocs, role, payment
 
       {/* Document Folders */}
       <div style={cardStyle}>
-        <div style={{ padding: "14px 24px", borderBottom: "1px solid #d0d7de", background: "linear-gradient(135deg, #f6f8fa 0%, #eff6ff 100%)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px" }}>
+        <div className="card-toolbar" style={{ padding: "14px 24px", borderBottom: "1px solid #d0d7de", background: "linear-gradient(135deg, #f6f8fa 0%, #eff6ff 100%)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px" }}>
           <div>
             <p style={{ fontSize: "13px", fontWeight: 700, color: "#1f2328" }}>Document Repository</p>
             <p style={{ fontSize: "12px", color: "#8c959f", marginTop: "2px" }}>Upload files to each folder — PDF, JPG, PNG and other formats supported</p>
@@ -481,7 +484,7 @@ export default function UnitDetail({ unit, documents: initialDocs, role, payment
           )}
         </div>
 
-        <div style={{ padding: "20px 24px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+        <div className="docs-grid" style={{ padding: "20px 24px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
           {FOLDERS.map(folder => {
             const files = documents[folder] ?? [];
             return (
@@ -550,6 +553,7 @@ export default function UnitDetail({ unit, documents: initialDocs, role, payment
                         </div>
                         {canManage && (
                           <button
+                            className="file-del"
                             onClick={() => handleDelete(folder, file._id)}
                             disabled={deleting === file._id}
                             style={{

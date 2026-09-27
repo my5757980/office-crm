@@ -135,7 +135,7 @@ export default function ReportsPage() {
 
         {/* Tabs + Export All */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "16px", flexWrap: "wrap", gap: "12px" }}>
-          <div style={{ display: "flex", gap: "6px", background: "#ffffff", border: "1px solid #d0d7de", borderRadius: "8px", padding: "4px" }}>
+          <div className="rep-tabs" style={{ display: "flex", gap: "6px", background: "#ffffff", border: "1px solid #d0d7de", borderRadius: "8px", padding: "4px" }}>
             {tabs.map(t => (
               <button key={t.key} onClick={() => setType(t.key)} style={{
                 padding: "7px 16px", borderRadius: "6px", border: "none",
@@ -149,6 +149,7 @@ export default function ReportsPage() {
             ))}
           </div>
           <button
+            className="rep-export"
             onClick={() => data && exportCSV(agents, type)}
             disabled={!data || loading || agents.length === 0}
             style={{
@@ -184,7 +185,7 @@ export default function ReportsPage() {
 
         {/* Custom date pickers */}
         {type === "custom" && (
-          <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "16px", background: "#ffffff", border: "1px solid #d0d7de", borderRadius: "8px", padding: "12px 16px" }}>
+          <div className="rep-range" style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "16px", background: "#ffffff", border: "1px solid #d0d7de", borderRadius: "8px", padding: "12px 16px" }}>
             <span style={{ fontSize: "13px", fontWeight: 600, color: "#1f2328" }}>From</span>
             <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
               style={{ padding: "6px 10px", borderRadius: "6px", border: "1px solid #d0d7de", fontSize: "13px" }} />
@@ -205,13 +206,13 @@ export default function ReportsPage() {
 
         {/* Summary cards */}
         {data && !loading && (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "12px", marginBottom: "20px" }}>
+          <div className="stat-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "12px", marginBottom: "20px" }}>
             {[
               { label: "Total Leads",    value: totals.leads,    color: col.leads    },
               { label: "Total Invoices", value: totals.invoices, color: col.invoices },
               { label: "Total Units",    value: totals.units,    color: col.units    },
             ].map(c => (
-              <div key={c.label} style={{ background: "#ffffff", border: "1px solid #d0d7de", borderRadius: "10px", padding: "16px 20px", borderLeft: `4px solid ${c.color}` }}>
+              <div key={c.label} className="rep-card" style={{ background: "#ffffff", border: "1px solid #d0d7de", borderRadius: "10px", padding: "16px 20px", borderLeft: `4px solid ${c.color}` }}>
                 <p style={{ fontSize: "12px", color: "#656d76", fontWeight: 500 }}>{c.label}</p>
                 <p style={{ fontSize: "28px", fontWeight: 700, color: c.color, marginTop: "4px" }}>{c.value}</p>
               </div>
@@ -221,7 +222,7 @@ export default function ReportsPage() {
 
         {/* Agent Table */}
         <div style={{ background: "#ffffff", border: "1px solid #d0d7de", borderRadius: "10px", overflow: "hidden", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 90px 90px 90px 160px", padding: "11px 20px", background: "#f6f8fa", borderBottom: "1px solid #d0d7de" }}>
+          <div className="rep-grid-head" style={{ display: "grid", gridTemplateColumns: "1fr 90px 90px 90px 160px", padding: "11px 20px", background: "#f6f8fa", borderBottom: "1px solid #d0d7de" }}>
             {["Agent", "Leads", "Invoices", "Units", "Actions"].map((h, i) => (
               <span key={h} style={{ fontSize: "12px", fontWeight: 700, color: "#656d76", textAlign: i > 0 && i < 4 ? "center" : "left" }}>{h}</span>
             ))}
@@ -236,7 +237,7 @@ export default function ReportsPage() {
                 <div style={{ padding: "48px", textAlign: "center", color: "#656d76", fontSize: "14px" }}>No activity in this period.</div>
               ) : (
                 agents.map((a, idx) => (
-                  <div key={a.userId} style={{
+                  <div key={a.userId} className="rep-grid" style={{
                     display: "grid", gridTemplateColumns: "1fr 90px 90px 90px 160px",
                     padding: "13px 20px",
                     borderBottom: idx < agents.length - 1 ? "1px solid #f0f2f4" : "none",
@@ -253,9 +254,9 @@ export default function ReportsPage() {
                       </div>
                       <span style={{ fontSize: "13px", fontWeight: 600, color: "#1f2328" }}>{a.name}</span>
                     </div>
-                    <Pill value={a.leads}    color={col.leads}    />
-                    <Pill value={a.invoices} color={col.invoices} />
-                    <Pill value={a.units}    color={col.units}    />
+                    <Pill value={a.leads}    color={col.leads}    label="Leads" />
+                    <Pill value={a.invoices} color={col.invoices} label="Invoices" />
+                    <Pill value={a.units}    color={col.units}    label="Units" />
                     <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                       {/* View button */}
                       <button
@@ -287,11 +288,11 @@ export default function ReportsPage() {
               )}
 
               {agents.length > 1 && (
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 90px 90px 90px 160px", padding: "13px 20px", background: "#f6f8fa", borderTop: "2px solid #d0d7de" }}>
+                <div className="rep-grid" style={{ display: "grid", gridTemplateColumns: "1fr 90px 90px 90px 160px", padding: "13px 20px", background: "#f6f8fa", borderTop: "2px solid #d0d7de" }}>
                   <span style={{ fontSize: "13px", fontWeight: 700, color: "#1f2328" }}>TOTAL</span>
-                  <Pill value={totals.leads}    color={col.leads}    bold />
-                  <Pill value={totals.invoices} color={col.invoices} bold />
-                  <Pill value={totals.units}    color={col.units}    bold />
+                  <Pill value={totals.leads}    color={col.leads}    bold label="Leads" />
+                  <Pill value={totals.invoices} color={col.invoices} bold label="Invoices" />
+                  <Pill value={totals.units}    color={col.units}    bold label="Units" />
                   <span />
                 </div>
               )}
@@ -302,7 +303,7 @@ export default function ReportsPage() {
 
       {/* Detail Modal */}
       {viewAgent && (
-        <div style={{
+        <div className="crm-modal" style={{
           position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)",
           display: "flex", alignItems: "center", justifyContent: "center",
           zIndex: 1000, padding: "20px",
@@ -314,7 +315,7 @@ export default function ReportsPage() {
           }} onClick={e => e.stopPropagation()}>
 
             {/* Modal header */}
-            <div style={{ padding: "20px 24px", borderBottom: "1px solid #d0d7de", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div className="modal-head" style={{ padding: "20px 24px", borderBottom: "1px solid #d0d7de", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <div>
                 <h2 style={{ fontSize: "16px", fontWeight: 700, color: "#1f2328", margin: 0 }}>{viewAgent.name}</h2>
                 <p style={{ fontSize: "12px", color: "#656d76", margin: "2px 0 0" }}>{period}</p>
@@ -337,7 +338,7 @@ export default function ReportsPage() {
             </div>
 
             {/* Summary pills */}
-            <div style={{ padding: "14px 24px", borderBottom: "1px solid #d0d7de", display: "flex", gap: "12px" }}>
+            <div className="rep-pills" style={{ padding: "14px 24px", borderBottom: "1px solid #d0d7de", display: "flex", gap: "12px" }}>
               {[
                 { key: "leads",    label: "Leads",    count: viewAgent.leads,    color: col.leads    },
                 { key: "invoices", label: "Invoices", count: viewAgent.invoices, color: col.invoices },
@@ -360,7 +361,7 @@ export default function ReportsPage() {
             </div>
 
             {/* Detail list */}
-            <div style={{ flex: 1, overflowY: "auto", padding: "0 24px 20px" }}>
+            <div className="rep-list" style={{ flex: 1, overflowY: "auto", padding: "0 24px 20px" }}>
               {detailLoading ? (
                 <div style={{ padding: "40px", textAlign: "center", color: "#656d76" }}>Loading details…</div>
               ) : !detail ? null : (
@@ -404,12 +405,12 @@ function DetailTable({ headers, rows, color, empty }: { headers: string[]; rows:
     return <div style={{ padding: "32px", textAlign: "center", color: "#656d76", fontSize: "13px" }}>{empty}</div>;
   }
   return (
-    <div style={{ marginTop: "16px", border: "1px solid #d0d7de", borderRadius: "8px", overflow: "hidden" }}>
-      <div style={{ display: "grid", gridTemplateColumns: `repeat(${headers.length}, 1fr)`, padding: "9px 16px", background: "#f6f8fa", borderBottom: "1px solid #d0d7de" }}>
+    <div className="dt-wrap" style={{ marginTop: "16px", border: "1px solid #d0d7de", borderRadius: "8px", overflow: "hidden" }}>
+      <div className="dt-row" style={{ display: "grid", gridTemplateColumns: `repeat(${headers.length}, 1fr)`, padding: "9px 16px", background: "#f6f8fa", borderBottom: "1px solid #d0d7de" }}>
         {headers.map(h => <span key={h} style={{ fontSize: "11px", fontWeight: 700, color: "#656d76", textTransform: "uppercase", letterSpacing: "0.05em" }}>{h}</span>)}
       </div>
       {rows.map((row, i) => (
-        <div key={i} style={{
+        <div key={i} className="dt-row" style={{
           display: "grid", gridTemplateColumns: `repeat(${headers.length}, 1fr)`,
           padding: "10px 16px",
           borderBottom: i < rows.length - 1 ? "1px solid #f0f2f4" : "none",
@@ -424,9 +425,9 @@ function DetailTable({ headers, rows, color, empty }: { headers: string[]; rows:
   );
 }
 
-function Pill({ value, color, bold = false }: { value: number; color: string; bold?: boolean }) {
+function Pill({ value, color, bold = false, label }: { value: number; color: string; bold?: boolean; label?: string }) {
   return (
-    <div style={{ display: "flex", justifyContent: "center" }}>
+    <div className="rep-pill" data-label={label} style={{ display: "flex", justifyContent: "center" }}>
       <span style={{ display: "inline-block", minWidth: "36px", textAlign: "center", padding: "3px 10px", borderRadius: "20px", fontSize: "12px", fontWeight: bold ? 700 : 600, background: `${color}18`, color }}>
         {value}
       </span>

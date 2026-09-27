@@ -156,12 +156,12 @@ export default function UnitFinancial({ unitId }: Props) {
   return (
     <div style={cardStyle}>
       {/* Header */}
-      <div style={{
+      <div className="card-toolbar" style={{
         padding: "14px 24px", borderBottom: "1px solid #d0d7de",
         background: "linear-gradient(135deg, #f6f8fa 0%, #eff6ff 100%)",
         display: "flex", alignItems: "center", justifyContent: "space-between",
       }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
           </svg>
@@ -196,7 +196,7 @@ export default function UnitFinancial({ unitId }: Props) {
         </div>
       </div>
 
-      <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: "20px" }}>
+      <div className="fin-body" style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: "20px" }}>
 
         {/* Selling Price (read-only) */}
         <div style={{
@@ -243,7 +243,7 @@ export default function UnitFinancial({ unitId }: Props) {
               <p style={{ fontSize: "11px", fontWeight: 700, color: "#8c959f", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "12px" }}>
                 Cost Breakdown (JPY ¥)
               </p>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "10px" }}>
+              <div className="cost-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "10px" }}>
                 {JPY_FIELDS.map(f => (
                   <div key={f.key}>
                     <p style={labelStyle}>{f.label}</p>
@@ -277,7 +277,7 @@ export default function UnitFinancial({ unitId }: Props) {
             </div>
 
             {/* Exchange Rate */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", alignItems: "end" }}>
+            <div className="fin-rate-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", alignItems: "end" }}>
               <div>
                 <p style={labelStyle}>Exchange Rate <span style={{ color: "#8c959f", fontSize: "10px", fontWeight: 400 }}>(1 USD = ? JPY)</span></p>
                 <div style={{ display: "flex", alignItems: "center", border: "1px solid #d0d7de", borderRadius: "6px", overflow: "hidden", marginTop: "4px" }}>
@@ -321,7 +321,7 @@ export default function UnitFinancial({ unitId }: Props) {
         )}
 
         {/* Profit Summary */}
-        <div style={{
+        <div className="fin-summary" style={{
           display: "grid", gridTemplateColumns: "1fr 1fr 1fr",
           gap: "10px", borderTop: "1px solid #f0f2f4", paddingTop: "16px",
         }}>

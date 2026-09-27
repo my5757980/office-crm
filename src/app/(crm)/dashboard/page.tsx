@@ -191,14 +191,14 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         {/* ── LEADS TAB ── */}
         {tab === "leads" && leadsData && (
           <>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "14px" }}>
+            <div className="stat-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "14px" }}>
               {[
                 { label: "Total Leads",  value: leadsData.stats.total,      bg: "#eff6ff", icon: "📋", accent: "#2563eb" },
                 { label: "New",          value: leadsData.stats.newCount,   bg: "#f0fdf4", icon: "🆕", accent: "#16a34a" },
                 { label: "In Progress",  value: leadsData.stats.inProgress, bg: "#fffbeb", icon: "⚡", accent: "#d97706" },
                 { label: "Closed",       value: leadsData.stats.closed,     bg: "#f3f4f6", icon: "✓",  accent: "#6b7280" },
               ].map(({ label, value, bg, icon, accent }, i) => (
-                <div key={label} className={`card-hover stagger-${i + 1}`} style={{
+                <div key={label} className={`card-hover stagger-${i + 1} stat-card`} style={{
                   background: "#ffffff", border: "1px solid #d0d7de", borderRadius: "10px",
                   padding: "18px 20px", display: "flex", alignItems: "center", gap: "14px",
                   boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
@@ -218,7 +218,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
               background: "#ffffff", border: "1px solid #d0d7de", borderRadius: "10px",
               overflow: "hidden", boxShadow: "0 1px 3px rgba(0,0,0,0.04)", flex: 1,
             }}>
-              <div style={{ padding: "14px 20px", borderBottom: "1px solid #f0f2f4", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div className="card-toolbar" style={{ padding: "14px 20px", borderBottom: "1px solid #f0f2f4", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <span style={{ fontSize: "13px", fontWeight: 600, color: "#1f2328" }}>
                   Lead Pipeline · <span style={{ color: "#656d76", fontWeight: 400 }}>{leadsData.leads.length} record{leadsData.leads.length !== 1 ? "s" : ""}</span>
                 </span>
@@ -235,13 +235,13 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         {/* ── CUSTOMERS TAB ── */}
         {tab === "customers" && customersData && (
           <>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "14px" }}>
+            <div className="stat-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "14px" }}>
               {[
                 { label: "Total Customers",   value: customersData.stats.total,         bg: "#f0fdf4", icon: "🏢", accent: "#059669" },
                 { label: "Total Invoices",    value: customersData.stats.totalInvoices,  bg: "#eff6ff", icon: "📄", accent: "#2563eb" },
                 { label: "Pending Invoices",  value: customersData.stats.totalPending,   bg: "#fffbeb", icon: "⏳", accent: "#d97706" },
               ].map(({ label, value, bg, icon, accent }, i) => (
-                <div key={label} className={`card-hover stagger-${i + 1}`} style={{
+                <div key={label} className={`card-hover stagger-${i + 1} stat-card`} style={{
                   background: "#ffffff", border: "1px solid #d0d7de", borderRadius: "10px",
                   padding: "18px 20px", display: "flex", alignItems: "center", gap: "14px",
                   boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
@@ -261,7 +261,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
               background: "#ffffff", border: "1px solid #d0d7de", borderRadius: "10px",
               overflow: "hidden", boxShadow: "0 1px 3px rgba(0,0,0,0.04)", flex: 1,
             }}>
-              <div style={{ padding: "14px 20px", borderBottom: "1px solid #f0f2f4", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div className="card-toolbar" style={{ padding: "14px 20px", borderBottom: "1px solid #f0f2f4", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <span style={{ fontSize: "13px", fontWeight: 600, color: "#1f2328" }}>
                   Customers · <span style={{ color: "#656d76", fontWeight: 400 }}>{customersData.customers.length} record{customersData.customers.length !== 1 ? "s" : ""}</span>
                 </span>

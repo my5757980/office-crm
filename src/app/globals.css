@@ -167,72 +167,43 @@ a, button, input, select, textarea { transition: all 150ms ease; }
 
 /* ═══════════════════════════════════════════════════════════════════════════
    RESPONSIVE LAYER
-   The app is built with inline styles that set the DESKTOP look. These rules
-   only take effect at/below the given breakpoints and use !important to win
-   over inline styles, so the desktop layout is never changed — only small and
-   medium screens get adjusted. Class hooks (crm-sidebar, page-pad, table-wrap,
-   resp-grid, resp-row, resp-col, resp-hide-sm …) are added in the components.
+   The app sets its DESKTOP look with inline styles. Everything below either
+   (a) only takes effect inside a media query, or (b) is a no-op whenever the
+   content already fits (flex-wrap, min-width: 0, overflow-wrap), so wide
+   screens render exactly as before. Components carry class hooks for this
+   file; rules that must beat the global attribute fallbacks are scoped as
+   `.crm-main .x` and placed after them (same specificity → later wins).
+   Breakpoints: ≤1100 small laptop · ≤900 tablet + drawer · ≤768 · ≤640 phone
+   (tables become cards) · ≤560 · ≤480 · ≤420 · ≤360/340 very small phones.
    ═══════════════════════════════════════════════════════════════════════════ */
 
-/* Mobile drawer chrome — hidden on desktop */
-.crm-burger { display: none; }
-.crm-overlay { display: none; }
-
-/* Any table wrapped in .table-wrap scrolls sideways instead of overflowing.
-   Safe on desktop (no effect when the table already fits). */
+/* ── Always-on helpers (no-ops whenever the content already fits) ── */
+.crm-main { overflow-wrap: break-word; }
+.ow-any, .data-row-val { overflow-wrap: anywhere; min-width: 0; }
 .table-wrap { max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.card-toolbar { flex-wrap: wrap; row-gap: 10px; }
+.detail-head { flex-wrap: wrap; row-gap: 12px; }
+.detail-head-main { min-width: 0; }
+.detail-actions { flex-shrink: 1 !important; min-width: 0; justify-content: flex-end; }
 
-/* ── Tablet and below (≤ 900px): sidebar becomes an off-canvas drawer ── */
-@media (max-width: 900px) {
-  .crm-sidebar {
-    position: fixed !important;
-    top: 0; left: 0; bottom: 0;
-    height: 100% !important;
-    z-index: 1000 !important;
-    transform: translateX(-100%);
-    transition: transform 240ms ease;
-    box-shadow: 0 0 40px rgba(0,0,0,0.45);
-  }
-  .crm-sidebar.open { transform: translateX(0); }
+/* Mobile-only chrome, hidden on desktop */
+.crm-burger, .crm-overlay { display: none; }
+.mobile-only { display: none !important; }
 
-  .crm-burger {
-    display: flex !important;
-    position: fixed; top: 10px; left: 10px; z-index: 1001;
-    width: 42px; height: 42px; align-items: center; justify-content: center;
-    background: #0d1117; color: #e6edf3; border: 1px solid #21262d;
-    border-radius: 9px; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.18);
-  }
-  .crm-overlay.open {
-    display: block; position: fixed; inset: 0; z-index: 999;
-    background: rgba(1,4,9,0.55); backdrop-filter: blur(1px);
-    animation: fadeIn 160ms ease;
-  }
-  /* Room for the floating hamburger so it never covers page headings */
-  .crm-main { padding-top: 52px !important; }
-}
-
-/* ── Broad content responsiveness via inline-style attribute selectors ──
-   The browser normalizes inline styles to `prop: value` (WITH a space) in the
-   live DOM attribute, while server-render emits `prop:value` (no space). We
-   match BOTH so the rules apply before and after hydration. Everything is
-   scoped to .crm-main, gated behind media queries, and uses !important — so the
-   DESKTOP layout is never affected. */
-
-/* Tablet & below: multi-column grids drop to two columns */
+/* ── Global fallbacks (inline-style attribute selectors) ──────────────────
+   The browser writes inline styles into the DOM as `prop: value` (with a
+   space) while server HTML has `prop:value`; both forms are matched. These
+   only catch elements without a dedicated hook — hooked ones override below. */
 @media (max-width: 900px) {
   .crm-main [style*="grid-template-columns: repeat("],
   .crm-main [style*="grid-template-columns:repeat("] { grid-template-columns: repeat(2, 1fr) !important; }
 }
-
-/* Phone: single column + wrapping header rows */
 @media (max-width: 560px) {
   .crm-main [style*="grid-template-columns: repeat("],
   .crm-main [style*="grid-template-columns:repeat("] { grid-template-columns: 1fr !important; }
   .crm-main [style*="justify-content: space-between"],
   .crm-main [style*="justify-content:space-between"] { flex-wrap: wrap !important; }
 }
-
-/* Shrink oversized fixed paddings (vertical value first) on phones/tablets */
 @media (max-width: 768px) {
   .crm-main [style*="padding: 28px"], .crm-main [style*="padding:28px"],
   .crm-main [style*="padding: 32px"], .crm-main [style*="padding:32px"],
@@ -246,28 +217,251 @@ a, button, input, select, textarea { transition: all 150ms ease; }
 }
 @media (max-width: 520px) {
   .crm-main [style*="padding: 20px"], .crm-main [style*="padding:20px"],
-  .crm-main [style*="padding: 24px"], .crm-main [style*="padding:24px"] { padding: 13px !important; }
+  .crm-main [style*="padding: 24px"], .crm-main [style*="padding:24px"] { padding: 14px !important; }
 }
 
-/* Chat widget panel fits small phones instead of overflowing */
+/* ── Shell: off-canvas drawer + sticky header (≤900) ── */
+@media (max-width: 900px) {
+  .crm-shell { height: 100dvh !important; }
+
+  .crm-sidebar {
+    position: fixed !important; top: 0; left: 0; bottom: 0;
+    height: 100% !important; z-index: 1000 !important;
+    transform: translateX(-100%); transition: transform 240ms ease;
+    box-shadow: 0 0 40px rgba(0, 0, 0, 0.45);
+  }
+  .crm-sidebar.open { transform: translateX(0); }
+  .crm-overlay.open {
+    display: block; position: fixed; inset: 0; z-index: 999;
+    background: rgba(1, 4, 9, 0.55); animation: fadeIn 160ms ease;
+  }
+  .crm-burger {
+    display: flex !important; position: fixed; top: 5px; left: 10px; z-index: 1001;
+    width: 42px; height: 42px; align-items: center; justify-content: center;
+    background: #0d1117; color: #e6edf3; border: 1px solid #21262d;
+    border-radius: 9px; cursor: pointer; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+  }
+
+  /* The TopBar (first element of every page) is the sticky mobile header,
+     with the burger sitting inside its left edge. */
+  .crm-topbar, .crm-topbar-wrap { position: sticky !important; top: 0; z-index: 40; }
+  .crm-topbar { padding-left: 64px !important; padding-right: 14px !important; }
+
+  /* Notifications: pinned to the screen edge instead of opening leftwards off-screen */
+  .notif-dropdown {
+    position: fixed !important; top: 58px !important; right: 8px !important; left: auto !important;
+    width: min(380px, calc(100vw - 16px)) !important;
+  }
+  .notif-dropdown ul { max-height: 60vh !important; }
+
+  /* Modals above the burger and chat button; tall modals scroll */
+  .crm-modal { z-index: 1200 !important; }
+  .crm-modal-box { max-height: 92vh; max-height: 92dvh; overflow-y: auto; }
+
+  /* 16px form text so iOS Safari doesn't zoom the page when a field is focused */
+  input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]),
+  select, textarea { font-size: 16px !important; }
+
+  .pdf-frame { height: 60vh !important; }
+  .mobile-only { display: inline-flex !important; }
+  .file-del { min-width: 30px; min-height: 30px; }
+}
+
+/* ── Chat widget ── */
+@media (max-width: 900px), (max-height: 640px) {
+  .chat-panel { max-height: calc(100vh - 100px); max-height: calc(100dvh - 100px); }
+}
+@media (max-width: 560px) {
+  .chat-fab { bottom: 14px !important; right: 14px !important; width: 48px !important; height: 48px !important; }
+  .chat-panel { left: 8px !important; right: 8px !important; width: auto !important; bottom: 72px !important; }
+}
+
+/* ── TopBar details ── */
+@media (max-width: 560px) {
+  .crm-topbar { gap: 8px !important; }
+  .crm-topbar-email { display: none !important; }
+  .crm-topbar-name { max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+}
+@media (max-width: 400px) {
+  .crm-topbar-user, .crm-topbar-divider { display: none !important; }
+}
+
+/* ── KPI / stat card grids ── */
+@media (max-width: 900px) {
+  .crm-main .stat-grid { grid-template-columns: repeat(2, 1fr) !important; }
+  .crm-main .stat-grid > :last-child:nth-child(odd) { grid-column: 1 / -1; }
+}
+@media (max-width: 560px) {
+  .crm-main .stat-grid { gap: 10px !important; }
+  .stat-card { padding: 12px !important; gap: 10px !important; }
+  .stat-card > div:first-child { width: 34px !important; height: 34px !important; }
+  .stat-card > div:last-child > p:first-child { font-size: 20px !important; }
+  .rep-card { padding: 12px 14px !important; }
+  .rep-card > p:last-child { font-size: 22px !important; }
+}
+@media (max-width: 340px) {
+  .crm-main .stat-grid { grid-template-columns: 1fr !important; }
+}
+.crm-main .pay-summary { grid-template-columns: repeat(3, 1fr) !important; }
 @media (max-width: 420px) {
-  [style*="width: 360px"], [style*="width:360px"] { width: calc(100vw - 20px) !important; max-width: 360px !important; right: 10px !important; }
-  [style*="height: 500px"], [style*="height:500px"] { height: min(72vh, 500px) !important; }
+  .crm-main .pay-summary { padding: 10px 12px !important; gap: 6px !important; }
+  .pay-summary p:last-child { font-size: 14px !important; }
 }
 
-/* ── Class-hook helpers (used where finer control is needed) ── */
-@media (max-width: 768px) {
-  .page-pad, .page-pad-lg { padding: 16px !important; }
-  .resp-grid { grid-template-columns: 1fr !important; }
-  .resp-row { flex-direction: column !important; align-items: stretch !important; }
-  .resp-row > * { width: 100% !important; }
-  .resp-hide-sm { display: none !important; }
-  .resp-modal { width: 94vw !important; max-width: 94vw !important; max-height: 90vh !important; overflow-y: auto !important; }
-  .resp-title { font-size: 20px !important; }
+/* ── Forms ── */
+@media (max-width: 900px) {
+  .crm-main .form-grid-3 { grid-template-columns: repeat(2, 1fr) !important; }
 }
-@media (max-width: 520px) {
-  .page-pad, .page-pad-lg { padding: 12px !important; }
-  .resp-col-sm { flex-direction: column !important; align-items: stretch !important; }
-  .resp-col-sm > * { width: 100% !important; }
-  .resp-full-sm { width: 100% !important; }
+@media (max-width: 640px) {
+  .crm-main .form-grid, .crm-main .form-grid-3 { grid-template-columns: 1fr !important; }
+  .crm-main .form-span-2 { grid-column: 1 / -1 !important; }
+}
+@media (max-width: 560px) {
+  .form-actions { flex-wrap: wrap; }
+  .form-actions > button, .form-actions > a { flex: 1 1 100%; justify-content: center; text-align: center; }
+}
+
+/* ── Detail pages (lead / invoice / unit) ── */
+@media (max-width: 768px) {
+  .crm-main .detail-info-grid { grid-template-columns: 1fr !important; }
+  .detail-info-col { border-right: none !important; }
+  .detail-info-col + .detail-info-col { border-top: 1px solid #f0f2f4; }
+}
+@media (max-width: 560px) {
+  .detail-actions { display: grid !important; grid-template-columns: 1fr 1fr; gap: 8px !important; width: 100%; }
+  .detail-actions > * { width: 100%; min-height: 38px; justify-content: center; text-align: center; white-space: normal; }
+  .detail-actions > :last-child:nth-child(odd) { grid-column: 1 / -1; }
+  .detail-single-action { width: 100%; justify-content: center; }
+  .detail-edit-actions { width: 100%; }
+  .detail-edit-actions > * { flex: 1 1 0; }
+  .price-row { padding: 12px 14px !important; }
+  .reject-note { margin: 12px 14px !important; }
+}
+@media (max-width: 360px) {
+  .detail-actions { grid-template-columns: 1fr; }
+}
+@media (max-width: 420px) {
+  .data-row-label { width: 96px !important; }
+}
+
+/* ── Lead filters + pagination ── */
+@media (max-width: 560px) {
+  .lead-filters { display: grid !important; grid-template-columns: 1fr 1fr; gap: 8px !important; width: 100%; }
+  .lead-filters-label, .lead-filters-dash { display: none !important; }
+  .lead-filters-search { grid-column: 1 / -1; }
+  .lead-filters-status { order: 1; }
+  .lead-filters-limit { order: 2; }
+  .lead-filters-from { order: 3; }
+  .lead-filters-to { order: 4; }
+  .lead-filters input, .lead-filters select { width: 100% !important; height: 38px !important; min-width: 0; }
+
+  .lead-pager { justify-content: center !important; padding: 12px !important; }
+  .lead-pager-info { width: 100%; text-align: center; }
+  .lead-pager-btns { justify-content: center; }
+  .lead-pager-btns > button { padding: 6px 9px !important; }
+}
+@media (max-width: 400px) {
+  .pager-edge { display: none !important; }
+}
+
+/* ── Tables: card list on phones, clean one-line rows on tablets ── */
+@media (max-width: 640px) {
+  .resp-table, .resp-table tbody { display: block; width: 100% !important; }
+  .resp-table thead { display: none; }
+  .resp-table tr {
+    display: block; margin: 10px 12px; background: #ffffff;
+    border: 1px solid #d0d7de !important; border-radius: 10px; overflow: hidden;
+  }
+  .resp-table td {
+    display: flex; justify-content: space-between; align-items: center; gap: 12px;
+    padding: 8px 14px !important; min-height: 38px;
+    text-align: right !important; white-space: normal !important; overflow-wrap: anywhere;
+    border: none !important;
+  }
+  .resp-table td + td { border-top: 1px solid #f0f2f4 !important; }
+  .resp-table td > * { min-width: 0; }
+  .resp-table td::before {
+    content: attr(data-label); flex-shrink: 0; text-align: left;
+    font-size: 11px; font-weight: 700; color: #656d76;
+    text-transform: uppercase; letter-spacing: 0.05em;
+  }
+  .resp-table td.rt-head {
+    justify-content: flex-start; text-align: left !important;
+    background: #f6f8fa; padding: 10px 14px !important;
+  }
+  .resp-table td.rt-head::before, .resp-table td.rt-action::before { display: none; }
+  .resp-table td.rt-action { padding: 10px 14px !important; }
+  .resp-table td.rt-action > *, .resp-table td.rt-action > div > * { flex: 1 1 auto; justify-content: center; text-align: center; }
+  .resp-table td.rt-action > a { padding: 8px 12px !important; }
+  .resp-table td.rt-hide { display: none; }
+}
+@media (min-width: 641px) and (max-width: 1100px) {
+  .resp-table td { white-space: nowrap; }
+  .resp-table td.rt-head { white-space: normal; min-width: 200px; }
+}
+
+/* ── Admin: agent chips + bulk import ── */
+@media (max-width: 560px) {
+  .agent-chips { display: grid !important; grid-template-columns: 1fr 1fr; gap: 8px !important; }
+  .agent-chips > a { padding: 8px 10px !important; min-width: 0; }
+  .agent-chips > a > div:last-child { min-width: 0; }
+  .agent-chips > a > div:last-child > p:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .bulk-btns { width: 100%; }
+  .bulk-btns > * { flex: 1 1 auto; justify-content: center; }
+  .bulk-country { flex-basis: 100%; min-width: 0 !important; }
+  .bulk-select { min-width: 0 !important; }
+}
+@media (max-width: 340px) {
+  .agent-chips { grid-template-columns: 1fr; }
+}
+
+/* ── Units: documents + financial ── */
+@media (max-width: 640px) {
+  .crm-main .docs-grid { grid-template-columns: 1fr !important; }
+  .crm-main .cost-grid { grid-template-columns: 1fr 1fr !important; }
+}
+@media (max-width: 560px) {
+  .docs-grid, .fin-body { padding: 14px !important; }
+  .crm-main .fin-summary { grid-template-columns: 1fr !important; }
+}
+@media (max-width: 420px) {
+  .crm-main .fin-rate-grid { grid-template-columns: 1fr !important; }
+}
+@media (max-width: 340px) {
+  .crm-main .cost-grid { grid-template-columns: 1fr !important; }
+}
+
+/* ── Reports ── */
+.crm-main .modal-head { flex-wrap: nowrap !important; gap: 10px; }
+.modal-head > :first-child { min-width: 0; }
+@media (max-width: 640px) {
+  .rep-grid-head { display: none !important; }
+  .crm-main .rep-grid { grid-template-columns: repeat(3, 1fr) !important; row-gap: 10px; padding: 12px 14px !important; }
+  .rep-grid > :first-child, .rep-grid > :last-child { grid-column: 1 / -1; }
+  .rep-grid > :last-child:empty { display: none; }
+  .rep-grid > :last-child > button { flex: 1 1 0; justify-content: center; }
+  .rep-pill { flex-direction: column; align-items: center; gap: 3px; }
+  .rep-pill::before {
+    content: attr(data-label); font-size: 10px; font-weight: 700; color: #8c959f;
+    text-transform: uppercase; letter-spacing: 0.05em;
+  }
+  .rep-range { flex-wrap: wrap !important; }
+  .rep-range input { flex: 1 1 120px; min-width: 0; }
+  .rep-pills { flex-wrap: wrap !important; gap: 8px !important; padding: 12px 14px !important; }
+  .rep-pills > button { flex: 1 1 auto; justify-content: center; padding: 7px 10px !important; }
+  .rep-list { padding: 0 12px 14px !important; }
+  .dt-wrap { overflow-x: auto !important; }
+  .crm-main .dt-row { grid-template-columns: repeat(4, 1fr) !important; min-width: 520px; }
+}
+@media (max-width: 480px) {
+  .rep-tabs { width: 100%; }
+  .rep-tabs > button { flex: 1 1 0; padding: 7px 4px !important; font-size: 12px !important; }
+  .rep-export { width: 100%; justify-content: center; }
+  .rep-range > button { width: 100%; }
+}
+
+/* ── Login / reset password ── */
+@media (max-width: 480px) {
+  .auth-panel { padding: 16px !important; }
+  .auth-card { padding: 22px 18px !important; }
 }

@@ -130,7 +130,7 @@ export default function UnitForm({ invoiceId }: UnitFormProps) {
       {/* Vehicle Identity */}
       <div>
         <p style={{ fontSize: "11px", fontWeight: 700, color: "#8c959f", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "12px" }}>Vehicle Identity</p>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "14px" }}>
+        <div className="form-grid-3" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "14px" }}>
           <Field label="Make"            name="make"     value={form.make}     onChange={set} placeholder="e.g. Toyota" />
           <Field label="Model"           name="carModel" value={form.carModel} onChange={set} placeholder="e.g. Land Cruiser 200" />
           <Field label="Year"            name="year"     value={form.year}     onChange={set} type="number" placeholder="e.g. 2022" />
@@ -143,7 +143,7 @@ export default function UnitForm({ invoiceId }: UnitFormProps) {
       {/* Technical Specs */}
       <div>
         <p style={{ fontSize: "11px", fontWeight: 700, color: "#8c959f", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "12px" }}>Technical Specifications</p>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "14px" }}>
+        <div className="form-grid-3" style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "14px" }}>
           <Field       label="Engine CC"    name="engineCC"    value={form.engineCC}    onChange={set} type="number" placeholder="e.g. 4500" />
           <Field       label="Mileage (km)" name="mileage"     value={form.mileage}     onChange={set} type="number" placeholder="e.g. 45000" />
           <Field       label="Doors"        name="doors"       value={form.doors}       onChange={set} type="number" placeholder="4" />
@@ -161,7 +161,7 @@ export default function UnitForm({ invoiceId }: UnitFormProps) {
         </div>
       )}
 
-      <div style={{ display: "flex", gap: "10px" }}>
+      <div className="form-actions" style={{ display: "flex", gap: "10px" }}>
         <button onClick={() => router.back()} style={{
           padding: "10px 24px", borderRadius: "8px", border: "1px solid #d0d7de",
           background: "#f6f8fa", color: "#1f2328", fontSize: "13px", fontWeight: 600, cursor: "pointer",

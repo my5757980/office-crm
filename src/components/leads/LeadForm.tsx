@@ -104,7 +104,7 @@ export default function LeadForm({ defaultValues, onSubmit, submitLabel = "Save 
 
   return (
     <form onSubmit={handleSubmit(handleFormSubmit)}>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+      <div className="form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
         <Field label="Customer / Business Name" error={errors.customerName?.message}>
           <input {...register("customerName")} style={inputStyle} placeholder="Acme Trading Co." {...withFocus(inputStyle)} />
         </Field>
@@ -124,7 +124,7 @@ export default function LeadForm({ defaultValues, onSubmit, submitLabel = "Save 
         <Field label="Email Address" error={errors.email?.message}>
           <input {...register("email")} type="email" style={inputStyle} placeholder="contact@company.com" {...withFocus(inputStyle)} />
         </Field>
-        <div style={{ gridColumn: "span 2" }}>
+        <div className="form-span-2" style={{ gridColumn: "span 2" }}>
           <Field label="Address">
             <input {...register("address")} style={inputStyle} placeholder="123 Main St, City" {...withFocus(inputStyle)} />
           </Field>
@@ -163,7 +163,7 @@ export default function LeadForm({ defaultValues, onSubmit, submitLabel = "Save 
         </div>
       )}
 
-      <div style={{ display: "flex", justifyContent: "flex-end", paddingTop: "20px" }}>
+      <div className="form-actions" style={{ display: "flex", justifyContent: "flex-end", paddingTop: "20px" }}>
         <button
           type="submit"
           disabled={loading}
