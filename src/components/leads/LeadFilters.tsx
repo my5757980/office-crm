@@ -35,10 +35,10 @@ export default function LeadFilters() {
   }, [router, pathname, searchParams]);
 
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
-      <span style={{ fontSize: "11px", fontWeight: 600, color: "#8c959f", textTransform: "uppercase", letterSpacing: "0.06em", marginRight: "4px" }}>Filter</span>
+    <div className="lead-filters" style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+      <span className="lead-filters-label" style={{ fontSize: "11px", fontWeight: 600, color: "#8c959f", textTransform: "uppercase", letterSpacing: "0.06em", marginRight: "4px" }}>Filter</span>
 
-      <div style={{ position: "relative" }}>
+      <div className="lead-filters-search" style={{ position: "relative" }}>
         <svg style={{ position: "absolute", left: "9px", top: "50%", transform: "translateY(-50%)" }} width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#8c959f" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
         <input
           type="text"
@@ -52,6 +52,7 @@ export default function LeadFilters() {
       </div>
 
       <select
+        className="lead-filters-status"
         defaultValue={searchParams.get("status") || ""}
         onChange={e => update("status", e.target.value)}
         style={controlStyle}
@@ -61,13 +62,14 @@ export default function LeadFilters() {
         {STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
       </select>
 
-      <input type="date" defaultValue={searchParams.get("from") || ""} onChange={e => update("from", e.target.value)} style={controlStyle}
+      <input type="date" className="lead-filters-from" defaultValue={searchParams.get("from") || ""} onChange={e => update("from", e.target.value)} style={controlStyle}
         onFocus={e => { e.target.style.borderColor = "#2563eb"; }} onBlur={e => { e.target.style.borderColor = "#d0d7de"; }} />
-      <span style={{ fontSize: "11px", color: "#8c959f" }}>—</span>
-      <input type="date" defaultValue={searchParams.get("to") || ""} onChange={e => update("to", e.target.value)} style={controlStyle}
+      <span className="lead-filters-dash" style={{ fontSize: "11px", color: "#8c959f" }}>—</span>
+      <input type="date" className="lead-filters-to" defaultValue={searchParams.get("to") || ""} onChange={e => update("to", e.target.value)} style={controlStyle}
         onFocus={e => { e.target.style.borderColor = "#2563eb"; }} onBlur={e => { e.target.style.borderColor = "#d0d7de"; }} />
 
       <select
+        className="lead-filters-limit"
         defaultValue={searchParams.get("limit") || "50"}
         onChange={e => update("limit", e.target.value)}
         title="Rows per page"

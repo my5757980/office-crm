@@ -98,7 +98,7 @@ export default function UnitsTable({
         </div>
       ) : (
         <div className="table-wrap">
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
+        <table className="resp-table" style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
           <thead>
             <tr style={{ background: "#f6f8fa", borderBottom: "1px solid #d0d7de" }}>
               {["Vehicle", "Chassis", "Color", "Drive / Fuel", "Mileage", "Location", "Added By", ...(showProfit ? ["Profit"] : []), ""].map(h => (
@@ -111,7 +111,7 @@ export default function UnitsTable({
               const coverId = coverMap[u._id];
               return (
                 <tr key={u._id} style={{ borderBottom: i < filtered.length - 1 ? "1px solid #f0f2f4" : "none" }}>
-                  <td style={{ padding: "12px 16px" }}>
+                  <td className="rt-head" data-label="Vehicle" style={{ padding: "12px 16px" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                       <div style={{
                         width: "40px", height: "40px", borderRadius: "8px", flexShrink: 0,
@@ -129,22 +129,22 @@ export default function UnitsTable({
                       </div>
                     </div>
                   </td>
-                  <td style={{ padding: "12px 16px", color: "#656d76", fontFamily: "monospace", fontSize: "12px" }}>{u.chassis}</td>
-                  <td style={{ padding: "12px 16px", color: "#656d76" }}>{u.color}</td>
-                  <td style={{ padding: "12px 16px", color: "#656d76" }}>{u.drive} · {u.fuel}</td>
-                  <td style={{ padding: "12px 16px", color: "#656d76" }}>{(u.mileage ?? 0).toLocaleString("en-US")} km</td>
-                  <td style={{ padding: "12px 16px", color: "#656d76" }}>{u.location}</td>
-                  <td style={{ padding: "12px 16px", color: "#8c959f", fontSize: "12px" }}>{u.createdBy?.name ?? "—"}</td>
+                  <td data-label="Chassis" style={{ padding: "12px 16px", color: "#656d76", fontFamily: "monospace", fontSize: "12px" }}>{u.chassis}</td>
+                  <td data-label="Color" style={{ padding: "12px 16px", color: "#656d76" }}>{u.color}</td>
+                  <td data-label="Drive / Fuel" style={{ padding: "12px 16px", color: "#656d76" }}>{u.drive} · {u.fuel}</td>
+                  <td data-label="Mileage" style={{ padding: "12px 16px", color: "#656d76" }}>{(u.mileage ?? 0).toLocaleString("en-US")} km</td>
+                  <td data-label="Location" style={{ padding: "12px 16px", color: "#656d76" }}>{u.location}</td>
+                  <td data-label="Added By" style={{ padding: "12px 16px", color: "#8c959f", fontSize: "12px" }}>{u.createdBy?.name ?? "—"}</td>
                   {showProfit && (() => {
                     const profit = profitMap[u._id] ?? null;
                     if (profit === null) return (
-                      <td style={{ padding: "12px 16px", textAlign: "right" }}>
+                      <td data-label="Profit" style={{ padding: "12px 16px", textAlign: "right" }}>
                         <span style={{ fontSize: "12px", color: "#8c959f" }}>—</span>
                       </td>
                     );
                     const isProfit = profit >= 0;
                     return (
-                      <td style={{ padding: "12px 16px", textAlign: "right" }}>
+                      <td data-label="Profit" style={{ padding: "12px 16px", textAlign: "right" }}>
                         <span style={{
                           fontSize: "12px", fontWeight: 700, padding: "3px 10px", borderRadius: "20px",
                           background: isProfit ? "#d1fae5" : "#fee2e2",
@@ -155,7 +155,7 @@ export default function UnitsTable({
                       </td>
                     );
                   })()}
-                  <td style={{ padding: "12px 16px", textAlign: "right" }}>
+                  <td className="rt-action" data-label="" style={{ padding: "12px 16px", textAlign: "right" }}>
                     <div style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
                       {showDownload && <UnitDownloadButton unitId={u._id} chassis={u.chassis} variant="icon" />}
                       <Link href={`/units/${u._id}`} style={{

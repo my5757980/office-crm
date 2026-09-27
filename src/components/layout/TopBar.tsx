@@ -16,7 +16,7 @@ export default function TopBar() {
   const roleInfo = roleMap[role] ?? { label: role, bg: "#f3f4f6", color: "#374151" };
 
   return (
-    <div style={{
+    <div className="crm-topbar" style={{
       display: "flex",
       alignItems: "center",
       justifyContent: "flex-end",
@@ -29,10 +29,10 @@ export default function TopBar() {
     }}>
       <NotificationBell />
 
-      <div style={{ width: "1px", height: "20px", background: "#d0d7de" }} />
+      <div className="crm-topbar-divider" style={{ width: "1px", height: "20px", background: "#d0d7de" }} />
 
       {/* Role badge */}
-      <span style={{
+      <span className="crm-topbar-role" style={{
         fontSize: "11px",
         fontWeight: 600,
         padding: "3px 10px",
@@ -55,11 +55,11 @@ export default function TopBar() {
         {session?.user?.name?.[0]?.toUpperCase() ?? "?"}
       </div>
 
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
-        <span style={{ fontSize: "13px", fontWeight: 600, color: "#1f2328", lineHeight: 1.2 }}>
+      <div className="crm-topbar-user" style={{ display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
+        <span className="crm-topbar-name" style={{ fontSize: "13px", fontWeight: 600, color: "#1f2328", lineHeight: 1.2 }}>
           {session?.user?.name ?? ""}
         </span>
-        <span style={{ fontSize: "11px", color: "#8c959f" }}>
+        <span className="crm-topbar-email" style={{ fontSize: "11px", color: "#8c959f" }}>
           {session?.user?.email ?? ""}
         </span>
       </div>

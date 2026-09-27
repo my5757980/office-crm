@@ -9,7 +9,7 @@ export default function Error({
 }) {
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#f9fafb]">
-      <div className="text-center">
+      <div className="text-center px-4 break-words">
         <h2 className="text-xl font-bold text-gray-900 mb-2">Something went wrong</h2>
         <p className="text-gray-500 text-sm mb-6">{error.message}</p>
         <button

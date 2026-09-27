@@ -49,7 +49,7 @@ export default function LeadTable({ leads, showCreatedBy = false }: { leads: Pop
 
   return (
     <div style={{ overflowX: "auto" }}>
-      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
+      <table className="resp-table" style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
         <thead>
           <tr>
             <th style={thStyle}>Customer</th>
@@ -75,7 +75,7 @@ export default function LeadTable({ leads, showCreatedBy = false }: { leads: Pop
                 onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "#f6f8fa"; }}
                 onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
               >
-                <td style={{ padding: "13px 18px" }}>
+                <td className="rt-head" data-label="Customer" style={{ padding: "13px 18px" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                     <div style={{
                       width: "30px", height: "30px", borderRadius: "50%", flexShrink: 0,
@@ -89,13 +89,15 @@ export default function LeadTable({ leads, showCreatedBy = false }: { leads: Pop
                     <span style={{ fontWeight: 600, color: "#1f2328" }}>{lead.customerName || lead.contactPerson || "—"}</span>
                   </div>
                 </td>
-                <td style={{ padding: "13px 18px", color: "#656d76" }}>{lead.contactPerson}</td>
-                <td style={{ padding: "13px 18px" }}>
-                  <span style={{ color: "#1f2328", fontWeight: 500 }}>{lead.country}</span>
-                  <br />
-                  <span style={{ fontSize: "12px", color: "#8c959f" }}>{lead.port}</span>
+                <td data-label="Contact" style={{ padding: "13px 18px", color: "#656d76" }}>{lead.contactPerson}</td>
+                <td data-label="Destination" style={{ padding: "13px 18px" }}>
+                  <div>
+                    <span style={{ color: "#1f2328", fontWeight: 500 }}>{lead.country}</span>
+                    <br />
+                    <span style={{ fontSize: "12px", color: "#8c959f" }}>{lead.port}</span>
+                  </div>
                 </td>
-                <td style={{ padding: "13px 18px" }}>
+                <td data-label="Status" style={{ padding: "13px 18px" }}>
                   <span style={{
                     display: "inline-flex", alignItems: "center", gap: "5px",
                     padding: "3px 10px", borderRadius: "20px", fontSize: "11px", fontWeight: 600,
@@ -106,9 +108,9 @@ export default function LeadTable({ leads, showCreatedBy = false }: { leads: Pop
                   </span>
                 </td>
                 {showCreatedBy && (
-                  <td style={{ padding: "13px 18px", color: "#656d76", fontSize: "12px" }}>{lead.createdBy?.name}</td>
+                  <td data-label="Agent" style={{ padding: "13px 18px", color: "#656d76", fontSize: "12px" }}>{lead.createdBy?.name}</td>
                 )}
-                <td style={{ padding: "13px 18px", color: "#8c959f", fontSize: "12px", whiteSpace: "nowrap" }}>
+                <td data-label="Date" style={{ padding: "13px 18px", color: "#8c959f", fontSize: "12px", whiteSpace: "nowrap" }}>
                   {new Date(lead.createdAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" })}
                 </td>
               </tr>

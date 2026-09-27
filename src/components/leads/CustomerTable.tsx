@@ -49,7 +49,7 @@ export default function CustomerTable({
 
   return (
     <div style={{ overflowX: "auto" }}>
-      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
+      <table className="resp-table" style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
         <thead>
           <tr>
             <th style={thStyle}>Customer</th>
@@ -75,7 +75,7 @@ export default function CustomerTable({
                 onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "#f6f8fa"; }}
                 onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
               >
-                <td style={{ padding: "13px 18px" }}>
+                <td className="rt-head" data-label="Customer" style={{ padding: "13px 18px" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                     <div style={{
                       width: "30px", height: "30px", borderRadius: "50%", flexShrink: 0,
@@ -89,13 +89,15 @@ export default function CustomerTable({
                     <span style={{ fontWeight: 600, color: "#1f2328" }}>{c.customerName}</span>
                   </div>
                 </td>
-                <td style={{ padding: "13px 18px", color: "#656d76" }}>{c.contactPerson}</td>
-                <td style={{ padding: "13px 18px" }}>
-                  <span style={{ color: "#1f2328", fontWeight: 500 }}>{c.country}</span>
-                  <br />
-                  <span style={{ fontSize: "12px", color: "#8c959f" }}>{c.port}</span>
+                <td data-label="Contact" style={{ padding: "13px 18px", color: "#656d76" }}>{c.contactPerson}</td>
+                <td data-label="Destination" style={{ padding: "13px 18px" }}>
+                  <div>
+                    <span style={{ color: "#1f2328", fontWeight: 500 }}>{c.country}</span>
+                    <br />
+                    <span style={{ fontSize: "12px", color: "#8c959f" }}>{c.port}</span>
+                  </div>
                 </td>
-                <td style={{ padding: "13px 18px" }}>
+                <td data-label="Invoices" style={{ padding: "13px 18px" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                     <span style={{
                       display: "inline-flex", alignItems: "center", gap: "4px",
@@ -116,9 +118,9 @@ export default function CustomerTable({
                   </div>
                 </td>
                 {showCreatedBy && (
-                  <td style={{ padding: "13px 18px", color: "#656d76", fontSize: "12px" }}>{c.createdBy?.name}</td>
+                  <td data-label="Agent" style={{ padding: "13px 18px", color: "#656d76", fontSize: "12px" }}>{c.createdBy?.name}</td>
                 )}
-                <td style={{ padding: "13px 18px", color: "#8c959f", fontSize: "12px", whiteSpace: "nowrap" }}>
+                <td data-label="Since" style={{ padding: "13px 18px", color: "#8c959f", fontSize: "12px", whiteSpace: "nowrap" }}>
                   {new Date(c.createdAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" })}
                 </td>
               </tr>

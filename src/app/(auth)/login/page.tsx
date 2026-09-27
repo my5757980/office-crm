@@ -17,7 +17,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
         <img src="/logo.png" alt="Logo" style={{ height: "52px", width: "auto", objectFit: "contain" }} />
       </div>
 
-      <div style={{
+      <div className="auth-card" style={{
         background: "#ffffff",
         border: "1px solid #d0d7de",
         borderRadius: "12px",

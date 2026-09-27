@@ -78,7 +78,7 @@ export default function BulkLeadTools({ agents, unassigned }: Props) {
           <p style={{ fontSize: "13px", fontWeight: 700, color: "#1f2328" }}>Bulk Lead Import</p>
           <p style={{ fontSize: "12px", color: "#8c959f", marginTop: "2px" }}>Download the template, fill it, import — then assign leads to agents by country</p>
         </div>
-        <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+        <div className="bulk-btns" style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
           <a href="/api/leads/template" style={{ ...btn("#1f2328"), textDecoration: "none" }}>
             <DownloadIcon /> Download Template
           </a>
@@ -117,10 +117,11 @@ export default function BulkLeadTools({ agents, unassigned }: Props) {
           <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
             {unassigned.map((c) => (
               <div key={c.country} style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap", padding: "8px 12px", borderRadius: "8px", background: "#f6f8fa", border: "1px solid #e5e7eb" }}>
-                <span style={{ fontSize: "13px", fontWeight: 600, color: "#1f2328", minWidth: "140px" }}>
+                <span className="bulk-country" style={{ fontSize: "13px", fontWeight: 600, color: "#1f2328", minWidth: "140px" }}>
                   {c.country} <span style={{ color: "#8c959f", fontWeight: 400 }}>({c.count})</span>
                 </span>
                 <select
+                  className="bulk-select"
                   value={assignSel[c.country] ?? ""}
                   onChange={(e) => setAssignSel((p) => ({ ...p, [c.country]: e.target.value }))}
                   style={{ flex: 1, minWidth: "180px", padding: "6px 10px", borderRadius: "6px", border: "1px solid #d0d7de", fontSize: "13px", background: "#fff" }}

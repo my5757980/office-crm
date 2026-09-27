@@ -39,9 +39,9 @@ const statusMap: Record<string, { label: string; bg: string; color: string; dot:
 function DataRow({ label, value }: { label: string; value?: string }) {
   if (!value) return null;
   return (
-    <div style={{ display: "flex", gap: "12px", padding: "10px 0", borderBottom: "1px solid #f0f2f4" }}>
-      <span style={{ fontSize: "12px", color: "#8c959f", fontWeight: 500, width: "120px", flexShrink: 0 }}>{label}</span>
-      <span style={{ fontSize: "13px", color: "#1f2328", fontWeight: 500 }}>{value}</span>
+    <div className="data-row" style={{ display: "flex", gap: "12px", padding: "10px 0", borderBottom: "1px solid #f0f2f4" }}>
+      <span className="data-row-label" style={{ fontSize: "12px", color: "#8c959f", fontWeight: 500, width: "120px", flexShrink: 0 }}>{label}</span>
+      <span className="data-row-val" style={{ fontSize: "13px", color: "#1f2328", fontWeight: 500 }}>{value}</span>
     </div>
   );
 }
@@ -94,8 +94,8 @@ export default function LeadDetail({ lead, canEdit, canChangeStatus, canDelete, 
   return (
     <div style={{ background: "#ffffff", border: "1px solid #d0d7de", borderRadius: "10px", overflow: "hidden", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
       {/* Header */}
-      <div style={{ padding: "20px 24px", borderBottom: "1px solid #d0d7de", background: "linear-gradient(135deg, #f6f8fa 0%, #eff6ff 100%)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "16px" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+      <div className="detail-head" style={{ padding: "20px 24px", borderBottom: "1px solid #d0d7de", background: "linear-gradient(135deg, #f6f8fa 0%, #eff6ff 100%)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "16px" }}>
+        <div className="detail-head-main" style={{ display: "flex", alignItems: "center", gap: "16px" }}>
           <div style={{
             width: "48px", height: "48px", borderRadius: "10px", flexShrink: 0,
             background: lead.isCustomer
@@ -110,7 +110,7 @@ export default function LeadDetail({ lead, canEdit, canChangeStatus, canDelete, 
             {lead.customerName[0]}
           </div>
           <div>
-            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
               <h2 style={{ fontSize: "18px", fontWeight: 700, color: "#1f2328" }}>{lead.customerName}</h2>
               {lead.isCustomer && (
                 <span style={{ fontSize: "10px", fontWeight: 700, padding: "2px 8px", borderRadius: "20px", background: "#d1fae5", color: "#065f46", letterSpacing: "0.05em" }}>
@@ -131,7 +131,7 @@ export default function LeadDetail({ lead, canEdit, canChangeStatus, canDelete, 
         </div>
 
         {/* Actions */}
-        <div style={{ display: "flex", alignItems: "center", gap: "8px", flexShrink: 0, flexWrap: "wrap" }}>
+        <div className="detail-actions" style={{ display: "flex", alignItems: "center", gap: "8px", flexShrink: 0, flexWrap: "wrap" }}>
           {canChangeStatus && !["invoiced", "invoice_requested"].includes(lead.status) && (
             <select
               value={lead.status}
@@ -202,15 +202,15 @@ export default function LeadDetail({ lead, canEdit, canChangeStatus, canDelete, 
       </div>
 
       {/* Info */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr" }}>
-        <div style={{ padding: "20px 24px", borderRight: "1px solid #f0f2f4" }}>
+      <div className="detail-info-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr" }}>
+        <div className="detail-info-col" style={{ padding: "20px 24px", borderRight: "1px solid #f0f2f4" }}>
           <p style={{ fontSize: "11px", fontWeight: 700, color: "#8c959f", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "4px" }}>Contact Information</p>
           <DataRow label="Contact Person" value={lead.contactPerson} />
           <DataRow label="Phone"          value={lead.phone} />
           <DataRow label="Email"          value={lead.email} />
           <DataRow label="Address"        value={lead.address} />
         </div>
-        <div style={{ padding: "20px 24px" }}>
+        <div className="detail-info-col" style={{ padding: "20px 24px" }}>
           <p style={{ fontSize: "11px", fontWeight: 700, color: "#8c959f", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "4px" }}>Shipping Destination</p>
           <DataRow label="Country"     value={`${lead.country} (${lead.countryCode})`} />
           <DataRow label="Port"        value={lead.port} />

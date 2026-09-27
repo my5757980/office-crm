@@ -40,13 +40,13 @@ export default function LeadPagination({ page, totalPages, total, limit }: Props
   });
 
   return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", padding: "12px 20px", borderTop: "1px solid #f0f2f4", flexWrap: "wrap" }}>
-      <span style={{ fontSize: "12px", color: "#656d76" }}>
+    <div className="lead-pager" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", padding: "12px 20px", borderTop: "1px solid #f0f2f4", flexWrap: "wrap" }}>
+      <span className="lead-pager-info" style={{ fontSize: "12px", color: "#656d76" }}>
         Showing <b>{from}–{to}</b> of <b>{total}</b>
       </span>
 
-      <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
-        <button onClick={() => goto(1)}       disabled={page <= 1} style={btn(page <= 1)}>« First</button>
+      <div className="lead-pager-btns" style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
+        <button className="pager-edge" onClick={() => goto(1)}       disabled={page <= 1} style={btn(page <= 1)}>« First</button>
         <button onClick={() => goto(page - 1)} disabled={page <= 1} style={btn(page <= 1)}>‹ Prev</button>
 
         {pages.map((p) => (
@@ -65,7 +65,7 @@ export default function LeadPagination({ page, totalPages, total, limit }: Props
         ))}
 
         <button onClick={() => goto(page + 1)}      disabled={page >= totalPages} style={btn(page >= totalPages)}>Next ›</button>
-        <button onClick={() => goto(totalPages)}    disabled={page >= totalPages} style={btn(page >= totalPages)}>Last »</button>
+        <button className="pager-edge" onClick={() => goto(totalPages)}    disabled={page >= totalPages} style={btn(page >= totalPages)}>Last »</button>
       </div>
     </div>
   );

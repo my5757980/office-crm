@@ -66,7 +66,7 @@ export default async function InvoiceDetailPage({
   if (!fetched) {
     return (
       <div style={{ display: "flex", flexDirection: "column", flex: 1 }}>
-        <div className="no-print"><TopBar /></div>
+        <div className="no-print crm-topbar-wrap"><TopBar /></div>
         <div style={{ flex: 1, padding: "24px", display: "flex", flexDirection: "column", gap: "16px" }}>
           {backLink}
           <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "48px 24px" }}>
@@ -120,7 +120,7 @@ export default async function InvoiceDetailPage({
 
   return (
     <div style={{ display: "flex", flexDirection: "column", flex: 1 }}>
-      <div className="no-print">
+      <div className="no-print crm-topbar-wrap">
         <TopBar />
       </div>
       <div style={{ flex: 1, padding: "24px", display: "flex", flexDirection: "column", gap: "16px" }}>

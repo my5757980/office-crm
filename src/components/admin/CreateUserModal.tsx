@@ -50,11 +50,11 @@ export default function CreateUserModal({ onClose, onCreated }: Props) {
   if (!isAdminOrManager && !isSupervisor) return null;
 
   return (
-    <div style={{
+    <div className="crm-modal" style={{
       position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)",
       display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50,
     }}>
-      <div style={{
+      <div className="crm-modal-box" style={{
         background: "#ffffff", border: "1px solid #d0d7de", borderRadius: "12px",
         width: "100%", maxWidth: "440px", margin: "0 16px",
         boxShadow: "0 20px 60px rgba(0,0,0,0.15)", overflow: "hidden",

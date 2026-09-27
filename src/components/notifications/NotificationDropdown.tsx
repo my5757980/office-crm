@@ -31,7 +31,7 @@ const typeIcon: Record<string, string> = {
 
 export default function NotificationDropdown({ notifications }: { notifications: Notification[] }) {
   return (
-    <div style={{
+    <div className="notif-dropdown" style={{
       position: "absolute", right: 0, top: "44px",
       width: "320px",
       background: "#ffffff",

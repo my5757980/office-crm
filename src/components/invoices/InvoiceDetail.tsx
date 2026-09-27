@@ -37,9 +37,9 @@ interface InvoiceDetailProps {
 function InfoRow({ label, value }: { label: string; value?: string | number }) {
   if (!value && value !== 0) return null;
   return (
-    <div style={{ display: "flex", gap: "12px", padding: "9px 0", borderBottom: "1px solid #f0f2f4" }}>
-      <span style={{ fontSize: "11px", color: "#8c959f", fontWeight: 500, width: "110px", flexShrink: 0, textTransform: "uppercase", letterSpacing: "0.04em" }}>{label}</span>
-      <span style={{ fontSize: "13px", color: "#1f2328", fontWeight: 500 }}>{value}</span>
+    <div className="data-row" style={{ display: "flex", gap: "12px", padding: "9px 0", borderBottom: "1px solid #f0f2f4" }}>
+      <span className="data-row-label" style={{ fontSize: "11px", color: "#8c959f", fontWeight: 500, width: "110px", flexShrink: 0, textTransform: "uppercase", letterSpacing: "0.04em" }}>{label}</span>
+      <span className="data-row-val" style={{ fontSize: "13px", color: "#1f2328", fontWeight: 500 }}>{value}</span>
     </div>
   );
 }
@@ -143,6 +143,18 @@ export default function InvoiceDetail({ invoice, role, unitId }: InvoiceDetailPr
     } finally { setDlLoading(null); }
   };
 
+  // Phones can't render a PDF inside an iframe (Android shows nothing), so the
+  // mobile layout offers the file in the browser's own PDF viewer instead.
+  const openPdf = () => {
+    if (!uploadedPdf?.data) return;
+    const bytes = atob(uploadedPdf.data);
+    const arr = new Uint8Array(bytes.length);
+    for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
+    const url = URL.createObjectURL(new Blob([arr], { type: "application/pdf" }));
+    window.open(url, "_blank");
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+  };
+
   const patch = async (action: string, extra?: Record<string, string>) => {
     setLoading(true);
     const res = await fetch(`/api/invoices/${invoice._id}`, {
@@ -186,8 +198,8 @@ export default function InvoiceDetail({ invoice, role, unitId }: InvoiceDetailPr
           borderBottom: "1px solid #d0d7de",
           background: "linear-gradient(135deg, #f6f8fa 0%, #eff6ff 100%)",
           display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "16px",
-        }} className="no-print">
-          <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+        }} className="no-print detail-head">
+          <div className="detail-head-main" style={{ display: "flex", alignItems: "center", gap: "16px" }}>
             <div style={{
               width: "48px", height: "48px", borderRadius: "10px", flexShrink: 0,
               background: "linear-gradient(135deg, #2563eb, #1d4ed8)",
@@ -226,7 +238,7 @@ export default function InvoiceDetail({ invoice, role, unitId }: InvoiceDetailPr
           </div>
 
           {/* Actions */}
-          <div style={{ display: "flex", alignItems: "center", gap: "8px", flexShrink: 0, flexWrap: "wrap" }}>
+          <div className="detail-actions" style={{ display: "flex", alignItems: "center", gap: "8px", flexShrink: 0, flexWrap: "wrap" }}>
             <button
               onClick={() => window.print()}
               style={{
@@ -465,7 +477,7 @@ export default function InvoiceDetail({ invoice, role, unitId }: InvoiceDetailPr
 
         {/* Rejection notice */}
         {invoice.status === "rejected" && invoice.rejectionNote && (
-          <div style={{
+          <div className="reject-note" style={{
             margin: "16px 24px",
             display: "flex", alignItems: "flex-start", gap: "10px",
             background: "#ffebe9", border: "1px solid #ffcecb",
@@ -488,8 +500,8 @@ export default function InvoiceDetail({ invoice, role, unitId }: InvoiceDetailPr
         </div>
 
         {/* Consignee + Vehicle grid */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr" }}>
-          <div style={{ padding: "20px 24px", borderRight: "1px solid #f0f2f4" }}>
+        <div className="detail-info-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr" }}>
+          <div className="detail-info-col" style={{ padding: "20px 24px", borderRight: "1px solid #f0f2f4" }}>
             <p style={{ fontSize: "11px", fontWeight: 700, color: "#8c959f", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "4px" }}>Consignee</p>
             <InfoRow label="Name"    value={invoice.consignee.name} />
             <InfoRow label="Phone"   value={invoice.consignee.phone} />
@@ -498,7 +510,7 @@ export default function InvoiceDetail({ invoice, role, unitId }: InvoiceDetailPr
             <InfoRow label="Port"    value={invoice.consignee.port} />
             <InfoRow label="Address" value={invoice.consignee.address} />
           </div>
-          <div style={{ padding: "20px 24px" }}>
+          <div className="detail-info-col" style={{ padding: "20px 24px" }}>
             <p style={{ fontSize: "11px", fontWeight: 700, color: "#8c959f", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "4px" }}>Vehicle Details</p>
             <InfoRow label="Unit / Make" value={invoice.unit} />
             <InfoRow label="Color"       value={invoice.color} />
@@ -524,7 +536,7 @@ export default function InvoiceDetail({ invoice, role, unitId }: InvoiceDetailPr
             { label: "Push Price",    sub: "Buying price",             value: invoice.pushPrice },
             { label: "CNF Price",     sub: "Cost & Freight (selling)", value: invoice.cnfPrice },
           ].map(({ label, sub, value }, i, arr) => (
-            <div key={label} style={{
+            <div key={label} className="price-row" style={{
               display: "flex", alignItems: "center", justifyContent: "space-between",
               padding: "14px 24px",
               borderBottom: i < arr.length - 1 ? "1px solid #f0f2f4" : "none",
@@ -542,7 +554,7 @@ export default function InvoiceDetail({ invoice, role, unitId }: InvoiceDetailPr
       {/* PDF Upload + Preview (supervisor/manager: approved/sent | agent: sent) */}
       {(["approved", "sent"].includes(invoice.status)) && (role === "super_admin" || role === "manager" || (role === "user" && invoice.status === "sent")) && (
         <div style={cardStyle}>
-          <div style={{
+          <div className="card-toolbar" style={{
             padding: "14px 24px", borderBottom: "1px solid #d0d7de",
             background: "linear-gradient(135deg, #f6f8fa 0%, #eff6ff 100%)",
             display: "flex", alignItems: "center", justifyContent: "space-between",
@@ -554,7 +566,7 @@ export default function InvoiceDetail({ invoice, role, unitId }: InvoiceDetailPr
               <span style={{ fontSize: "12px", color: "#8c959f" }}>Upload PDF to enable Mark as Sent</span>
             )}
             {uploadedPdf && (
-              <span style={{ fontSize: "12px", color: "#059669", fontWeight: 600 }}>
+              <span className="ow-any" style={{ fontSize: "12px", color: "#059669", fontWeight: 600 }}>
                 ✓ {uploadedPdf.filename}
               </span>
             )}
@@ -591,11 +603,28 @@ export default function InvoiceDetail({ invoice, role, unitId }: InvoiceDetailPr
           {uploadedPdf && (
             <div style={{ padding: "0" }}>
               {uploadedPdf.data ? (
-                <iframe
-                  src={`data:application/pdf;base64,${uploadedPdf.data}`}
-                  style={{ width: "100%", height: "600px", border: "none", display: "block" }}
-                  title="Invoice PDF"
-                />
+                <>
+                  <button
+                    type="button"
+                    className="mobile-only"
+                    onClick={openPdf}
+                    style={{
+                      margin: "12px 16px", alignItems: "center", gap: "6px",
+                      padding: "9px 16px", borderRadius: "8px",
+                      fontSize: "13px", fontWeight: 600,
+                      color: "#2563eb", background: "#eff6ff",
+                      border: "1px solid #bfdbfe", cursor: "pointer",
+                    }}
+                  >
+                    Open PDF ↗
+                  </button>
+                  <iframe
+                    className="pdf-frame"
+                    src={`data:application/pdf;base64,${uploadedPdf.data}`}
+                    style={{ width: "100%", height: "600px", border: "none", display: "block" }}
+                    title="Invoice PDF"
+                  />
+                </>
               ) : (
                 <div style={{ padding: "32px 24px", textAlign: "center", color: "#8c959f", fontSize: "13px" }}>
                   {pdfLoading ? "Loading PDF preview…" : "Could not load PDF preview"}
@@ -615,7 +644,7 @@ export default function InvoiceDetail({ invoice, role, unitId }: InvoiceDetailPr
 
       {/* Edit Modal */}
       {editModal && (
-        <div className="no-print" style={{
+        <div className="no-print crm-modal" style={{
           position: "fixed", inset: 0,
           background: "rgba(0,0,0,0.5)",
           display: "flex", alignItems: "center", justifyContent: "center",
@@ -641,7 +670,7 @@ export default function InvoiceDetail({ invoice, role, unitId }: InvoiceDetailPr
               {/* Vehicle Details */}
               <div>
                 <p style={{ fontSize: "11px", fontWeight: 700, color: "#8c959f", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "12px" }}>Vehicle Details</p>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                <div className="form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
                   {([
                     ["unit",         "Unit / Make"],
                     ["chassisNo",    "Chassis No."],
@@ -673,7 +702,7 @@ export default function InvoiceDetail({ invoice, role, unitId }: InvoiceDetailPr
               {/* Consignee */}
               <div>
                 <p style={{ fontSize: "11px", fontWeight: 700, color: "#8c959f", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "12px" }}>Consignee</p>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                <div className="form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
                   {([
                     ["consigneeName",    "Name"],
                     ["consigneePhone",   "Phone"],
@@ -703,7 +732,7 @@ export default function InvoiceDetail({ invoice, role, unitId }: InvoiceDetailPr
               {/* Pricing */}
               <div>
                 <p style={{ fontSize: "11px", fontWeight: 700, color: "#8c959f", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "12px" }}>Pricing</p>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                <div className="form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
                   {([
                     ["m3Rate",         "M3 Rate"],
                     ["exchangeRate",   "Exchange Rate"],
@@ -761,13 +790,13 @@ export default function InvoiceDetail({ invoice, role, unitId }: InvoiceDetailPr
 
       {/* Reject Modal */}
       {rejectModal && (
-        <div className="no-print" style={{
+        <div className="no-print crm-modal" style={{
           position: "fixed", inset: 0,
           background: "rgba(0,0,0,0.5)",
           display: "flex", alignItems: "center", justifyContent: "center",
           zIndex: 50,
         }}>
-          <div style={{
+          <div className="crm-modal-box" style={{
             background: "#ffffff",
             border: "1px solid #d0d7de",
             borderRadius: "12px",

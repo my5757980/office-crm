@@ -17,7 +17,7 @@ async function getStats(whereSql: string, params: unknown[]) {
 
 function StatCard({ label, value, icon, bg }: { label: string; value: number; icon: string; bg: string }) {
   return (
-    <div style={{
+    <div className="stat-card" style={{
       background: "#ffffff",
       border: "1px solid #d0d7de",
       borderRadius: "10px",
@@ -105,7 +105,7 @@ export default async function InvoicesPage() {
         </div>
 
         {/* Stats */}
-        <div style={{ display: "grid", gridTemplateColumns: `repeat(${isSupervisor ? 5 : 4}, 1fr)`, gap: "14px" }}>
+        <div className="stat-grid" style={{ display: "grid", gridTemplateColumns: `repeat(${isSupervisor ? 5 : 4}, 1fr)`, gap: "14px" }}>
           <StatCard label="Total"            value={invoices.length}       icon="📄" bg="#eff6ff" />
           <StatCard label="Pending"          value={stats.pending}         icon="⏳" bg="#fffbeb" />
           <StatCard label="Approved"         value={stats.approved}        icon="✅" bg="#f0fdf4" />

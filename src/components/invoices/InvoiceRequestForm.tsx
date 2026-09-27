@@ -105,7 +105,7 @@ export default function InvoiceRequestForm({ leadId, defaultConsignee, onSubmit 
 
       <section>
         <SectionTitle>Consignee Details</SectionTitle>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px" }}>
+        <div className="form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px" }}>
           <Field label="Name" required error={errors.consignee?.name?.message}>
             <input {...register("consignee.name")} style={inputStyle} placeholder="Customer / Consignee name" {...focusHandlers} />
           </Field>
@@ -144,7 +144,7 @@ export default function InvoiceRequestForm({ leadId, defaultConsignee, onSubmit 
               </select>
             )}
           </Field>
-          <div style={{ gridColumn: "span 2" }}>
+          <div className="form-span-2" style={{ gridColumn: "span 2" }}>
             <Field label="Address" error={errors.consignee?.address?.message}>
               <input {...register("consignee.address")} style={inputStyle} placeholder="Full address" {...focusHandlers} />
             </Field>
@@ -154,7 +154,7 @@ export default function InvoiceRequestForm({ leadId, defaultConsignee, onSubmit 
 
       <section>
         <SectionTitle>Vehicle Details</SectionTitle>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px" }}>
+        <div className="form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px" }}>
           <Field label="Unit / Make & Model" required error={errors.unit?.message}>
             <input {...register("unit")} style={inputStyle} placeholder="e.g. Toyota Land Cruiser" {...focusHandlers} />
           </Field>
@@ -176,7 +176,7 @@ export default function InvoiceRequestForm({ leadId, defaultConsignee, onSubmit 
           <Field label="Fuel Type" error={errors.fuel?.message}>
             <input {...register("fuel")} style={inputStyle} placeholder="e.g. Petrol / Diesel" {...focusHandlers} />
           </Field>
-          <div style={{ gridColumn: "span 2" }}>
+          <div className="form-span-2" style={{ gridColumn: "span 2" }}>
             <Field label="Sales Person" error={errors.salesperson?.message}>
               <input {...register("salesperson")} style={inputStyle} placeholder="Sales person name" {...focusHandlers} />
             </Field>
@@ -186,7 +186,7 @@ export default function InvoiceRequestForm({ leadId, defaultConsignee, onSubmit 
 
       <section>
         <SectionTitle>Pricing</SectionTitle>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px" }}>
+        <div className="form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px" }}>
           <Field label="M3 Rate" required error={errors.m3Rate?.message}>
             <input {...register("m3Rate", { valueAsNumber: true })} type="number" step="0.01" style={inputStyle} placeholder="0.00" {...focusHandlers} />
           </Field>

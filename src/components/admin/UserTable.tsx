@@ -135,12 +135,12 @@ export default function UserTable({ users: initialUsers, currentRole }: { users:
     <div>
       {/* Reset Password Modal */}
       {resetTarget && (
-        <div style={{
+        <div className="crm-modal" style={{
           position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)",
           display: "flex", alignItems: "center", justifyContent: "center",
           zIndex: 1000, padding: "16px",
         }}>
-          <div style={{
+          <div className="crm-modal-box" style={{
             background: "#fff", borderRadius: "12px", padding: "28px",
             width: "100%", maxWidth: "380px",
             boxShadow: "0 8px 32px rgba(0,0,0,0.18)",
@@ -214,12 +214,12 @@ export default function UserTable({ users: initialUsers, currentRole }: { users:
 
     {/* Transfer Data Modal */}
     {transferSource && (
-      <div style={{
+      <div className="crm-modal" style={{
         position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)",
         display: "flex", alignItems: "center", justifyContent: "center",
         zIndex: 1000, padding: "16px",
       }}>
-        <div style={{
+        <div className="crm-modal-box" style={{
           background: "#fff", borderRadius: "12px", padding: "28px",
           width: "100%", maxWidth: "420px",
           boxShadow: "0 8px 32px rgba(0,0,0,0.18)",
@@ -317,7 +317,7 @@ export default function UserTable({ users: initialUsers, currentRole }: { users:
     )}
 
     <div style={{ overflowX: "auto" }}>
-      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
+      <table className="resp-table" style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
         <thead>
           <tr>
             <th style={thStyle}>Name</th>
@@ -338,7 +338,7 @@ export default function UserTable({ users: initialUsers, currentRole }: { users:
                 onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "#f6f8fa"; }}
                 onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
               >
-                <td style={{ padding: "13px 18px" }}>
+                <td className="rt-head" data-label="Name" style={{ padding: "13px 18px" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                     <div style={{
                       width: "30px", height: "30px", borderRadius: "50%", flexShrink: 0,
@@ -351,8 +351,8 @@ export default function UserTable({ users: initialUsers, currentRole }: { users:
                     <span style={{ fontWeight: 600, color: "#1f2328" }}>{user.name}</span>
                   </div>
                 </td>
-                <td style={{ padding: "13px 18px", color: "#656d76", fontSize: "12px" }}>{user.email}</td>
-                <td style={{ padding: "13px 18px" }}>
+                <td data-label="Email" style={{ padding: "13px 18px", color: "#656d76", fontSize: "12px" }}>{user.email}</td>
+                <td data-label="Role" style={{ padding: "13px 18px" }}>
                   {canEdit ? (
                     <select
                       value={user.role}
@@ -380,7 +380,7 @@ export default function UserTable({ users: initialUsers, currentRole }: { users:
                     </span>
                   )}
                 </td>
-                <td style={{ padding: "13px 18px" }}>
+                <td data-label="Status" style={{ padding: "13px 18px" }}>
                   <span style={{
                     display: "inline-flex", alignItems: "center", gap: "5px",
                     padding: "3px 10px", borderRadius: "20px",
@@ -392,10 +392,10 @@ export default function UserTable({ users: initialUsers, currentRole }: { users:
                     {user.isActive ? "Active" : "Inactive"}
                   </span>
                 </td>
-                <td style={{ padding: "13px 18px", color: "#8c959f", fontSize: "12px", whiteSpace: "nowrap" }}>
+                <td data-label="Joined" style={{ padding: "13px 18px", color: "#8c959f", fontSize: "12px", whiteSpace: "nowrap" }}>
                   {new Date(user.createdAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" })}
                 </td>
-                <td style={{ padding: "13px 18px", textAlign: "right" }}>
+                <td className="rt-action" data-label="" style={{ padding: "13px 18px", textAlign: "right" }}>
                   <div style={{ display: "flex", gap: "6px", justifyContent: "flex-end", flexWrap: "wrap" }}>
                     {canEdit && user.role === "user" && (
                       <button
