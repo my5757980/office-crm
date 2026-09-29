@@ -1,6 +1,8 @@
 // For the SBK website's account sync: every customer that has at least one
 // non-rejected invoice and an email, with the totals the website shows in its
-// Users list. Read-only; the request must be signed by the website.
+// Users list, and the agent(s) whose leads they are (leads.created_by - the
+// same owner the CRM itself uses), so the website can show an agent only
+// their own customers. Read-only; the request must be signed by the website.
 import { NextRequest, NextResponse } from "next/server";
 import { query } from "@/lib/pg";
 import { CUSTOMER_EMAIL_SQL, verifyApiRequest } from "@/lib/website-link";
@@ -19,6 +21,8 @@ interface CustomerRow {
   total: string | number | null;
   paid: string | number | null;
   last_invoice_at: string;
+  agent_emails: string | null;
+  agent_name: string | null;
 }
 
 // The most recent non-empty value of a column across the customer's invoices.
@@ -36,8 +40,10 @@ export async function GET(req: NextRequest) {
               COALESCE(NULLIF(trim(l.phone), ''), NULLIF(trim(i.consignee_phone), '')) AS phone,
               COALESCE(NULLIF(trim(l.country), ''), NULLIF(trim(i.consignee_country), '')) AS country,
               COALESCE(NULLIF(trim(l.port), ''), NULLIF(trim(i.consignee_port), '')) AS port,
-              COALESCE(NULLIF(trim(l.address), ''), NULLIF(trim(i.consignee_address), '')) AS address
+              COALESCE(NULLIF(trim(l.address), ''), NULLIF(trim(i.consignee_address), '')) AS address,
+              lower(trim(u.email)) AS agent_email, u.name AS agent_name
        FROM invoices i JOIN leads l ON l.id = i.lead_id
+       LEFT JOIN users u ON u.id = l.created_by
        WHERE i.status <> 'rejected'
      ),
      paid AS (
@@ -53,7 +59,9 @@ export async function GET(req: NextRequest) {
             count(*)::int AS invoice_count,
             COALESCE(SUM(inv.cnf_price), 0) AS total,
             COALESCE(SUM(paid.paid), 0) AS paid,
-            max(inv.created_at) AS last_invoice_at
+            max(inv.created_at) AS last_invoice_at,
+            array_to_string(array_agg(DISTINCT inv.agent_email) FILTER (WHERE inv.agent_email <> ''), ',') AS agent_emails,
+            ${latest("agent_name")} AS agent_name
      FROM inv LEFT JOIN paid ON paid.invoice_id = inv.id
      WHERE inv.email LIKE '%_@_%'
      GROUP BY inv.email
@@ -76,6 +84,8 @@ export async function GET(req: NextRequest) {
       paid,
       balance: total - paid,
       lastInvoiceAt: r.last_invoice_at,
+      agentEmails: (r.agent_emails ?? "").split(",").filter(Boolean),
+      agentName: r.agent_name ?? "",
     };
   });
 
