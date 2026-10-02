@@ -36,24 +36,26 @@ const blankToUndefined = (v: unknown) =>
 const optionalPrice = (label: string) =>
   z.preprocess(blankToUndefined, z.number().positive(`${label} must be positive`).optional()).optional();
 
+// Sir's rule (2 Oct 2026): only the consignee's name, e-mail, phone and country
+// are required on an invoice request; everything else may be left empty.
 export const invoiceRequestSchema = z.object({
   leadId: z.string().min(1, "Lead ID is required"),
   consignee: z.object({
-    name:    z.string().min(1, "Consignee name is required"),
+    name:    z.string().trim().min(1, "Consignee name is required"),
     address: z.string().optional(),
-    phone:   z.string().min(1, "Consignee phone is required"),
-    email:   z.string().optional().default(""),
+    phone:   z.string().trim().min(1, "Consignee phone is required"),
+    email:   z.string().trim().min(1, "Consignee email is required").email("Invalid email"),
     country: z.string().min(1, "Consignee country is required"),
-    port:    z.string().min(1, "Consignee port is required"),
+    port:    z.string().optional().default(""),
   }),
-  unit:         z.string().min(1, "Unit/Make is required"),
+  unit:         z.string().optional().default(""),
   year:         z.string().optional().default(""),
   salesperson:  z.string().optional().default(""),
   fuel:         z.string().optional().default(""),
   transmission: z.string().optional().default(""),
-  chassisNo:    z.string().min(1, "Chassis number is required"),
-  engineNo:     z.string().min(1, "Engine number is required"),
-  color:        z.string().min(1, "Color is required"),
+  chassisNo:    z.string().optional().default(""),
+  engineNo:     z.string().optional().default(""),
+  color:        z.string().optional().default(""),
   // Pricing is optional for the agent; the Supervisor can fill it in later (Edit).
   m3Rate:       optionalPrice("M3 rate"),
   exchangeRate: optionalPrice("Exchange rate"),
