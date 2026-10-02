@@ -187,19 +187,19 @@ export default function InvoiceRequestForm({ leadId, defaultConsignee, onSubmit 
       <section>
         <SectionTitle>Pricing</SectionTitle>
         <div className="form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px" }}>
-          <Field label="M3 Rate" required error={errors.m3Rate?.message}>
+          <Field label="M3 Rate" error={errors.m3Rate?.message}>
             <input {...register("m3Rate", { valueAsNumber: true })} type="number" step="0.01" style={inputStyle} placeholder="0.00" {...focusHandlers} />
           </Field>
-          <Field label="Exchange Rate" required error={errors.exchangeRate?.message}>
+          <Field label="Exchange Rate" error={errors.exchangeRate?.message}>
             <input {...register("exchangeRate", { valueAsNumber: true })} type="number" step="0.01" style={inputStyle} placeholder="0.00" {...focusHandlers} />
           </Field>
-          <Field label="Push Price" required error={errors.pushPrice?.message}>
+          <Field label="Push Price" error={errors.pushPrice?.message}>
             <input {...register("pushPrice", { valueAsNumber: true })} type="number" step="0.01" style={inputStyle} placeholder="0.00" {...focusHandlers} />
           </Field>
-          <Field label="CNF Price" required error={errors.cnfPrice?.message}>
+          <Field label="CNF Price" error={errors.cnfPrice?.message}>
             <input {...register("cnfPrice", { valueAsNumber: true })} type="number" step="0.01" style={inputStyle} placeholder="0.00" {...focusHandlers} />
           </Field>
-          <Field label="Advance Payment %" required error={errors.advancePercent?.message}>
+          <Field label="Advance Payment %" error={errors.advancePercent?.message}>
             <input {...register("advancePercent", { valueAsNumber: true })} type="number" min="1" max="100" style={inputStyle} placeholder="e.g. 50" {...focusHandlers} />
           </Field>
         </div>

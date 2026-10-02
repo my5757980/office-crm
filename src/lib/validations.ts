@@ -27,6 +27,15 @@ export const loginSchema = z.object({
   password: z.string().min(1, "Password is required"),
 });
 
+// A pricing box an agent may leave empty: blank (NaN from a number input, "" or
+// null) means "not given". A value that IS typed must still be a real one.
+// The outer .optional() matters: zod 4 refuses a MISSING key on a bare
+// preprocess, and JSON.stringify drops undefined keys on the way from the form.
+const blankToUndefined = (v: unknown) =>
+  v === "" || v === null || (typeof v === "number" && Number.isNaN(v)) ? undefined : v;
+const optionalPrice = (label: string) =>
+  z.preprocess(blankToUndefined, z.number().positive(`${label} must be positive`).optional()).optional();
+
 export const invoiceRequestSchema = z.object({
   leadId: z.string().min(1, "Lead ID is required"),
   consignee: z.object({
@@ -45,11 +54,12 @@ export const invoiceRequestSchema = z.object({
   chassisNo:    z.string().min(1, "Chassis number is required"),
   engineNo:     z.string().min(1, "Engine number is required"),
   color:        z.string().min(1, "Color is required"),
-  m3Rate:       z.number().positive("M3 rate must be positive"),
-  exchangeRate: z.number().positive("Exchange rate must be positive"),
-  pushPrice:    z.number().positive("Push price must be positive"),
-  cnfPrice:       z.number().positive("CNF price must be positive"),
-  advancePercent: z.number().min(1, "Min 1%").max(100, "Max 100%").default(50),
+  // Pricing is optional for the agent; the Supervisor can fill it in later (Edit).
+  m3Rate:       optionalPrice("M3 rate"),
+  exchangeRate: optionalPrice("Exchange rate"),
+  pushPrice:    optionalPrice("Push price"),
+  cnfPrice:       optionalPrice("CNF price"),
+  advancePercent: z.preprocess(blankToUndefined, z.number().min(1, "Min 1%").max(100, "Max 100%").default(50)).default(50),
 });
 
 

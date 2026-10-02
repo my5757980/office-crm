@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { query, queryOne, genId } from "@/lib/pg";
 import { serializeInvoice } from "@/lib/serialize";
+import { syncInvoiceToWooCommerce } from "@/lib/woocommerce";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -94,6 +95,15 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
     if (setClauses.length > 0) {
       setClauses.push(`updated_at = now()`);
       await query(`UPDATE invoices SET ${setClauses.join(", ")} WHERE id = ${setP(id)}`, setParams);
+    }
+
+    // A request sent without pricing got no WooCommerce order (no $0 orders).
+    // The moment the Supervisor gives it a CNF price, it gets one.
+    if (body.cnfPrice !== undefined && Number(body.cnfPrice) > 0) {
+      const wc = await queryOne<{ wc_order_id: number | null }>(`SELECT wc_order_id FROM invoices WHERE id = $1`, [id]);
+      if (wc && !wc.wc_order_id) {
+        await syncInvoiceToWooCommerce(id);
+      }
     }
     return NextResponse.json({ ok: true });
   }
