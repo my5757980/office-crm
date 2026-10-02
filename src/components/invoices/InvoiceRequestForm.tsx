@@ -112,7 +112,7 @@ export default function InvoiceRequestForm({ leadId, defaultConsignee, onSubmit 
           <Field label="Phone" required error={errors.consignee?.phone?.message}>
             <input {...register("consignee.phone")} style={inputStyle} placeholder="+92 300 0000000" {...focusHandlers} />
           </Field>
-          <Field label="Email" required error={errors.consignee?.email?.message}>
+          <Field label="Email" error={errors.consignee?.email?.message}>
             <input {...register("consignee.email")} style={inputStyle} placeholder="customer@example.com" {...focusHandlers} />
           </Field>
           <Field label="Country" required error={errors.consignee?.country?.message}>

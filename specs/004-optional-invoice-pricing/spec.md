@@ -40,3 +40,11 @@
   - Refused: empty, missing or invalid e-mail; blank name, phone or country.
   - E-mail is trimmed. A negative price and Advance % over 100 are still refused.
   - `tsc --strict` passes.
+
+## Update, 2 Oct 2026 (third change): e-mail optional too
+
+**Input**: Sir. The consignee e-mail is optional as well. Only **Name, Phone and Country** stay required.
+
+- **FR-009**: A blank or missing e-mail is accepted and saved as `""`. An e-mail that IS typed is trimmed and must still be a valid address.
+- **Note**: the website's customer feed needs an e-mail, so an invoice with no e-mail on it (and none on the lead) does not reach the website until one is added.
+- **Tests**: real zod 4.4.1, 10/10 (missing, empty, spaces, valid trimmed, invalid refused; name, phone, country still required; blank pricing and negative price as before). `tsc --strict` passes.
