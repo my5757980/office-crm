@@ -36,15 +36,16 @@ const blankToUndefined = (v: unknown) =>
 const optionalPrice = (label: string) =>
   z.preprocess(blankToUndefined, z.number().positive(`${label} must be positive`).optional()).optional();
 
-// Sir's rule (2 Oct 2026): only the consignee's name, e-mail, phone and country
-// are required on an invoice request; everything else may be left empty.
+// Sir's rule (2 Oct 2026): only the consignee's name, phone and country are
+// required on an invoice request; everything else, e-mail too, may be left empty.
 export const invoiceRequestSchema = z.object({
   leadId: z.string().min(1, "Lead ID is required"),
   consignee: z.object({
     name:    z.string().trim().min(1, "Consignee name is required"),
     address: z.string().optional(),
     phone:   z.string().trim().min(1, "Consignee phone is required"),
-    email:   z.string().trim().min(1, "Consignee email is required").email("Invalid email"),
+    // E-mail may be left empty (saved as ""), but one that IS typed must be real.
+    email:   z.preprocess((v) => (typeof v === "string" ? v.trim() : v), z.union([z.literal(""), z.string().email("Invalid email")])).optional().default(""),
     country: z.string().min(1, "Consignee country is required"),
     port:    z.string().optional().default(""),
   }),
