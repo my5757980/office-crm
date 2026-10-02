@@ -41,12 +41,18 @@ export async function POST(request: NextRequest) {
   const invoiceRow = await queryOne(
     `INSERT INTO invoices (id, lead_id, created_by, consignee_name, consignee_address, consignee_phone, consignee_email, consignee_country, consignee_port, unit, chassis_no, engine_no, color, year, salesperson, fuel, transmission, m3_rate, exchange_rate, push_price, cnf_price, advance_percent)
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22) RETURNING *`,
-    [invoiceId, leadId, session.user.id, consignee.name, consignee.address ?? "", consignee.phone, consignee.email ?? "", consignee.country, consignee.port, unit, chassisNo, engineNo, color, year ?? "", salesperson ?? "", fuel ?? "", transmission ?? "", m3Rate, exchangeRate, pushPrice, cnfPrice, advancePercent ?? 50]
+    // Pricing is optional for the agent: the columns are NOT NULL, so a blank
+    // price is stored as 0 until the Supervisor fills it in (Edit on the invoice).
+    [invoiceId, leadId, session.user.id, consignee.name, consignee.address ?? "", consignee.phone, consignee.email ?? "", consignee.country, consignee.port, unit, chassisNo, engineNo, color, year ?? "", salesperson ?? "", fuel ?? "", transmission ?? "", m3Rate ?? 0, exchangeRate ?? 0, pushPrice ?? 0, cnfPrice ?? 0, advancePercent ?? 50]
   );
 
   await query(`UPDATE leads SET is_customer = true WHERE id = $1`, [leadId]);
 
-  await syncInvoiceToWooCommerce(invoiceId);
+  // No WooCommerce order at $0: without a CNF price it is created when the
+  // Supervisor sets the price (see the "edit" action in invoices/[id]).
+  if (cnfPrice) {
+    await syncInvoiceToWooCommerce(invoiceId);
+  }
 
   const supervisors = await query<{ id: string }>(`SELECT id FROM users WHERE role = 'super_admin'`);
   for (const sup of supervisors) {
