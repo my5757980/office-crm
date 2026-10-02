@@ -28,3 +28,15 @@
   - Still refused: negative price, typed 0, Advance % over 100, empty unit, empty consignee name.
 - **Types:** `tsc --strict` over the schema and its use in the API and the form passes.
 - **Syntax:** esbuild over the 4 files passes.
+
+## Update, 2 Oct 2026 (later the same day): only four fields required
+
+**Input**: Sir. On the whole invoice request form, keep only name, e-mail, phone number and country required. Every other field is optional.
+
+- **FR-007**: The required fields are consignee **Name**, **E-mail** (newly required, and it must be a valid address), **Phone** and **Country**.
+- **FR-008**: Port, Address, Unit, Year, Color, Chassis, Engine, Transmission, Fuel, Sales Person and all Pricing are optional. Blank text is saved as `""`; those columns are `NOT NULL` text, which accepts it, so there is no database change.
+- **Tests**: the real zod 4.4.1 passes 13/13.
+  - Accepted: only the four fields; every other box empty; a full form, with values unchanged.
+  - Refused: empty, missing or invalid e-mail; blank name, phone or country.
+  - E-mail is trimmed. A negative price and Advance % over 100 are still refused.
+  - `tsc --strict` passes.

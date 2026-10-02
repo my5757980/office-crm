@@ -112,7 +112,7 @@ export default function InvoiceRequestForm({ leadId, defaultConsignee, onSubmit 
           <Field label="Phone" required error={errors.consignee?.phone?.message}>
             <input {...register("consignee.phone")} style={inputStyle} placeholder="+92 300 0000000" {...focusHandlers} />
           </Field>
-          <Field label="Email" error={errors.consignee?.email?.message}>
+          <Field label="Email" required error={errors.consignee?.email?.message}>
             <input {...register("consignee.email")} style={inputStyle} placeholder="customer@example.com" {...focusHandlers} />
           </Field>
           <Field label="Country" required error={errors.consignee?.country?.message}>
@@ -128,7 +128,7 @@ export default function InvoiceRequestForm({ leadId, defaultConsignee, onSubmit 
               ))}
             </select>
           </Field>
-          <Field label="Port" required error={errors.consignee?.port?.message}>
+          <Field label="Port" error={errors.consignee?.port?.message}>
             {portLocked ? (
               <input value={ports[0] ?? ""} readOnly style={{ ...inputStyle, background: "#f6f8fa", color: "#656d76", cursor: "not-allowed" }} />
             ) : (
@@ -155,19 +155,19 @@ export default function InvoiceRequestForm({ leadId, defaultConsignee, onSubmit 
       <section>
         <SectionTitle>Vehicle Details</SectionTitle>
         <div className="form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px" }}>
-          <Field label="Unit / Make & Model" required error={errors.unit?.message}>
+          <Field label="Unit / Make & Model" error={errors.unit?.message}>
             <input {...register("unit")} style={inputStyle} placeholder="e.g. Toyota Land Cruiser" {...focusHandlers} />
           </Field>
           <Field label="Year" error={errors.year?.message}>
             <input {...register("year")} style={inputStyle} placeholder="e.g. 2022" {...focusHandlers} />
           </Field>
-          <Field label="Color" required error={errors.color?.message}>
+          <Field label="Color" error={errors.color?.message}>
             <input {...register("color")} style={inputStyle} placeholder="e.g. White" {...focusHandlers} />
           </Field>
-          <Field label="Chassis Number" required error={errors.chassisNo?.message}>
+          <Field label="Chassis Number" error={errors.chassisNo?.message}>
             <input {...register("chassisNo")} style={inputStyle} placeholder="Chassis No." {...focusHandlers} />
           </Field>
-          <Field label="Engine Number" required error={errors.engineNo?.message}>
+          <Field label="Engine Number" error={errors.engineNo?.message}>
             <input {...register("engineNo")} style={inputStyle} placeholder="Engine No." {...focusHandlers} />
           </Field>
           <Field label="Transmission" error={errors.transmission?.message}>
