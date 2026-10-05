@@ -1,13 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
 import { query, queryOne } from "@/lib/pg";
 import bcryptjs from "bcryptjs";
+import { getRecoveryKeyHash } from "@/lib/recovery-key";
 
 export async function POST(request: NextRequest) {
-  const { email, newEmail, newPassword } = await request.json();
+  const { email, newEmail, newPassword, recoveryKey } = await request.json();
 
   if (!email) return NextResponse.json({ error: "Email is required" }, { status: 400 });
   if (!newPassword) return NextResponse.json({ error: "New password is required" }, { status: 400 });
   if (newPassword.length < 6) return NextResponse.json({ error: "Password must be at least 6 characters" }, { status: 400 });
+  if (!recoveryKey) return NextResponse.json({ error: "Recovery key is required" }, { status: 400 });
+
+  // Knowing an email is not enough: the request must also carry the recovery key an admin set
+  // under My Profile. Until one is set, nobody can reset credentials from this page.
+  const keyHash = await getRecoveryKeyHash();
+  if (!keyHash)
+    return NextResponse.json({ error: "Reset is turned off until an Admin sets a recovery key under My Profile" }, { status: 403 });
+  if (!(await bcryptjs.compare(String(recoveryKey), keyHash)))
+    return NextResponse.json({ error: "The recovery key is not correct" }, { status: 403 });
 
   const user = await queryOne<{ id: string; role: string }>(`SELECT id, role FROM users WHERE email = $1`, [email.toLowerCase()]);
   if (!user) return NextResponse.json({ error: "No account found with this email" }, { status: 404 });

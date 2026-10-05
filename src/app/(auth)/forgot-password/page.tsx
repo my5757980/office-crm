@@ -29,6 +29,7 @@ const blur = (e: React.FocusEvent<HTMLInputElement>) => {
 export default function ForgotPasswordPage() {
   const router = useRouter();
   const [email, setEmail]           = useState("");
+  const [recoveryKey, setRecoveryKey] = useState("");
   const [newEmail, setNewEmail]     = useState("");
   const [newPass, setNewPass]       = useState("");
   const [confirmPass, setConfirmPass] = useState("");
@@ -50,6 +51,7 @@ export default function ForgotPasswordPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           email,
+          recoveryKey,
           newEmail: newEmail.trim() || undefined,
           newPassword: newPass,
         }),
@@ -74,7 +76,7 @@ export default function ForgotPasswordPage() {
         <div style={{ marginBottom: "24px" }}>
           <h1 style={{ fontSize: "22px", fontWeight: 700, color: "#1f2328" }}>Reset Credentials</h1>
           <p style={{ fontSize: "13px", color: "#656d76", marginTop: "4px" }}>
-            Admin &amp; Manager only — set your new email and password
+            Admin &amp; Manager only — needs the recovery key an Admin set under My Profile
           </p>
         </div>
 
@@ -117,6 +119,18 @@ export default function ForgotPasswordPage() {
                 style={inputStyle} onFocus={focus} onBlur={blur} />
               <p style={{ fontSize: "11px", color: "#8c959f", marginTop: "4px" }}>
                 Your current login email
+              </p>
+            </div>
+
+            <div>
+              <label style={labelStyle}>Recovery Key</label>
+              <input type="password" required value={recoveryKey}
+                onChange={e => setRecoveryKey(e.target.value)}
+                placeholder="Recovery key"
+                autoComplete="off"
+                style={inputStyle} onFocus={focus} onBlur={blur} />
+              <p style={{ fontSize: "11px", color: "#8c959f", marginTop: "4px" }}>
+                Set by an Admin under My Profile. Without it the reset is refused.
               </p>
             </div>
 

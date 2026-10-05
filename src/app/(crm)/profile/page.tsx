@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useSession, signOut } from "next-auth/react";
 import TopBar from "@/components/layout/TopBar";
 
@@ -33,6 +33,22 @@ export default function ProfilePage() {
   const [confirmPwd, setConfirmPwd]   = useState("");
   const [pwdMsg, setPwdMsg]           = useState<{ text: string; ok: boolean } | null>(null);
   const [pwdLoading, setPwdLoading]   = useState(false);
+
+  // Recovery key form (Admin only): the key the public Reset Credentials page asks for
+  const [rkConfigured, setRkConfigured] = useState<boolean | null>(null);
+  const [curPassRk, setCurPassRk]       = useState("");
+  const [newRk, setNewRk]               = useState("");
+  const [confirmRk, setConfirmRk]       = useState("");
+  const [rkMsg, setRkMsg]               = useState<{ text: string; ok: boolean } | null>(null);
+  const [rkLoading, setRkLoading]       = useState(false);
+
+  useEffect(() => {
+    if (role !== "admin") return;
+    fetch("/api/admin/recovery-key")
+      .then(r => (r.ok ? r.json() : null))
+      .then(j => { if (j) setRkConfigured(!!j.configured); })
+      .catch(() => {});
+  }, [role]);
 
   if (!["admin", "manager"].includes(role)) {
     return (
@@ -80,6 +96,26 @@ export default function ProfilePage() {
       setCurPassPwd(""); setNewPwd(""); setConfirmPwd("");
       setTimeout(() => signOut({ callbackUrl: "/login" }), 2000);
     } finally { setPwdLoading(false); }
+  };
+
+  const handleRecoveryKey = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setRkMsg(null);
+    if (newRk !== confirmRk)      { setRkMsg({ text: "Recovery keys do not match", ok: false }); return; }
+    if (newRk.trim().length < 12) { setRkMsg({ text: "Recovery key must be at least 12 characters", ok: false }); return; }
+    setRkLoading(true);
+    try {
+      const res = await fetch("/api/admin/recovery-key", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ currentPassword: curPassRk, recoveryKey: newRk }),
+      });
+      const json = await res.json();
+      if (!res.ok) { setRkMsg({ text: json.error, ok: false }); return; }
+      setRkMsg({ text: "Recovery key saved. Keep it somewhere safe: it unlocks the Reset Credentials page for every Admin and Manager.", ok: true });
+      setRkConfigured(true);
+      setCurPassRk(""); setNewRk(""); setConfirmRk("");
+    } finally { setRkLoading(false); }
   };
 
   const card: React.CSSProperties = {
@@ -234,6 +270,70 @@ export default function ProfilePage() {
             </button>
           </form>
         </div>
+
+        {/* Recovery Key (Admin only) */}
+        {role === "admin" && (
+          <div style={card}>
+            <div style={cardHeader}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#c0272d" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/>
+              </svg>
+              <p style={{ fontSize: "14px", fontWeight: 600, color: "#1f2328" }}>Password Recovery Key</p>
+            </div>
+            <form onSubmit={handleRecoveryKey} style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: "14px" }}>
+              <p style={{ fontSize: "13px", color: "#656d76" }}>
+                The Reset Credentials page (&quot;Forgot your password?&quot;) only works with this key.
+                Status:{" "}
+                <strong style={{ color: rkConfigured ? "#15803d" : "#cf222e" }}>
+                  {rkConfigured === null ? "…" : rkConfigured ? "set" : "not set — the reset page is locked"}
+                </strong>
+              </p>
+              <div>
+                <label style={labelStyle}>Current Password</label>
+                <input type="password" required value={curPassRk}
+                  onChange={e => setCurPassRk(e.target.value)}
+                  placeholder="Enter current password"
+                  style={inputStyle} onFocus={focus} onBlur={blur} />
+              </div>
+              <div>
+                <label style={labelStyle}>New Recovery Key</label>
+                <input type="password" required value={newRk}
+                  onChange={e => setNewRk(e.target.value)}
+                  placeholder="Min 12 characters"
+                  autoComplete="new-password"
+                  style={inputStyle} onFocus={focus} onBlur={blur} />
+              </div>
+              <div>
+                <label style={labelStyle}>Confirm Recovery Key</label>
+                <input type="password" required value={confirmRk}
+                  onChange={e => setConfirmRk(e.target.value)}
+                  placeholder="Repeat recovery key"
+                  autoComplete="new-password"
+                  style={inputStyle} onFocus={focus} onBlur={blur} />
+              </div>
+
+              {rkMsg && (
+                <div style={{
+                  padding: "10px 14px", borderRadius: "8px", fontSize: "13px",
+                  background: rkMsg.ok ? "#f0fdf4" : "#ffebe9",
+                  border: `1px solid ${rkMsg.ok ? "#86efac" : "#ffcecb"}`,
+                  color: rkMsg.ok ? "#15803d" : "#cf222e",
+                }}>{rkMsg.text}</div>
+              )}
+
+              <button type="submit" disabled={rkLoading} style={{
+                padding: "10px", borderRadius: "8px", border: "none",
+                fontSize: "14px", fontWeight: 600, color: "white",
+                background: rkLoading ? "#e57373" : "linear-gradient(135deg, #c0272d, #8b1a1e)",
+                cursor: rkLoading ? "not-allowed" : "pointer",
+                boxShadow: "0 2px 8px rgba(192,39,45,0.3)",
+                transition: "all 150ms",
+              }}>
+                {rkLoading ? "Saving…" : "Save Recovery Key"}
+              </button>
+            </form>
+          </div>
+        )}
 
       </div>
     </div>
