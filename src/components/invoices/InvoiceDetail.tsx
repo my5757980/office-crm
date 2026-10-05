@@ -5,8 +5,37 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import InvoiceStatusBadge from "./InvoiceStatusBadge";
 
+// One vehicle on the invoice (an invoice can carry several, Sir 5 Oct 2026).
+export interface InvoiceVehicleView {
+  unit: string;
+  year: string;
+  color: string;
+  chassisNo: string;
+  engineNo: string;
+  transmission: string;
+  fuel: string;
+  pushPrice: number;
+  cnfPrice: number;
+}
+
+// A unit (vehicle record with photos/documents) already added to this invoice.
+export interface InvoiceUnitLink {
+  _id: string;
+  label: string;
+}
+
+// Edit form state for one vehicle: prices as typed text, blank = not priced yet.
+type EditVehicle = Omit<InvoiceVehicleView, "pushPrice" | "cnfPrice"> & { pushPrice: string; cnfPrice: string };
+
+const priceText = (n: number) => (n > 0 ? String(n) : "");
+const EMPTY_EDIT_VEHICLE: EditVehicle = {
+  unit: "", year: "", color: "", chassisNo: "", engineNo: "", transmission: "", fuel: "", pushPrice: "", cnfPrice: "",
+};
+
 interface InvoiceDetailProps {
   unitId?: string | null;
+  units?: InvoiceUnitLink[];
+  vehicles?: InvoiceVehicleView[];
   invoice: {
     _id: string;
     status: string;
@@ -44,8 +73,23 @@ function InfoRow({ label, value }: { label: string; value?: string | number }) {
   );
 }
 
-export default function InvoiceDetail({ invoice, role, unitId }: InvoiceDetailProps) {
+export default function InvoiceDetail({ invoice, role, unitId, units, vehicles: vehiclesProp }: InvoiceDetailProps) {
   const router = useRouter();
+
+  // Every vehicle on the invoice. Without the list (older callers) the
+  // invoice's own fields are its one vehicle.
+  const vehicles: InvoiceVehicleView[] = vehiclesProp?.length
+    ? vehiclesProp
+    : [{
+        unit: invoice.unit ?? "", year: invoice.year ?? "", color: invoice.color ?? "",
+        chassisNo: invoice.chassisNo ?? "", engineNo: invoice.engineNo ?? "",
+        transmission: invoice.transmission ?? "", fuel: invoice.fuel ?? "",
+        pushPrice: invoice.pushPrice ?? 0, cnfPrice: invoice.cnfPrice ?? 0,
+      }];
+  const multi = vehicles.length > 1;
+  // Units already added; one unit can be added per vehicle on the invoice.
+  const unitLinks: InvoiceUnitLink[] = units ?? (unitId ? [{ _id: unitId, label: "" }] : []);
+  const canAddUnit = unitLinks.length < vehicles.length;
   const [loading, setLoading] = useState(false);
   const [rejectModal, setRejectModal] = useState(false);
   const [rejectNote, setRejectNote] = useState("");
@@ -73,18 +117,9 @@ export default function InvoiceDetail({ invoice, role, unitId }: InvoiceDetailPr
   const [editModal, setEditModal] = useState(false);
   const [editSaving, setEditSaving] = useState(false);
   const [editFields, setEditFields] = useState({
-    unit: invoice.unit ?? "",
-    chassisNo: invoice.chassisNo ?? "",
-    engineNo: invoice.engineNo ?? "",
-    color: invoice.color ?? "",
-    year: invoice.year ?? "",
     salesperson: invoice.salesperson ?? "",
-    fuel: invoice.fuel ?? "",
-    transmission: invoice.transmission ?? "",
     m3Rate: String(invoice.m3Rate ?? ""),
     exchangeRate: String(invoice.exchangeRate ?? ""),
-    pushPrice: String(invoice.pushPrice ?? ""),
-    cnfPrice: String(invoice.cnfPrice ?? ""),
     advancePercent: String(invoice.advancePercent ?? 50),
     consigneeName: invoice.consignee.name ?? "",
     consigneePhone: invoice.consignee.phone ?? "",
@@ -93,13 +128,26 @@ export default function InvoiceDetail({ invoice, role, unitId }: InvoiceDetailPr
     consigneeCountry: invoice.consignee.country ?? "",
     consigneePort: invoice.consignee.port ?? "",
   });
+  // Vehicles are edited as a list: change, add ("Add More") or remove.
+  const [editVehicles, setEditVehicles] = useState<EditVehicle[]>(() =>
+    vehicles.map((v) => ({ ...v, pushPrice: priceText(v.pushPrice), cnfPrice: priceText(v.cnfPrice) }))
+  );
+  const setVehicleField = (i: number, key: keyof EditVehicle, value: string) =>
+    setEditVehicles((list) => list.map((v, k) => (k === i ? { ...v, [key]: value } : v)));
+  const editPrice = (s: string) => (s.trim() === "" || Number(s) === 0 ? undefined : Number(s));
+  const editTotal = (key: "pushPrice" | "cnfPrice") =>
+    editVehicles.reduce((sum, v) => sum + (Number(v[key]) > 0 ? Number(v[key]) : 0), 0);
 
   const handleEditSave = async () => {
     setEditSaving(true);
     const res = await fetch(`/api/invoices/${invoice._id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "edit", ...editFields }),
+      body: JSON.stringify({
+        action: "edit",
+        ...editFields,
+        vehicles: editVehicles.map((v) => ({ ...v, pushPrice: editPrice(v.pushPrice), cnfPrice: editPrice(v.cnfPrice) })),
+      }),
     });
     if (res.ok) { setEditModal(false); router.refresh(); }
     else { const j = await res.json(); alert(j.error ?? "Save failed"); }
@@ -410,10 +458,13 @@ export default function InvoiceDetail({ invoice, role, unitId }: InvoiceDetailPr
               </button>
             )}
 
+            {/* One unit per vehicle: a single-vehicle invoice shows View Unit or
+                Add Unit as before; with several vehicles, Add Unit stays until
+                every vehicle has its unit (the units are listed below). */}
             {["manager", "super_admin"].includes(role) && (
-              unitId ? (
+              !multi && unitLinks[0] ? (
                 <Link
-                  href={`/units/${unitId}`}
+                  href={`/units/${unitLinks[0]._id}`}
                   style={{
                     display: "inline-flex", alignItems: "center", gap: "6px",
                     padding: "7px 14px", borderRadius: "8px",
@@ -431,9 +482,9 @@ export default function InvoiceDetail({ invoice, role, unitId }: InvoiceDetailPr
                   </svg>
                   View Unit
                 </Link>
-              ) : (
+              ) : canAddUnit ? (
                 <Link
-                  href={`/units/new?invoiceId=${invoice._id}`}
+                  href={multi ? `/units/new?invoiceId=${invoice._id}&vehicle=${unitLinks.length + 1}` : `/units/new?invoiceId=${invoice._id}`}
                   style={{
                     display: "inline-flex", alignItems: "center", gap: "6px",
                     padding: "7px 14px", borderRadius: "8px",
@@ -447,9 +498,9 @@ export default function InvoiceDetail({ invoice, role, unitId }: InvoiceDetailPr
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                     <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
                   </svg>
-                  Add Unit
+                  {multi ? `Add Unit (${unitLinks.length + 1} of ${vehicles.length})` : "Add Unit"}
                 </Link>
-              )
+              ) : null
             )}
 
             {["admin", "manager"].includes(role) && (
@@ -512,13 +563,89 @@ export default function InvoiceDetail({ invoice, role, unitId }: InvoiceDetailPr
           </div>
           <div className="detail-info-col" style={{ padding: "20px 24px" }}>
             <p style={{ fontSize: "11px", fontWeight: 700, color: "#8c959f", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "4px" }}>Vehicle Details</p>
-            <InfoRow label="Unit / Make" value={invoice.unit} />
-            <InfoRow label="Color"       value={invoice.color} />
-            <InfoRow label="Chassis No." value={invoice.chassisNo} />
-            <InfoRow label="Engine No."  value={invoice.engineNo} />
+            {multi ? (
+              <>
+                <InfoRow label="Vehicles"  value={vehicles.length} />
+                <InfoRow label="Total CNF" value={invoice.cnfPrice.toLocaleString("en-US")} />
+                <p style={{ fontSize: "12px", color: "#656d76", marginTop: "10px" }}>Every vehicle is listed below.</p>
+              </>
+            ) : (
+              <>
+                <InfoRow label="Unit / Make" value={invoice.unit} />
+                <InfoRow label="Color"       value={invoice.color} />
+                <InfoRow label="Chassis No." value={invoice.chassisNo} />
+                <InfoRow label="Engine No."  value={invoice.engineNo} />
+              </>
+            )}
           </div>
         </div>
+
+        {/* Several vehicles: one row each */}
+        {multi && (
+          <div className="vehicle-list" style={{ borderTop: "1px solid #f0f2f4", padding: "16px 24px 20px" }}>
+            <p style={{ fontSize: "11px", fontWeight: 700, color: "#8c959f", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "10px" }}>
+              Vehicles ({vehicles.length})
+            </p>
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px", minWidth: "720px" }}>
+                <thead>
+                  <tr style={{ background: "#f6f8fa", color: "#656d76", textAlign: "left" }}>
+                    {["#", "Unit / Make", "Year", "Color", "Chassis No.", "Engine No.", "Trans. / Fuel", "Push Price", "CNF Price"].map((h) => (
+                      <th key={h} style={{ padding: "8px 10px", fontWeight: 600, borderBottom: "1px solid #eaeef2", whiteSpace: "nowrap" }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {vehicles.map((v, i) => (
+                    <tr key={i} style={{ borderBottom: "1px solid #f0f2f4", color: "#1f2328" }}>
+                      <td style={{ padding: "8px 10px", color: "#8c959f" }}>{i + 1}</td>
+                      <td style={{ padding: "8px 10px", fontWeight: 600 }}>{v.unit || "—"}</td>
+                      <td style={{ padding: "8px 10px" }}>{v.year || "—"}</td>
+                      <td style={{ padding: "8px 10px" }}>{v.color || "—"}</td>
+                      <td style={{ padding: "8px 10px", fontFamily: "monospace" }}>{v.chassisNo || "—"}</td>
+                      <td style={{ padding: "8px 10px", fontFamily: "monospace" }}>{v.engineNo || "—"}</td>
+                      <td style={{ padding: "8px 10px" }}>{[v.transmission, v.fuel].filter(Boolean).join(" / ") || "—"}</td>
+                      <td style={{ padding: "8px 10px", textAlign: "right" }}>{v.pushPrice.toLocaleString("en-US")}</td>
+                      <td style={{ padding: "8px 10px", textAlign: "right", fontWeight: 600 }}>{v.cnfPrice.toLocaleString("en-US")}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
       </div>
+
+      {/* Units already added for this invoice's vehicles */}
+      {multi && ["manager", "super_admin"].includes(role) && unitLinks.length > 0 && (
+        <div className="no-print" style={cardStyle}>
+          <div style={{
+            padding: "14px 24px",
+            borderBottom: "1px solid #d0d7de",
+            background: "linear-gradient(135deg, #f6f8fa 0%, #eff6ff 100%)",
+          }}>
+            <p style={{ fontSize: "13px", fontWeight: 700, color: "#1f2328" }}>
+              Units ({unitLinks.length} of {vehicles.length} vehicles)
+            </p>
+          </div>
+          <div>
+            {unitLinks.map((u, i) => (
+              <Link
+                key={u._id}
+                href={`/units/${u._id}`}
+                style={{
+                  display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px",
+                  padding: "12px 24px", borderBottom: i < unitLinks.length - 1 ? "1px solid #f0f2f4" : "none",
+                  fontSize: "13px", color: "#1f2328", textDecoration: "none",
+                }}
+              >
+                <span><strong>Unit {i + 1}</strong>{u.label ? ` — ${u.label}` : ""}</span>
+                <span style={{ fontSize: "12px", fontWeight: 600, color: "#059669" }}>View →</span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Pricing card */}
       <div style={cardStyle}>
@@ -533,8 +660,8 @@ export default function InvoiceDetail({ invoice, role, unitId }: InvoiceDetailPr
           {[
             { label: "M3 Rate",       sub: "Cubic meter rate",         value: invoice.m3Rate },
             { label: "Exchange Rate", sub: "Currency conversion",      value: invoice.exchangeRate },
-            { label: "Push Price",    sub: "Buying price",             value: invoice.pushPrice },
-            { label: "CNF Price",     sub: "Cost & Freight (selling)", value: invoice.cnfPrice },
+            { label: "Push Price",    sub: multi ? `Buying price — total of ${vehicles.length} vehicles` : "Buying price", value: invoice.pushPrice },
+            { label: "CNF Price",     sub: multi ? `Cost & Freight (selling) — total of ${vehicles.length} vehicles` : "Cost & Freight (selling)", value: invoice.cnfPrice },
           ].map(({ label, sub, value }, i, arr) => (
             <div key={label} className="price-row" style={{
               display: "flex", alignItems: "center", justifyContent: "space-between",
@@ -667,35 +794,86 @@ export default function InvoiceDetail({ invoice, role, unitId }: InvoiceDetailPr
             </div>
 
             <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: "20px" }}>
-              {/* Vehicle Details */}
+              {/* Vehicle Details: one block per vehicle, "Add More" for another */}
               <div>
-                <p style={{ fontSize: "11px", fontWeight: 700, color: "#8c959f", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "12px" }}>Vehicle Details</p>
-                <div className="form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-                  {([
-                    ["unit",         "Unit / Make"],
-                    ["chassisNo",    "Chassis No."],
-                    ["engineNo",     "Engine No."],
-                    ["color",        "Color"],
-                    ["year",         "Year"],
-                    ["salesperson",  "Salesperson"],
-                    ["fuel",         "Fuel Type"],
-                    ["transmission", "Transmission"],
-                  ] as [keyof typeof editFields, string][]).map(([key, label]) => (
-                    <label key={key} style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-                      <span style={{ fontSize: "11px", fontWeight: 600, color: "#656d76" }}>{label}</span>
-                      <input
-                        value={editFields[key]}
-                        onChange={e => setEditFields(f => ({ ...f, [key]: e.target.value }))}
-                        style={{
-                          padding: "8px 10px", borderRadius: "6px",
-                          border: "1px solid #d0d7de", fontSize: "13px",
-                          outline: "none", color: "#1f2328",
-                        }}
-                        onFocus={e => { e.target.style.borderColor = "#2563eb"; e.target.style.boxShadow = "0 0 0 3px rgba(37,99,235,0.12)"; }}
-                        onBlur={e => { e.target.style.borderColor = "#d0d7de"; e.target.style.boxShadow = "none"; }}
-                      />
-                    </label>
+                <p style={{ fontSize: "11px", fontWeight: 700, color: "#8c959f", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "12px" }}>
+                  Vehicle Details{editVehicles.length > 1 ? ` (${editVehicles.length} vehicles)` : ""}
+                </p>
+                <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                  {editVehicles.map((v, i) => (
+                    <div key={i} style={{ border: "1px solid #e5e7eb", borderRadius: "8px", padding: "12px", background: editVehicles.length > 1 ? "#fbfcfd" : "#ffffff" }}>
+                      {editVehicles.length > 1 && (
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "10px" }}>
+                          <span style={{ fontSize: "12px", fontWeight: 700, color: "#1f2328" }}>Vehicle {i + 1}</span>
+                          <button
+                            type="button"
+                            onClick={() => setEditVehicles((list) => list.filter((_, k) => k !== i))}
+                            style={{
+                              padding: "3px 10px", borderRadius: "6px", fontSize: "12px", fontWeight: 600,
+                              color: "#cf222e", background: "#ffebe9", border: "1px solid #ffcecb", cursor: "pointer",
+                            }}
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      )}
+                      <div className="form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                        {([
+                          ["unit",         "Unit / Make",  "text"],
+                          ["chassisNo",    "Chassis No.",  "text"],
+                          ["engineNo",     "Engine No.",   "text"],
+                          ["color",        "Color",        "text"],
+                          ["year",         "Year",         "text"],
+                          ["fuel",         "Fuel Type",    "text"],
+                          ["transmission", "Transmission", "text"],
+                          ["pushPrice",    "Push Price",   "number"],
+                          ["cnfPrice",     "CNF Price",    "number"],
+                        ] as [keyof EditVehicle, string, string][]).map(([key, label, type]) => (
+                          <label key={key} style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                            <span style={{ fontSize: "11px", fontWeight: 600, color: "#656d76" }}>{label}</span>
+                            <input
+                              type={type}
+                              value={v[key]}
+                              onChange={e => setVehicleField(i, key, e.target.value)}
+                              style={{
+                                padding: "8px 10px", borderRadius: "6px",
+                                border: "1px solid #d0d7de", fontSize: "13px",
+                                outline: "none", color: "#1f2328",
+                              }}
+                              onFocus={e => { e.target.style.borderColor = "#2563eb"; e.target.style.boxShadow = "0 0 0 3px rgba(37,99,235,0.12)"; }}
+                              onBlur={e => { e.target.style.borderColor = "#d0d7de"; e.target.style.boxShadow = "none"; }}
+                            />
+                          </label>
+                        ))}
+                      </div>
+                    </div>
                   ))}
+                  <button
+                    type="button"
+                    onClick={() => setEditVehicles((list) => [...list, { ...EMPTY_EDIT_VEHICLE }])}
+                    disabled={editVehicles.length >= 50}
+                    style={{
+                      alignSelf: "flex-start",
+                      padding: "7px 14px", borderRadius: "8px", fontSize: "13px", fontWeight: 600,
+                      color: "#2563eb", background: "#eff6ff", border: "1px dashed #93c5fd", cursor: "pointer",
+                    }}
+                  >
+                    + Add More
+                  </button>
+                  <label style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                    <span style={{ fontSize: "11px", fontWeight: 600, color: "#656d76" }}>Salesperson</span>
+                    <input
+                      value={editFields.salesperson}
+                      onChange={e => setEditFields(f => ({ ...f, salesperson: e.target.value }))}
+                      style={{
+                        padding: "8px 10px", borderRadius: "6px",
+                        border: "1px solid #d0d7de", fontSize: "13px",
+                        outline: "none", color: "#1f2328",
+                      }}
+                      onFocus={e => { e.target.style.borderColor = "#2563eb"; e.target.style.boxShadow = "0 0 0 3px rgba(37,99,235,0.12)"; }}
+                      onBlur={e => { e.target.style.borderColor = "#d0d7de"; e.target.style.boxShadow = "none"; }}
+                    />
+                  </label>
                 </div>
               </div>
 
@@ -736,8 +914,6 @@ export default function InvoiceDetail({ invoice, role, unitId }: InvoiceDetailPr
                   {([
                     ["m3Rate",         "M3 Rate"],
                     ["exchangeRate",   "Exchange Rate"],
-                    ["pushPrice",      "Push Price"],
-                    ["cnfPrice",       "CNF Price"],
                     ["advancePercent", "Advance %"],
                   ] as [keyof typeof editFields, string][]).map(([key, label]) => (
                     <label key={key} style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
@@ -757,6 +933,12 @@ export default function InvoiceDetail({ invoice, role, unitId }: InvoiceDetailPr
                     </label>
                   ))}
                 </div>
+                {/* Push and CNF prices are per vehicle above; the invoice keeps their totals */}
+                <p style={{ marginTop: "10px", fontSize: "12px", color: "#656d76" }}>
+                  Total Push Price: <strong style={{ color: "#1f2328" }}>{editTotal("pushPrice").toLocaleString("en-US")}</strong>
+                  {" · "}
+                  Total CNF Price: <strong style={{ color: "#1f2328" }}>{editTotal("cnfPrice").toLocaleString("en-US")}</strong>
+                </p>
               </div>
             </div>
 

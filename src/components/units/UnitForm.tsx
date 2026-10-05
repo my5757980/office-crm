@@ -3,8 +3,18 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
+// Details already known from the invoice's vehicle, used to pre-fill the form.
+export interface UnitFormDefaults {
+  make?: string;
+  carModel?: string;
+  year?: string;
+  color?: string;
+  chassis?: string;
+}
+
 interface UnitFormProps {
   invoiceId: string;
+  defaults?: UnitFormDefaults;
 }
 
 const inputStyle: React.CSSProperties = {
@@ -69,14 +79,15 @@ function SelectField({ label, name, options, value, onChange }: SelectFieldProps
   );
 }
 
-export default function UnitForm({ invoiceId }: UnitFormProps) {
+export default function UnitForm({ invoiceId, defaults }: UnitFormProps) {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
   const [error, setError]   = useState("");
 
   const [form, setForm] = useState({
-    make: "", carModel: "", year: new Date().getFullYear().toString(),
-    color: "", chassis: "", engineCC: "",
+    make: defaults?.make ?? "", carModel: defaults?.carModel ?? "",
+    year: defaults?.year || new Date().getFullYear().toString(),
+    color: defaults?.color ?? "", chassis: defaults?.chassis ?? "", engineCC: "",
     drive: "4WD", fuel: "Petrol", mileage: "",
     transmission: "Automatic", steering: "RHD",
     doors: "4", seats: "5", location: "",

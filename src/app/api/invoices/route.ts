@@ -4,6 +4,7 @@ import { query, queryOne, genId } from "@/lib/pg";
 import { invoiceRequestSchema } from "@/lib/validations";
 import { serializeInvoice } from "@/lib/serialize";
 import { syncInvoiceToWooCommerce } from "@/lib/woocommerce";
+import { ensureVehicleTable, normalizeVehicles, vehicleCounts, vehicleTotals, vehicleRecordset, VEHICLE_COLUMNS, VEHICLE_RECORD_TYPE } from "@/lib/invoice-vehicles";
 
 export async function POST(request: NextRequest) {
   const session = await auth();
@@ -19,6 +20,16 @@ export async function POST(request: NextRequest) {
   }
 
   const { leadId, consignee, unit, year, salesperson, fuel, transmission, chassisNo, engineNo, color, m3Rate, exchangeRate, pushPrice, cnfPrice, advancePercent } = parsed.data;
+
+  // Several vehicles per invoice ("Add More"). A screen that still sends the
+  // single vehicle fields gets exactly what it got before: one vehicle.
+  const vehicles = normalizeVehicles(
+    parsed.data.vehicles?.length
+      ? parsed.data.vehicles
+      : [{ unit, year, color, chassisNo, engineNo, transmission, fuel, pushPrice, cnfPrice }]
+  );
+  const first = vehicles[0];
+  const totals = vehicleTotals(vehicles);
 
   const lead = await queryOne<{ created_by: string; status: string; customer_name: string }>(
     `SELECT created_by, status, customer_name FROM leads WHERE id = $1`,
@@ -37,28 +48,42 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "A pending invoice request already exists for this lead" }, { status: 409 });
   }
 
+  await ensureVehicleTable();
+
   const invoiceId = genId();
+  // The invoice and all its vehicles go in as ONE statement: either everything
+  // is saved or nothing is. The invoices row keeps vehicle 1 in its own
+  // columns and the TOTAL push / CNF prices.
   const invoiceRow = await queryOne(
-    `INSERT INTO invoices (id, lead_id, created_by, consignee_name, consignee_address, consignee_phone, consignee_email, consignee_country, consignee_port, unit, chassis_no, engine_no, color, year, salesperson, fuel, transmission, m3_rate, exchange_rate, push_price, cnf_price, advance_percent)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22) RETURNING *`,
+    `WITH inv AS (
+       INSERT INTO invoices (id, lead_id, created_by, consignee_name, consignee_address, consignee_phone, consignee_email, consignee_country, consignee_port, unit, chassis_no, engine_no, color, year, salesperson, fuel, transmission, m3_rate, exchange_rate, push_price, cnf_price, advance_percent)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22) RETURNING *
+     ),
+     veh AS (
+       INSERT INTO invoice_vehicles (${VEHICLE_COLUMNS})
+       SELECT v.id, inv.id, v.position, v.unit, v.year, v.color, v.chassis_no, v.engine_no, v.transmission, v.fuel, v.push_price, v.cnf_price
+       FROM inv, json_to_recordset($23::json) AS v(${VEHICLE_RECORD_TYPE})
+     )
+     SELECT * FROM inv`,
     // Pricing is optional for the agent: the columns are NOT NULL, so a blank
     // price is stored as 0 until the Supervisor fills it in (Edit on the invoice).
-    [invoiceId, leadId, session.user.id, consignee.name, consignee.address ?? "", consignee.phone, consignee.email ?? "", consignee.country, consignee.port, unit, chassisNo, engineNo, color, year ?? "", salesperson ?? "", fuel ?? "", transmission ?? "", m3Rate ?? 0, exchangeRate ?? 0, pushPrice ?? 0, cnfPrice ?? 0, advancePercent ?? 50]
+    [invoiceId, leadId, session.user.id, consignee.name, consignee.address ?? "", consignee.phone, consignee.email ?? "", consignee.country, consignee.port, first.unit, first.chassisNo, first.engineNo, first.color, first.year, salesperson ?? "", first.fuel, first.transmission, m3Rate ?? 0, exchangeRate ?? 0, totals.push, totals.cnf, advancePercent ?? 50, vehicleRecordset(vehicles)]
   );
 
   await query(`UPDATE leads SET is_customer = true WHERE id = $1`, [leadId]);
 
   // No WooCommerce order at $0: without a CNF price it is created when the
   // Supervisor sets the price (see the "edit" action in invoices/[id]).
-  if (cnfPrice) {
+  if (totals.cnf) {
     await syncInvoiceToWooCommerce(invoiceId);
   }
 
+  const vehicleNote = vehicles.length > 1 ? ` (${vehicles.length} vehicles)` : "";
   const supervisors = await query<{ id: string }>(`SELECT id FROM users WHERE role = 'super_admin'`);
   for (const sup of supervisors) {
     await query(
       `INSERT INTO notifications (id, user_id, message, type, invoice_id) VALUES ($1, $2, $3, 'invoice_requested', $4)`,
-      [genId(), sup.id, `New invoice request from ${session.user.name} for ${lead.customer_name}`, invoiceId]
+      [genId(), sup.id, `New invoice request from ${session.user.name} for ${lead.customer_name}${vehicleNote}`, invoiceId]
     );
   }
 
@@ -87,6 +112,10 @@ export async function GET() {
     params
   );
 
-  const invoices = rows.map(serializeInvoice);
+  const counts = await vehicleCounts(rows.map((r) => String(r.id)));
+  const invoices = rows.map((r) => {
+    const inv = serializeInvoice(r);
+    return counts.has(inv._id) ? { ...inv, vehicleCount: counts.get(inv._id) } : inv;
+  });
   return NextResponse.json({ invoices });
 }

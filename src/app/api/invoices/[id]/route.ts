@@ -3,6 +3,9 @@ import { auth } from "@/lib/auth";
 import { query, queryOne, genId } from "@/lib/pg";
 import { serializeInvoice } from "@/lib/serialize";
 import { syncInvoiceToWooCommerce } from "@/lib/woocommerce";
+import { invoiceVehicleSchema } from "@/lib/validations";
+import { getInvoiceVehicles, normalizeVehicles, saveInvoiceVehicles, vehicleTotals, MAX_VEHICLES, type InvoiceVehicle } from "@/lib/invoice-vehicles";
+import { z } from "zod";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -37,8 +40,16 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  return NextResponse.json({ invoice: serializeInvoice(row) });
+  const vehicles = await getInvoiceVehicles(id, row);
+  return NextResponse.json({ invoice: { ...serializeInvoice(row), vehicles } });
 }
+
+// The vehicle boxes of the old single-vehicle edit form. An edit that sends
+// these (instead of the vehicles list) is applied to vehicle 1.
+const VEHICLE_TEXT_FIELDS: (keyof InvoiceVehicle)[] = ["unit", "chassisNo", "engineNo", "color", "year", "fuel", "transmission"];
+const VEHICLE_PRICE_FIELDS: (keyof InvoiceVehicle)[] = ["pushPrice", "cnfPrice"];
+
+const editVehiclesSchema = z.array(invoiceVehicleSchema).min(1, "An invoice needs at least one vehicle").max(MAX_VEHICLES, `At most ${MAX_VEHICLES} vehicles on one invoice`);
 
 const EDIT_FIELD_TO_COLUMN: Record<string, string> = {
   unit: "unit",
@@ -81,14 +92,34 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
   const customerName = invoice.lead_customer_name ?? "";
 
   if (action === "edit") {
+    // Vehicles: the edit form sends the whole list. An older screen that still
+    // sends single vehicle boxes edits vehicle 1 and leaves the others alone.
+    let vehicles: InvoiceVehicle[] | null = null;
+    if (Array.isArray(body.vehicles)) {
+      const parsedVehicles = editVehiclesSchema.safeParse(body.vehicles);
+      if (!parsedVehicles.success) {
+        return NextResponse.json({ error: parsedVehicles.error.issues[0].message }, { status: 400 });
+      }
+      vehicles = normalizeVehicles(parsedVehicles.data);
+    } else if ([...VEHICLE_TEXT_FIELDS, ...VEHICLE_PRICE_FIELDS].some((f) => body[f] !== undefined)) {
+      const current = await getInvoiceVehicles(id);
+      const first = { ...current[0] };
+      for (const f of VEHICLE_TEXT_FIELDS) if (body[f] !== undefined) (first[f] as string) = String(body[f]).trim();
+      for (const f of VEHICLE_PRICE_FIELDS) if (body[f] !== undefined) (first[f] as number) = Number(body[f]) > 0 ? Number(body[f]) : 0;
+      vehicles = [first, ...current.slice(1)];
+    }
+
     const setClauses: string[] = [];
     const setParams: unknown[] = [];
     const setP = (v: unknown) => { setParams.push(v); return `$${setParams.length}`; };
 
     for (const [field, column] of Object.entries(EDIT_FIELD_TO_COLUMN)) {
+      // vehicle columns are written from the vehicle list below
+      if (vehicles && (VEHICLE_TEXT_FIELDS as string[]).includes(field)) continue;
       if (body[field] !== undefined) setClauses.push(`${column} = ${setP(String(body[field]).trim())}`);
     }
     for (const field of EDIT_NUMBER_FIELDS) {
+      if (vehicles && (VEHICLE_PRICE_FIELDS as string[]).includes(field)) continue;
       if (body[field] !== undefined) setClauses.push(`${NUMBER_FIELD_TO_COLUMN[field]} = ${setP(Number(body[field]))}`);
     }
 
@@ -96,10 +127,15 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
       setClauses.push(`updated_at = now()`);
       await query(`UPDATE invoices SET ${setClauses.join(", ")} WHERE id = ${setP(id)}`, setParams);
     }
+    if (vehicles) {
+      // vehicle 1 + the TOTAL push / CNF prices land on the invoice row too
+      await saveInvoiceVehicles(id, vehicles);
+    }
 
     // A request sent without pricing got no WooCommerce order (no $0 orders).
     // The moment the Supervisor gives it a CNF price, it gets one.
-    if (body.cnfPrice !== undefined && Number(body.cnfPrice) > 0) {
+    const newCnf = vehicles ? vehicleTotals(vehicles).cnf : body.cnfPrice !== undefined ? Number(body.cnfPrice) : 0;
+    if (newCnf > 0) {
       const wc = await queryOne<{ wc_order_id: number | null }>(`SELECT wc_order_id FROM invoices WHERE id = $1`, [id]);
       if (wc && !wc.wc_order_id) {
         await syncInvoiceToWooCommerce(id);

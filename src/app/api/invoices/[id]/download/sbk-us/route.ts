@@ -5,6 +5,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { queryOne } from "@/lib/pg";
+import { getInvoiceVehicles } from "@/lib/invoice-vehicles";
 import ExcelJS from "exceljs";
 import JSZip from "jszip";
 import fs from "fs";
@@ -55,6 +56,8 @@ function amountToWords(n: number): string {
     if (x < 20) return ones[x] + " ";
     if (x < 100) return tens[Math.floor(x / 10)] + (x % 10 ? " " + ones[x % 10] : "") + " ";
     if (x < 1000) return ones[Math.floor(x / 100)] + " HUNDRED " + c(x % 100);
+    // several vehicles on one invoice can pass a million
+    if (x >= 1000000) return c(Math.floor(x / 1000000)) + "MILLION " + c(x % 1000000);
     return c(Math.floor(x / 1000)) + "THOUSAND " + c(x % 1000);
   }
   return c(amt).trim();
@@ -79,7 +82,9 @@ const A14_NS    = "http://schemas.microsoft.com/office/drawing/2010/main";
 const R_NS      = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
 const LOCAL_DPI = `<a:ext uri="{28A0092B-C50C-407E-A947-70E740481C1C}"><a14:useLocalDpi xmlns:a14="${A14_NS}" val="0"/></a:ext>`;
 
-async function matchFormatPictures(xlsx: ArrayBuffer, signLayer: Buffer): Promise<ArrayBuffer> {
+// signRow: the 0-based row the signature's top-left sits in (37, or lower when
+// extra vehicle rows push the bottom of the sheet down).
+async function matchFormatPictures(xlsx: ArrayBuffer, signLayer: Buffer, signRow = 37): Promise<ArrayBuffer> {
   const zip = await JSZip.loadAsync(xlsx);
   const drawingFile = zip.file("xl/drawings/drawing1.xml");
   const relsFile    = zip.file("xl/drawings/_rels/drawing1.xml.rels");
@@ -100,7 +105,7 @@ async function matchFormatPictures(xlsx: ArrayBuffer, signLayer: Buffer): Promis
       `<a:blip xmlns:r="${R_NS}" r:embed="${embed}" cstate="print"><a:extLst>${ext}</a:extLst></a:blip>`;
     let fill: string;
     switch (`${from[1]},${from[2]}`) {
-      case "7,37": // signature
+      case `7,${signRow}`: // signature
         fill = `<xdr:blipFill rotWithShape="1">${blip(
           `<a:ext uri="{BEBA8EAE-BF5A-486C-A8C5-ECC9F3942E4B}"><a14:imgProps xmlns:a14="${A14_NS}"><a14:imgLayer r:embed="${layerId}"><a14:imgEffect><a14:brightnessContrast bright="20000" contrast="-40000"/></a14:imgEffect></a14:imgLayer></a14:imgProps></a:ext>${LOCAL_DPI}`
         )}<a:srcRect l="13816" r="9210"/><a:stretch/></xdr:blipFill>`;
@@ -132,6 +137,12 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
   const row = await queryOne<Record<string, unknown>>(`SELECT * FROM invoices WHERE id = $1`, [id]);
   if (!row) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  // Every vehicle on the invoice gets its own item row (row 23 onwards). Each
+  // extra vehicle pushes everything below the item table down one row.
+  const vehicles = await getInvoiceVehicles(id, row);
+  const X        = Math.max(0, vehicles.length - 1);
+  const R        = (r: number) => r + X;   // a row below the item table
 
   const inv = {
     createdAt: row.created_at as string,
@@ -192,8 +203,10 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     paperSize: 9,
     orientation: "portrait",
     fitToPage: false,
-    scale: 95,
-    printArea: "A1:J55",
+    // The one-vehicle sheet is 856.5pt tall (measured in Excel) and fits one A4
+    // page at 95%; each extra vehicle row adds 25.5pt, so shrink in proportion.
+    scale: X === 0 ? 95 : Math.floor(95 * 856.5 / (856.5 + 25.5 * X)),
+    printArea: `A1:J${R(55)}`,
     horizontalCentered: true,
     margins: { left: 0.45, right: 0.45, top: 0.25, bottom: 0.25, header: 0.3, footer: 0.3 },
   };
@@ -203,8 +216,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   ws.getRow(9).height  = 21;
   [11, 12, 13, 14, 15, 19].forEach(r => { ws.getRow(r).height = 15; });
   ws.getRow(22).height = 24;
-  ws.getRow(23).height = 25.5;
-  [32, 33, 36, 37].forEach(r => { ws.getRow(r).height = 15; });
+  for (let r = 23; r <= R(23); r++) ws.getRow(r).height = 25.5;
+  [32, 33, 36, 37].forEach(r => { ws.getRow(R(r)).height = 15; });
 
   // ── Images: logo top-right, stamp and signature above the designation ─────
   /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -214,14 +227,14 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   // Order matters: the signature PNG is opaque, so the stamp is placed last and
   // sits on top of it — the same order the supplied format uses.
   (ws as any).addImage(signId,  {
-    tl: { nativeCol: 7, nativeColOff: 486759, nativeRow: 37, nativeRowOff: 52552  },
-    br: { nativeCol: 8, nativeColOff: 543910, nativeRow: 42, nativeRowOff: 114054 }, editAs: "oneCell" });
+    tl: { nativeCol: 7, nativeColOff: 486759, nativeRow: R(37), nativeRowOff: 52552  },
+    br: { nativeCol: 8, nativeColOff: 543910, nativeRow: R(42), nativeRowOff: 114054 }, editAs: "oneCell" });
   (ws as any).addImage(logoId,  {
     tl: { nativeCol: 6, nativeColOff: 180975, nativeRow: 1,  nativeRowOff: 38100  },
     br: { nativeCol: 9, nativeColOff: 580665, nativeRow: 5,  nativeRowOff: 57150  }, editAs: "oneCell" });
   (ws as any).addImage(stampId, {
-    tl: { nativeCol: 5, nativeColOff: 480528, nativeRow: 37, nativeRowOff: 158569 },
-    br: { nativeCol: 7, nativeColOff: 747100, nativeRow: 42, nativeRowOff: 134267 }, editAs: "oneCell" });
+    tl: { nativeCol: 5, nativeColOff: 480528, nativeRow: R(37), nativeRowOff: 158569 },
+    br: { nativeCol: 7, nativeColOff: 747100, nativeRow: R(42), nativeRowOff: 134267 }, editAs: "oneCell" });
   /* eslint-enable @typescript-eslint/no-explicit-any */
 
   // ── Cell helper ────────────────────────────────────────────────────────────
@@ -319,15 +332,22 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   hdr(5, "DESCRIPTION & DETAILS"); hdr(7, "Year / CC"); hdr(8, "Transmission/Fuel");
   hdr(9, "C&F US$"); hdr(10, "TOTAL US$");
 
-  // ── Row 23: the vehicle ───────────────────────────────────────────────────
-  ws.mergeCells(23, 2, 23, 3);
-  ws.mergeCells(23, 5, 23, 6);
-  const itm = (c: number, v: string | number) =>
-    set(23, c, v, { size: 7, h: "center", wrap: true, border: ALL });
-  itm(1, 1); itm(2, `${inv.chassisNo}\nORIGIN: JAPAN`); itm(4, 1);
-  itm(5, inv.unit); itm(7, yearLine); itm(8, trFuel);
-  itm(9, inv.cnfPrice); itm(10, inv.cnfPrice);
-  ws.getCell(23, 9).numFmt = ws.getCell(23, 10).numFmt = "#,##0";
+  // ── Rows 23+: one row per vehicle ─────────────────────────────────────────
+  vehicles.forEach((v, i) => {
+    const r = 23 + i;
+    // a single-vehicle invoice prints exactly what it always printed
+    const one   = vehicles.length === 1;
+    const price = one ? inv.cnfPrice : v.cnfPrice;
+    ws.mergeCells(r, 2, r, 3);
+    ws.mergeCells(r, 5, r, 6);
+    const itm = (c: number, val: string | number) =>
+      set(r, c, val, { size: 7, h: "center", wrap: true, border: ALL });
+    itm(1, i + 1); itm(2, `${one ? inv.chassisNo : v.chassisNo}\nORIGIN: JAPAN`); itm(4, 1);
+    itm(5, one ? inv.unit : v.unit); itm(7, one ? yearLine : v.year || "—");
+    itm(8, one ? trFuel : `${v.transmission || "TBA"} ${v.fuel || "TBA"}`);
+    itm(9, price); itm(10, price);
+    ws.getCell(r, 9).numFmt = ws.getCell(r, 10).numFmt = "#,##0";
+  });
 
   // ── Rows 24–26: totals ────────────────────────────────────────────────────
   const totals: [string, number][] = [
@@ -336,7 +356,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     ["Remaining Balance", remaining],
   ];
   totals.forEach(([label, val], i) => {
-    const r = 24 + i;
+    const r = R(24) + i;
     set(r, 1, "", { border: { left: THIN } });
     ws.mergeCells(r, 8, r, 9);
     set(r, 8, label, { bold: true, border: LTB });
@@ -345,22 +365,22 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   });
 
   // ── Rows 27–28: amount in words + invoice number ──────────────────────────
-  ws.mergeCells(27, 1, 27, 10);
-  set(27, 1, `TOTAL AMOUNT VALUE IN WORDS : ${words} US DOLLARS ONLY`, { bold: true, fill: GRAY_THEME, border: ALL });
+  ws.mergeCells(R(27), 1, R(27), 10);
+  set(R(27), 1, `TOTAL AMOUNT VALUE IN WORDS : ${words} US DOLLARS ONLY`, { bold: true, fill: GRAY_THEME, border: ALL });
 
-  ws.mergeCells(28, 1, 28, 10);
-  set(28, 1, `INVOICE : ${invNo}`, { bold: true, border: ALL });
+  ws.mergeCells(R(28), 1, R(28), 10);
+  set(R(28), 1, `INVOICE : ${invNo}`, { bold: true, border: ALL });
 
   // ── Row 29: separator ─────────────────────────────────────────────────────
-  ws.mergeCells(29, 1, 29, 10);
+  ws.mergeCells(R(29), 1, R(29), 10);
 
   // ── Rows 30–37: bank details (left) + remarks (right) ─────────────────────
-  ws.mergeCells(30, 1, 30, 5);
-  set(30, 1, "SHIPPER'S BANK DETAILS:", { bold: true, fill: GRAY_THEME, border: ALL });
-  ws.mergeCells(30, 6, 37, 6);
-  ws.mergeCells(30, 7, 37, 10);
-  set(30, 7, "", { v: "top", wrap: true, border: ALL });
-  ws.getCell(30, 7).value = { richText: [
+  ws.mergeCells(R(30), 1, R(30), 5);
+  set(R(30), 1, "SHIPPER'S BANK DETAILS:", { bold: true, fill: GRAY_THEME, border: ALL });
+  ws.mergeCells(R(30), 6, R(37), 6);
+  ws.mergeCells(R(30), 7, R(37), 10);
+  set(R(30), 7, "", { v: "top", wrap: true, border: ALL });
+  ws.getCell(R(30), 7).value = { richText: [
     { text: "REMARKS:", font: { name: "Calibri", size: 8, bold: true, underline: true } },
     { text: REMARKS_BODY, font: { name: "Calibri", size: 8 } },
   ] };
@@ -373,7 +393,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     ["SWIFT / BIC",    US_INFO.swift],
   ];
   bankRows.forEach(([label, value], i) => {
-    const r = 31 + i;
+    const r = R(31) + i;
     ws.mergeCells(r, 1, r, 2);
     ws.mergeCells(r, 3, r, 5);
     set(r, 1, label, { bold: true, wrap: true, border: ALL });
@@ -381,23 +401,23 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   });
 
   // The bank address runs over two rows under a single label
-  ws.mergeCells(36, 1, 37, 2);
-  set(36, 1, "BANK ADDRESS", { bold: true, wrap: true, border: ALL });
-  ws.mergeCells(36, 3, 36, 5); set(36, 3, US_INFO.bankAddr1, { bold: true, wrap: true, border: ALL });
-  ws.mergeCells(37, 3, 37, 5); set(37, 3, US_INFO.bankAddr2, { bold: true, wrap: true, border: ALL });
+  ws.mergeCells(R(36), 1, R(37), 2);
+  set(R(36), 1, "BANK ADDRESS", { bold: true, wrap: true, border: ALL });
+  ws.mergeCells(R(36), 3, R(36), 5); set(R(36), 3, US_INFO.bankAddr1, { bold: true, wrap: true, border: ALL });
+  ws.mergeCells(R(37), 3, R(37), 5); set(R(37), 3, US_INFO.bankAddr2, { bold: true, wrap: true, border: ALL });
 
   // ── Rows 38–43: stamp + signature area ────────────────────────────────────
-  ws.mergeCells(38, 7, 43, 10);
+  ws.mergeCells(R(38), 7, R(43), 10);
 
   // ── Rows 44–45: designation, underlined ───────────────────────────────────
-  ws.mergeCells(44, 7, 44, 10);
-  set(44, 7, "Director International Sales", { bold: true, size: 10, h: "center" });
-  ws.mergeCells(45, 7, 45, 10);
-  set(45, 7, "", { bold: true, size: 10, h: "center", border: { bottom: THIN } });
+  ws.mergeCells(R(44), 7, R(44), 10);
+  set(R(44), 7, "Director International Sales", { bold: true, size: 10, h: "center" });
+  ws.mergeCells(R(45), 7, R(45), 10);
+  set(R(45), 7, "", { bold: true, size: 10, h: "center", border: { bottom: THIN } });
 
   // ── Rows 46–54: terms and conditions ──────────────────────────────────────
-  ws.mergeCells(46, 1, 54, 10);
-  const tc = ws.getCell(46, 1);
+  ws.mergeCells(R(46), 1, R(54), 10);
+  const tc = ws.getCell(R(46), 1);
   tc.value     = { richText: [
     { text: TERMS_HEAD, font: { name: "Calibri", size: 7, bold: true, underline: true } },
     { text: TERMS_BODY, font: { name: "Calibri", size: 7 } },
@@ -406,7 +426,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   tc.alignment = { horizontal: "left", vertical: "top", wrapText: true };
   tc.border    = { top: THIN };
 
-  const buffer = await matchFormatPictures(await wb.xlsx.writeBuffer(), signLayer);
+  const buffer = await matchFormatPictures(await wb.xlsx.writeBuffer(), signLayer, R(37));
   return new NextResponse(buffer, {
     headers: {
       "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",

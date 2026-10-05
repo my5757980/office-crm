@@ -94,6 +94,8 @@ export function serializeInvoice(row: Record<string, unknown>) {
     uploadedPdf: row.uploaded_pdf_data || row.has_uploaded_pdf
       ? { data: strOrUndef(row.uploaded_pdf_data), filename: str(row.uploaded_pdf_filename), uploadedAt: str(row.uploaded_pdf_uploaded_at) }
       : undefined,
+    // How many vehicles the invoice carries; lists fill it in when it is more than one.
+    vehicleCount: undefined as number | undefined,
     createdAt: str(row.created_at),
     updatedAt: str(row.updated_at),
   };

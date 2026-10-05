@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { queryOne, genId } from "@/lib/pg";
 import { unitSchema } from "@/lib/validations";
 import { serializeUnit } from "@/lib/serialize";
+import { getInvoiceVehicles } from "@/lib/invoice-vehicles";
 
 const CAN_ADD = ["manager", "super_admin"];
 
@@ -17,9 +18,18 @@ export async function POST(request: NextRequest) {
   if (!parsed.success)
     return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
 
-  const existing = await queryOne(`SELECT id FROM units WHERE invoice_id = $1`, [parsed.data.invoiceId]);
-  if (existing)
-    return NextResponse.json({ error: "Unit already exists for this invoice" }, { status: 409 });
+  // One unit per vehicle on the invoice (an invoice can carry several).
+  const [vehicles, existing] = await Promise.all([
+    getInvoiceVehicles(parsed.data.invoiceId),
+    queryOne<{ n: string }>(`SELECT count(*) AS n FROM units WHERE invoice_id = $1`, [parsed.data.invoiceId]),
+  ]);
+  if (vehicles.length === 0)
+    return NextResponse.json({ error: "Invoice not found" }, { status: 404 });
+  if (Number(existing?.n ?? 0) >= vehicles.length)
+    return NextResponse.json(
+      { error: vehicles.length > 1 ? `All ${vehicles.length} vehicles on this invoice already have a unit` : "Unit already exists for this invoice" },
+      { status: 409 }
+    );
 
   const d = parsed.data;
   const row = await queryOne(

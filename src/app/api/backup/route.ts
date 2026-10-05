@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { query } from "@/lib/pg";
+import { ensureVehicleTable } from "@/lib/invoice-vehicles";
 import ExcelJS from "exceljs";
 
 export async function GET() {
@@ -256,6 +257,57 @@ export async function GET() {
       sellingPrice:  Number(f.selling_price) || 0,
       profit:        Number(f.profit) || 0,
       updatedAt:     f.updated_at ? new Date(f.updated_at).toLocaleDateString("en-GB") : "",
+    });
+  });
+
+  // ── Sheet 6: Invoice Vehicles (every vehicle on every invoice) ──────
+  // An invoice made before invoices could carry several vehicles has its one
+  // vehicle on the Invoices sheet only.
+  let vehicles: any[] = [];
+  try {
+    await ensureVehicleTable();
+    vehicles = await query(`SELECT v.*, i.consignee_name, ld.customer_name AS lead_customer_name, i.status
+                            FROM invoice_vehicles v
+                            JOIN invoices i ON i.id = v.invoice_id
+                            LEFT JOIN leads ld ON ld.id = i.lead_id
+                            ORDER BY i.created_at, v.invoice_id, v.position`);
+  } catch {
+    vehicles = [];
+  }
+  const wsVehicles = wb.addWorksheet("Invoice Vehicles");
+  wsVehicles.columns = [
+    { key: "no",           width: 6  },
+    { key: "customer",     width: 22 },
+    { key: "invoiceId",    width: 26 },
+    { key: "position",     width: 10 },
+    { key: "unit",         width: 20 },
+    { key: "year",         width: 10 },
+    { key: "color",        width: 12 },
+    { key: "chassisNo",    width: 20 },
+    { key: "engineNo",     width: 20 },
+    { key: "transmission", width: 14 },
+    { key: "fuel",         width: 12 },
+    { key: "pushPrice",    width: 14 },
+    { key: "cnfPrice",     width: 14 },
+    { key: "status",       width: 14 },
+  ];
+  applyHeaders(wsVehicles, ["#", "Customer", "Invoice ID", "Vehicle #", "Unit", "Year", "Color", "Chassis No", "Engine No", "Transmission", "Fuel", "Push Price", "CNF Price", "Status"]);
+  vehicles.forEach((v: any, i) => {
+    wsVehicles.addRow({
+      no:           i + 1,
+      customer:     v.lead_customer_name ?? v.consignee_name ?? "",
+      invoiceId:    v.invoice_id ?? "",
+      position:     Number(v.position) || 0,
+      unit:         v.unit ?? "",
+      year:         v.year ?? "",
+      color:        v.color ?? "",
+      chassisNo:    v.chassis_no ?? "",
+      engineNo:     v.engine_no ?? "",
+      transmission: v.transmission ?? "",
+      fuel:         v.fuel ?? "",
+      pushPrice:    Number(v.push_price) || 0,
+      cnfPrice:     Number(v.cnf_price) || 0,
+      status:       v.status ?? "",
     });
   });
 

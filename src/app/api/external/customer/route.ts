@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { query } from "@/lib/pg";
 import { CUSTOMER_EMAIL_SQL, invoiceNumber, verifyApiRequest } from "@/lib/website-link";
+import { getVehiclesForInvoices } from "@/lib/invoice-vehicles";
 
 export const dynamic = "force-dynamic";
 
@@ -94,7 +95,7 @@ export async function GET(req: NextRequest) {
   }
 
   const invoiceIds = invoices.map((i) => i.id);
-  const [payments, units] = await Promise.all([
+  const [payments, units, vehiclesByInvoice] = await Promise.all([
     query<PaymentRow>(
       `SELECT id, invoice_id, amount_received, received_date FROM payments
        WHERE invoice_id = ANY($1) ORDER BY received_date ASC, created_at ASC`,
@@ -106,6 +107,8 @@ export async function GET(req: NextRequest) {
        FROM units WHERE invoice_id = ANY($1) ORDER BY created_at ASC`,
       [invoiceIds]
     ),
+    // Push prices stay internal: only the vehicle and its CNF price go out.
+    getVehiclesForInvoices(invoices as unknown as Record<string, unknown>[]),
   ]);
 
   const files = units.length
@@ -153,6 +156,17 @@ export async function GET(req: NextRequest) {
       fuel: text(inv.fuel),
       transmission: text(inv.transmission),
       salesperson: text(inv.salesperson),
+      // Every vehicle on the invoice (the fields above are vehicle 1).
+      vehicles: (vehiclesByInvoice.get(inv.id) ?? []).map((v) => ({
+        unit: v.unit,
+        chassisNo: v.chassisNo,
+        engineNo: v.engineNo,
+        color: v.color,
+        year: v.year,
+        fuel: v.fuel,
+        transmission: v.transmission,
+        cnfPrice: v.cnfPrice,
+      })),
       consignee: {
         name: text(inv.consignee_name),
         address: text(inv.consignee_address),

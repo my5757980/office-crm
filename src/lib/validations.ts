@@ -36,6 +36,20 @@ const blankToUndefined = (v: unknown) =>
 const optionalPrice = (label: string) =>
   z.preprocess(blankToUndefined, z.number().positive(`${label} must be positive`).optional()).optional();
 
+// One vehicle on an invoice (Sir, 5 Oct 2026: several vehicles per invoice via
+// "Add More"). Like the rest of the request, every box may be left empty.
+export const invoiceVehicleSchema = z.object({
+  unit:         z.string().optional().default(""),
+  year:         z.string().optional().default(""),
+  color:        z.string().optional().default(""),
+  chassisNo:    z.string().optional().default(""),
+  engineNo:     z.string().optional().default(""),
+  transmission: z.string().optional().default(""),
+  fuel:         z.string().optional().default(""),
+  pushPrice:    optionalPrice("Push price"),
+  cnfPrice:     optionalPrice("CNF price"),
+});
+
 // Sir's rule (2 Oct 2026): only the consignee's name, phone and country are
 // required on an invoice request; everything else, e-mail too, may be left empty.
 export const invoiceRequestSchema = z.object({
@@ -63,6 +77,9 @@ export const invoiceRequestSchema = z.object({
   pushPrice:    optionalPrice("Push price"),
   cnfPrice:       optionalPrice("CNF price"),
   advancePercent: z.preprocess(blankToUndefined, z.number().min(1, "Min 1%").max(100, "Max 100%").default(50)).default(50),
+  // Every vehicle on the invoice, each with its own push / CNF price. The single
+  // vehicle fields above stay for any screen that still sends just one.
+  vehicles: z.array(invoiceVehicleSchema).max(50, "At most 50 vehicles on one invoice").optional(),
 });
 
 

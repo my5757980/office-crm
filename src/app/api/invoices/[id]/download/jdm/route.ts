@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { queryOne } from "@/lib/pg";
+import { getInvoiceVehicles } from "@/lib/invoice-vehicles";
 import ExcelJS from "exceljs";
 import fs from "fs";
 import path from "path";
@@ -76,6 +77,13 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const row = await queryOne<Record<string, unknown>>(`SELECT * FROM invoices WHERE id = $1`, [id]);
   if (!row) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
+  // Every vehicle on the invoice gets its own item row. The format has eight
+  // item rows (21–28) under an empty row 20; more vehicles than that push
+  // everything below the table down.
+  const vehicles = await getInvoiceVehicles(id, row);
+  const X        = Math.max(0, vehicles.length - 8);
+  const R        = (r: number) => r + X;   // a row below the item table
+
   const inv = {
     createdAt: row.created_at as string,
     advancePercent: row.advance_percent != null ? Number(row.advance_percent) : 50,
@@ -142,8 +150,11 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     paperSize: 9,
     orientation: "landscape",
     fitToPage: false,
-    scale: 75,
-    printArea: "A1:O39",
+    // The sheet is 657.8pt tall (measured in Excel); a landscape A4 page holds
+    // 716.9pt at 75%. Beyond eight vehicles, shrink only when the extra 18pt
+    // rows would no longer fit.
+    scale: X === 0 ? 75 : Math.min(75, Math.floor(53770 / (657.8 + 18 * X))),
+    printArea: `A1:O${R(39)}`,
     horizontalCentered: true,
     verticalCentered: true,
     margins: { left: 0.4, right: 0.4, top: 0.4, bottom: 0.4, header: 0.2, footer: 0.2 },
@@ -268,29 +279,35 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   // ── Row 20: empty data row ────────────────────────────────────────────────
   dataRowFmt(20);
 
-  // ── Row 21: Vehicle data ──────────────────────────────────────────────────
-  dataRowFmt(21);
-  const setDat = (c: number, val: string | number, h?: "left"|"center"|"right") => {
-    const cell = ws.getCell(21, c);
-    cell.value = val;
-    cell.font = { size: 10 };
-    cell.alignment = { horizontal: h ?? (typeof val === "number" ? "right" : "left"), vertical: "middle" };
-  };
-  setDat(1,  "1",             "center");
-  setDat(2,  make);
-  setDat(4,  model);
-  setDat(5,  inv.chassisNo);
-  setDat(7,  inv.year ?? "");
-  setDat(9,  inv.color);
-  setDat(11, inv.engineNo ?? "");
-  setDat(13, 1,               "center");
-  setDat(14, inv.cnfPrice);
-  ws.getCell(21, 14).numFmt = "#,##0";
-  setDat(15, inv.cnfPrice);
-  ws.getCell(21, 15).numFmt = "#,##0";
+  // ── Rows 21+: one row per vehicle ─────────────────────────────────────────
+  vehicles.forEach((v, i) => {
+    const r = 21 + i;
+    dataRowFmt(r);
+    const setDat = (c: number, val: string | number, h?: "left"|"center"|"right") => {
+      const cell = ws.getCell(r, c);
+      cell.value = val;
+      cell.font = { size: 10 };
+      cell.alignment = { horizontal: h ?? (typeof val === "number" ? "right" : "left"), vertical: "middle" };
+    };
+    // a single-vehicle invoice prints exactly what it always printed
+    const one   = vehicles.length === 1;
+    const parts = v.unit.split(" ");
+    setDat(1,  String(i + 1),   "center");
+    setDat(2,  one ? make : parts[0] ?? v.unit);
+    setDat(4,  one ? model : parts.slice(1).join(" ") || v.unit);
+    setDat(5,  one ? inv.chassisNo : v.chassisNo);
+    setDat(7,  one ? inv.year ?? "" : v.year);
+    setDat(9,  one ? inv.color : v.color);
+    setDat(11, one ? inv.engineNo ?? "" : v.engineNo);
+    setDat(13, 1,               "center");
+    setDat(14, one ? inv.cnfPrice : v.cnfPrice);
+    ws.getCell(r, 14).numFmt = "#,##0";
+    setDat(15, one ? inv.cnfPrice : v.cnfPrice);
+    ws.getCell(r, 15).numFmt = "#,##0";
+  });
 
-  // ── Rows 22-28: empty data rows ───────────────────────────────────────────
-  for (let r = 22; r <= 28; r++) dataRowFmt(r);
+  // ── Remaining rows to 28 (or lower): empty data rows ──────────────────────
+  for (let r = 21 + vehicles.length; r <= R(28); r++) dataRowFmt(r);
 
   // ── Total rows helper ─────────────────────────────────────────────────────
   function totalRow(r: number, label: string, val: number) {
@@ -332,38 +349,38 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   }
 
   // ── Row 29: Advance payment ───────────────────────────────────────────────
-  totalRow(29, `${advPct}% ADVANCE PAYMENT`, advanceAmt);
+  totalRow(R(29), `${advPct}% ADVANCE PAYMENT`, advanceAmt);
 
   // ── Row 30: Balance ───────────────────────────────────────────────────────
-  totalRow(30, "BALANCE", remaining);
+  totalRow(R(30), "BALANCE", remaining);
 
   // ── Row 31: Special Notes + TOTAL SALES PRICE ────────────────────────────
-  ws.mergeCells(31, 1, 31, 10); // A:J
-  const r31note = ws.getCell(31, 1);
+  ws.mergeCells(R(31), 1, R(31), 10); // A:J
+  const r31note = ws.getCell(R(31), 1);
   r31note.value = "Special Notes and Instructions";
   r31note.font  = { bold: true, size: 10 };
   bdr(r31note);
 
-  ws.mergeCells(31, 11, 31, 13); // K:M
-  const r31lbl = ws.getCell(31, 11);
+  ws.mergeCells(R(31), 11, R(31), 13); // K:M
+  const r31lbl = ws.getCell(R(31), 11);
   r31lbl.value = "TOTAL SALES PRICE";
   r31lbl.font  = { bold: true, size: 10 };
   r31lbl.alignment = { horizontal: "right", vertical: "middle" };
   bdr(r31lbl);
 
-  const r31us = ws.getCell(31, 14);
+  const r31us = ws.getCell(R(31), 14);
   r31us.value = "US$";
   r31us.font  = { bold: true, size: 10 };
   r31us.alignment = { horizontal: "center", vertical: "middle" };
   bdr(r31us);
 
-  const r31val = ws.getCell(31, 15);
+  const r31val = ws.getCell(R(31), 15);
   r31val.value = inv.cnfPrice;
   r31val.font  = { bold: true, size: 10 };
   r31val.alignment = { horizontal: "right", vertical: "middle" };
   r31val.numFmt = "#,##0";
   bdr(r31val);
-  ws.getRow(31).height = 16;
+  ws.getRow(R(31)).height = 16;
 
   // ── Rows 32-39: Notes (A) + Intermediary banking (L) ─────────────────────
   const notes: [string, boolean][] = [
@@ -389,7 +406,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   ];
 
   notes.forEach(([text, bold], i) => {
-    const r = 32 + i;
+    const r = R(32) + i;
     const c = ws.getCell(r, 1);
     c.value = text;
     c.font  = { bold, size: 10 };
@@ -398,7 +415,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   });
 
   intBank.forEach(([text, bold], i) => {
-    const r = 32 + i;
+    const r = R(32) + i;
     ws.mergeCells(r, 12, r, 15);
     const c = ws.getCell(r, 12);
     c.value = text;
@@ -430,9 +447,9 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   for (let c = 11; c <= 15; c++) addBdr(16, c, false, true,  c===11, c===15);
 
   // Intermediary banking box: L(12)–O(15), rows 33–39
-  for (let c = 12; c <= 15; c++) addBdr(33, c, true,  false, c===12, c===15);
-  for (let r = 34; r <= 38; r++) { addBdr(r, 12, false, false, true, false); addBdr(r, 15, false, false, false, true); }
-  for (let c = 12; c <= 15; c++) addBdr(39, c, false, true,  c===12, c===15);
+  for (let c = 12; c <= 15; c++) addBdr(R(33), c, true,  false, c===12, c===15);
+  for (let r = R(34); r <= R(38); r++) { addBdr(r, 12, false, false, true, false); addBdr(r, 15, false, false, false, true); }
+  for (let c = 12; c <= 15; c++) addBdr(R(39), c, false, true,  c===12, c===15);
 
   const buffer = await wb.xlsx.writeBuffer();
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { queryOne } from "@/lib/pg";
+import { getInvoiceVehicles } from "@/lib/invoice-vehicles";
 import ExcelJS from "exceljs";
 import fs from "fs";
 import path from "path";
@@ -46,6 +47,8 @@ function amountToWords(n: number): string {
     if (x < 20) return ones[x] + " ";
     if (x < 100) return tens[Math.floor(x / 10)] + (x % 10 ? " " + ones[x % 10] : "") + " ";
     if (x < 1000) return ones[Math.floor(x / 100)] + " HUNDRED " + c(x % 100);
+    // several vehicles on one invoice can pass a million
+    if (x >= 1000000) return c(Math.floor(x / 1000000)) + "MILLION " + c(x % 1000000);
     return c(Math.floor(x / 1000)) + "THOUSAND " + c(x % 1000);
   }
   return c(amt).trim();
@@ -66,6 +69,13 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
   const row = await queryOne<Record<string, unknown>>(`SELECT * FROM invoices WHERE id = $1`, [id]);
   if (!row) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+  // Every vehicle on the invoice gets its own item row. The format has three
+  // item rows (23–25); more vehicles than that push everything below down.
+  const vehicles  = await getInvoiceVehicles(id, row);
+  const ITEM_ROWS = Math.max(3, vehicles.length);
+  const X         = ITEM_ROWS - 3;
+  const R         = (r: number) => r + X;   // a row below the item table
 
   const inv = {
     createdAt: row.created_at as string,
@@ -127,8 +137,11 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     paperSize: 9,
     orientation: "portrait",
     fitToPage: false,
-    scale: 100,
-    printArea: "A1:J59",
+    // Up to three vehicles use the format's own rows. Beyond that each extra
+    // row (25.5pt) is offset by shrinking in proportion to the original sheet
+    // (937.5pt tall at 100%, measured in Excel), so it prints as it always did.
+    scale: X === 0 ? 100 : Math.floor(100 * 937.5 / (937.5 + 25.5 * X)),
+    printArea: `A1:J${R(59)}`,
     horizontalCentered: true,
     margins: { left: 0.45, right: 0.45, top: 0.25, bottom: 0.25, header: 0.3, footer: 0.3 },
   };
@@ -137,9 +150,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   ws.getRow(2).height  = 21;
   ws.getRow(9).height  = 21;
   ws.getRow(22).height = 24;
-  ws.getRow(23).height = 25.5;
-  ws.getRow(24).height = 25.5;
-  ws.getRow(25).height = 25.5;
+  for (let r = 23; r < 23 + ITEM_ROWS; r++) ws.getRow(r).height = 25.5;
 
   // ── Images ─────────────────────────────────────────────────────────────────
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -149,7 +160,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (ws as any).addImage(logoId,  { tl: { col: 6,   row: 0  }, ext: { width: 246, height: 93 }, editAs: "oneCell" });
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  (ws as any).addImage(stampId, { tl: { col: 7.2, row: 39 }, br: { col: 9.0, row: 47  }, editAs: "oneCell" });
+  (ws as any).addImage(stampId, { tl: { col: 7.2, row: R(39) }, br: { col: 9.0, row: R(47) }, editAs: "oneCell" });
 
   // ── Cell helper ────────────────────────────────────────────────────────────
   function set(
@@ -263,61 +274,65 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   set(22, 9,  "C&F US$",                            TH);
   set(22, 10, "TOTAL US$",                          TH);
 
-  // ── Row 23: vehicle data ───────────────────────────────────────────────────
-  ws.mergeCells(23, 2, 23, 3);
-  ws.mergeCells(23, 5, 23, 6);
+  // ── Rows 23+: one row per vehicle, then the empty bordered rows ───────────
   const VD = { h: "center" as const, v: "middle" as const, border: ALL, wrap: true };
-  set(23, 1,  1,                                      VD);
-  set(23, 2,  `${inv.chassisNo || "—"}\nORIGIN: JAPAN`, VD);
-  set(23, 4,  1,                                      VD);
-  set(23, 5,  inv.unit || "—",                        VD);
-  set(23, 7,  yearLine,                               VD);
-  set(23, 8,  trFuel,                                 VD);
-  set(23, 9,  inv.cnfPrice, { ...VD, numFmt: "#,##0" });
-  set(23, 10, inv.cnfPrice, { ...VD, numFmt: "#,##0" });
-
-  // ── Rows 24–25: empty vehicle rows with borders ───────────────────────────
-  for (const r of [24, 25]) {
+  for (let i = 0; i < ITEM_ROWS; i++) {
+    const r = 23 + i;
     ws.mergeCells(r, 2, r, 3);
     ws.mergeCells(r, 5, r, 6);
-    for (let c = 1; c <= 10; c++) {
-      if (c === 3 || c === 6) continue;
-      ws.getCell(r, c).border = ALL;
+    const v = vehicles[i];
+    if (v) {
+      // a single-vehicle invoice prints exactly what it always printed
+      const one   = vehicles.length === 1;
+      const price = one ? inv.cnfPrice : v.cnfPrice;
+      set(r, 1,  i + 1,                                                        VD);
+      set(r, 2,  `${(one ? inv.chassisNo : v.chassisNo) || "—"}\nORIGIN: JAPAN`, VD);
+      set(r, 4,  1,                                                            VD);
+      set(r, 5,  (one ? inv.unit : v.unit) || "—",                             VD);
+      set(r, 7,  one ? yearLine : v.year || "—",                               VD);
+      set(r, 8,  one ? trFuel : `${v.transmission || "TBA"} ${v.fuel || "TBA"}`, VD);
+      set(r, 9,  price, { ...VD, numFmt: "#,##0" });
+      set(r, 10, price, { ...VD, numFmt: "#,##0" });
+    } else {
+      for (let c = 1; c <= 10; c++) {
+        if (c === 3 || c === 6) continue;
+        ws.getCell(r, c).border = ALL;
+      }
     }
   }
 
   // ── Rows 26–28: summary ────────────────────────────────────────────────────
-  ws.mergeCells(26, 8, 26, 9);
-  ws.mergeCells(27, 8, 27, 9);
-  ws.mergeCells(28, 8, 28, 9);
+  ws.mergeCells(R(26), 8, R(26), 9);
+  ws.mergeCells(R(27), 8, R(27), 9);
+  ws.mergeCells(R(28), 8, R(28), 9);
   const SL = { bold: true, border: { left: THIN, top: THIN, bottom: THIN } };
-  set(26, 8, "TOTAL AMOUNT",    SL);
-  set(27, 8, `${advPct}% AMOUNT`, SL);
-  set(28, 8, "Remaining Balance", SL);
-  for (const [r, v] of [[26, inv.cnfPrice], [27, advanceAmt], [28, remaining]] as [number,number][]) {
+  set(R(26), 8, "TOTAL AMOUNT",    SL);
+  set(R(27), 8, `${advPct}% AMOUNT`, SL);
+  set(R(28), 8, "Remaining Balance", SL);
+  for (const [r, v] of [[R(26), inv.cnfPrice], [R(27), advanceAmt], [R(28), remaining]] as [number,number][]) {
     set(r, 10, v, { bold: true, h: "center", numFmt: "#,##0", border: ALL });
   }
 
   // ── Row 29: total in words (A29:J29) ──────────────────────────────────────
-  ws.mergeCells(29, 1, 29, 10);
-  set(29, 1, `TOTAL AMOUNT VALUE IN WORDS : ${words} US DOLLARS ONLY`,
+  ws.mergeCells(R(29), 1, R(29), 10);
+  set(R(29), 1, `TOTAL AMOUNT VALUE IN WORDS : ${words} US DOLLARS ONLY`,
     { bold: true, border: { left: THIN, top: THIN, bottom: THIN } });
 
   // ── Row 30: invoice# (A30:J30) ────────────────────────────────────────────
-  ws.mergeCells(30, 1, 30, 10);
-  set(30, 1, `INVOICE : ${invNo}`,
+  ws.mergeCells(R(30), 1, R(30), 10);
+  set(R(30), 1, `INVOICE : ${invNo}`,
     { bold: true, border: { left: THIN, top: THIN, bottom: THIN } });
 
   // ── Row 31: separator (A31:J31) ───────────────────────────────────────────
-  ws.mergeCells(31, 1, 31, 10);
+  ws.mergeCells(R(31), 1, R(31), 10);
 
   // ── Rows 32–39: bank details (left) + remarks (right) ─────────────────────
-  ws.mergeCells(32, 1, 32, 5);
-  ws.mergeCells(32, 6, 39, 6);
-  ws.mergeCells(32, 7, 39, 10);
+  ws.mergeCells(R(32), 1, R(32), 5);
+  ws.mergeCells(R(32), 6, R(39), 6);
+  ws.mergeCells(R(32), 7, R(39), 10);
 
-  set(32, 1, "SHIPPER'S BANK DETAILS:", { bold: true, border: ALL });
-  set(32, 7,
+  set(R(32), 1, "SHIPPER'S BANK DETAILS:", { bold: true, border: ALL });
+  set(R(32), 7,
     "REMARKS:\nPLEASE PAY BANK CHARGES OR PAYPAL CHARGES OR CREDIT CARD CHARGES.\n\nPLEASE READ TERMS AND CONDITION BELOW.",
     { h: "left", v: "top", wrap: true, border: ALL });
 
@@ -331,7 +346,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     ["SWIFT CODE:", SBK_INFO.swift],
   ];
   bankRows.forEach(([label, value], i) => {
-    const r = 33 + i;
+    const r = R(33) + i;
     ws.mergeCells(r, 1, r, 2);
     ws.mergeCells(r, 3, r, 5);
     set(r, 1, label, { bold: true, wrap: true, border: ALL });
@@ -339,24 +354,24 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   });
 
   // ── Rows 40–47: stamp image area ──────────────────────────────────────────
-  ws.mergeCells(40, 7, 47, 10);
+  ws.mergeCells(R(40), 7, R(47), 10);
 
   // ── Row 48: director name ─────────────────────────────────────────────────
-  ws.mergeCells(48, 7, 48, 10);
-  set(48, 7, "SM Khurram Rashid", {
+  ws.mergeCells(R(48), 7, R(48), 10);
+  set(R(48), 7, "SM Khurram Rashid", {
     bold: true, size: 10, h: "center",
   });
 
   // ── Row 49: director title ────────────────────────────────────────────────
-  ws.mergeCells(49, 7, 49, 10);
-  set(49, 7, "Director International Sales", {
+  ws.mergeCells(R(49), 7, R(49), 10);
+  set(R(49), 7, "Director International Sales", {
     bold: true, size: 10, h: "center",
     border: { bottom: THIN },
   });
 
   // ── Rows 50–59: terms and conditions ──────────────────────────────────────
-  ws.mergeCells(50, 1, 59, 10);
-  const tc = ws.getCell(50, 1);
+  ws.mergeCells(R(50), 1, R(59), 10);
+  const tc = ws.getCell(R(50), 1);
   tc.value     = TERMS_TEXT;
   tc.font      = { name: "Calibri", size: 6 };
   tc.alignment = { horizontal: "left", vertical: "top", wrapText: true };

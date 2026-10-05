@@ -9,6 +9,7 @@ interface InvoiceRow {
   status: string;
   unit: string;
   chassisNo: string;
+  vehicleCount?: number;
   createdAt: string;
   leadId?: { customerName: string } | null;
   createdBy?: { name: string } | null;
@@ -147,7 +148,18 @@ export default function InvoiceTable({ invoices, showAgent = false, role, paidIn
                     {showAgent && (
                       <td data-label="Agent" style={{ padding: "13px 18px", color: "#656d76", fontSize: "12px" }}>{inv.createdBy?.name ?? "—"}</td>
                     )}
-                    <td data-label="Vehicle" style={{ padding: "13px 18px", color: "#1f2328" }}>{inv.unit}</td>
+                    <td data-label="Vehicle" style={{ padding: "13px 18px", color: "#1f2328" }}>
+                      {inv.unit}
+                      {(inv.vehicleCount ?? 1) > 1 && (
+                        <span style={{
+                          marginLeft: "6px", fontSize: "11px", fontWeight: 600,
+                          color: "#0550ae", background: "#dbeafe", border: "1px solid #bfdbfe",
+                          padding: "1px 7px", borderRadius: "999px", whiteSpace: "nowrap",
+                        }}>
+                          +{(inv.vehicleCount ?? 1) - 1} more
+                        </span>
+                      )}
+                    </td>
                     <td data-label="Chassis No." style={{ padding: "13px 18px" }}>
                       <code style={{
                         fontSize: "11px", fontFamily: "monospace",

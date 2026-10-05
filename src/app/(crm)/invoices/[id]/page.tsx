@@ -1,8 +1,9 @@
 import type { ComponentProps } from "react";
 import { auth } from "@/lib/auth";
 import { notFound } from "next/navigation";
-import { queryOne } from "@/lib/pg";
+import { query, queryOne } from "@/lib/pg";
 import { serializeInvoice } from "@/lib/serialize";
+import { getInvoiceVehicles, type InvoiceVehicle } from "@/lib/invoice-vehicles";
 import InvoiceDetail from "@/components/invoices/InvoiceDetail";
 import PaymentSection from "@/components/invoices/PaymentSection";
 import TopBar from "@/components/layout/TopBar";
@@ -49,13 +50,15 @@ export default async function InvoiceDetailPage({
     WHERE i.id = $1
   `;
 
-  let fetched: [Record<string, unknown> | null, { id: string } | null] | null = null;
+  type UnitRow = { id: string; make: string | null; car_model: string | null; chassis: string | null };
+  let fetched: [Record<string, unknown> | null, UnitRow[]] | null = null;
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
       if (attempt > 0) await new Promise<void>((r) => setTimeout(r, 500 * attempt));
       fetched = await Promise.all([
         queryOne<Record<string, unknown>>(INVOICE_SELECT, [id]),
-        queryOne<{ id: string }>(`SELECT id FROM units WHERE invoice_id = $1`, [id]),
+        // every unit added for this invoice (one per vehicle)
+        query<UnitRow>(`SELECT id, make, car_model, chassis FROM units WHERE invoice_id = $1 ORDER BY created_at`, [id]),
       ]);
       break;
     } catch {
@@ -105,7 +108,7 @@ export default async function InvoiceDetailPage({
     );
   }
 
-  const [raw, existingUnit] = fetched;
+  const [raw, unitRows] = fetched;
 
   if (!raw) notFound();
 
@@ -116,7 +119,20 @@ export default async function InvoiceDetailPage({
   if (!isElevated && !isOwner) notFound();
 
   const invoice = serializeInvoice(raw);
-  const unitId = existingUnit ? existingUnit.id : null;
+  const unitId = unitRows[0]?.id ?? null;
+  const units = unitRows.map((u) => ({
+    _id: u.id,
+    label: [`${u.make ?? ""} ${u.car_model ?? ""}`.trim(), u.chassis ?? ""].filter(Boolean).join(" · "),
+  }));
+
+  // Every vehicle on the invoice. If this read fails the page still shows the
+  // invoice's own (first) vehicle, as it always did.
+  let vehicles: InvoiceVehicle[] | undefined;
+  try {
+    vehicles = await getInvoiceVehicles(id, raw);
+  } catch {
+    vehicles = undefined;
+  }
 
   return (
     <div style={{ display: "flex", flexDirection: "column", flex: 1 }}>
@@ -127,7 +143,7 @@ export default async function InvoiceDetailPage({
         {backLink}
 
         {/* leadId is always the joined { customerName, contactPerson, ... } object here — this query always joins leads */}
-        <InvoiceDetail invoice={invoice as unknown as ComponentProps<typeof InvoiceDetail>["invoice"]} role={role} unitId={unitId} />
+        <InvoiceDetail invoice={invoice as unknown as ComponentProps<typeof InvoiceDetail>["invoice"]} role={role} unitId={unitId} units={units} vehicles={vehicles} />
 
         {["admin", "manager", "super_admin"].includes(role) && (
           <PaymentSection

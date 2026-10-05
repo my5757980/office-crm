@@ -2,6 +2,7 @@ import type { ComponentProps } from "react";
 import { auth } from "@/lib/auth";
 import { query } from "@/lib/pg";
 import { serializeInvoice } from "@/lib/serialize";
+import { vehicleCounts } from "@/lib/invoice-vehicles";
 import InvoiceTable from "@/components/invoices/InvoiceTable";
 import TopBar from "@/components/layout/TopBar";
 
@@ -69,6 +70,9 @@ export default async function InvoicesPage() {
       ]);
       invoices = rows.map(serializeInvoice);
       stats = statsResult;
+      // invoices with several vehicles get a "+N more" badge
+      const counts = await vehicleCounts(invoices.map((inv) => inv._id));
+      invoices = invoices.map((inv) => (counts.has(inv._id) ? { ...inv, vehicleCount: counts.get(inv._id) } : inv));
       break;
     } catch {
       if (attempt === 2) invoices = [];

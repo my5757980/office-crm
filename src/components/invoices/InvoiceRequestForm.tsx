@@ -1,6 +1,6 @@
 "use client";
 
-import { useForm, useWatch } from "react-hook-form";
+import { useFieldArray, useForm, useWatch } from "react-hook-form";
 import { useEffect, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { invoiceRequestSchema, InvoiceRequestFormData } from "@/lib/validations";
@@ -60,6 +60,14 @@ function Field({ label, required, error, children }: { label: string; required?:
   );
 }
 
+// One empty vehicle card. Prices start undefined so a blank box stays blank.
+const EMPTY_VEHICLE = {
+  unit: "", year: "", color: "", chassisNo: "", engineNo: "", transmission: "", fuel: "",
+  pushPrice: undefined, cnfPrice: undefined,
+};
+
+const money = (v: unknown) => (typeof v === "number" && Number.isFinite(v) && v > 0 ? v : 0);
+
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
     <div style={{ paddingBottom: "12px", borderBottom: "1px solid #f0f2f4", marginBottom: "16px" }}>
@@ -79,11 +87,17 @@ export default function InvoiceRequestForm({ leadId, defaultConsignee, onSubmit 
   } = useForm<InvoiceRequestFormData>({ resolver: zodResolver(invoiceRequestSchema) as any, defaultValues: {
     leadId,
     consignee: defaultConsignee,
-    unit: "", year: "", salesperson: "", fuel: "", transmission: "",
-    chassisNo: "", engineNo: "", color: "",
-    m3Rate: undefined, exchangeRate: undefined, pushPrice: undefined, cnfPrice: undefined,
+    salesperson: "",
+    m3Rate: undefined, exchangeRate: undefined,
     advancePercent: 50,
+    // every vehicle on the invoice — "Add More" appends another one
+    vehicles: [EMPTY_VEHICLE],
   }});
+
+  const { fields: vehicleFields, append: addVehicle, remove: removeVehicle } = useFieldArray({ control, name: "vehicles" });
+  const watchedVehicles = useWatch({ control, name: "vehicles" }) ?? [];
+  const totalCnf  = watchedVehicles.reduce((sum, v) => sum + money(v?.cnfPrice), 0);
+  const totalPush = watchedVehicles.reduce((sum, v) => sum + money(v?.pushPrice), 0);
 
   const [ports, setPorts] = useState<string[]>([]);
   const [portLocked, setPortLocked] = useState(false);
@@ -153,34 +167,89 @@ export default function InvoiceRequestForm({ leadId, defaultConsignee, onSubmit 
       </section>
 
       <section>
-        <SectionTitle>Vehicle Details</SectionTitle>
-        <div className="form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px" }}>
-          <Field label="Unit / Make & Model" error={errors.unit?.message}>
-            <input {...register("unit")} style={inputStyle} placeholder="e.g. Toyota Land Cruiser" {...focusHandlers} />
+        <SectionTitle>Vehicle Details{vehicleFields.length > 1 ? ` (${vehicleFields.length} vehicles)` : ""}</SectionTitle>
+        <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+          {vehicleFields.map((field, i) => {
+            const vErr = errors.vehicles?.[i];
+            return (
+              <div key={field.id} className="vehicle-card" style={{
+                border: "1px solid #e5e7eb", borderRadius: "10px", padding: "14px",
+                background: vehicleFields.length > 1 ? "#fbfcfd" : "#ffffff",
+              }}>
+                {vehicleFields.length > 1 && (
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "12px" }}>
+                    <span style={{ fontSize: "12px", fontWeight: 700, color: "#1f2328" }}>Vehicle {i + 1}</span>
+                    <button
+                      type="button"
+                      onClick={() => removeVehicle(i)}
+                      style={{
+                        padding: "4px 10px", borderRadius: "6px", fontSize: "12px", fontWeight: 600,
+                        color: "#cf222e", background: "#ffebe9", border: "1px solid #ffcecb", cursor: "pointer",
+                      }}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                )}
+                <div className="form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px" }}>
+                  <Field label="Unit / Make & Model" error={vErr?.unit?.message}>
+                    <input {...register(`vehicles.${i}.unit`)} style={inputStyle} placeholder="e.g. Toyota Land Cruiser" {...focusHandlers} />
+                  </Field>
+                  <Field label="Year" error={vErr?.year?.message}>
+                    <input {...register(`vehicles.${i}.year`)} style={inputStyle} placeholder="e.g. 2022" {...focusHandlers} />
+                  </Field>
+                  <Field label="Color" error={vErr?.color?.message}>
+                    <input {...register(`vehicles.${i}.color`)} style={inputStyle} placeholder="e.g. White" {...focusHandlers} />
+                  </Field>
+                  <Field label="Chassis Number" error={vErr?.chassisNo?.message}>
+                    <input {...register(`vehicles.${i}.chassisNo`)} style={inputStyle} placeholder="Chassis No." {...focusHandlers} />
+                  </Field>
+                  <Field label="Engine Number" error={vErr?.engineNo?.message}>
+                    <input {...register(`vehicles.${i}.engineNo`)} style={inputStyle} placeholder="Engine No." {...focusHandlers} />
+                  </Field>
+                  <Field label="Transmission" error={vErr?.transmission?.message}>
+                    <input {...register(`vehicles.${i}.transmission`)} style={inputStyle} placeholder="e.g. AT / MT" {...focusHandlers} />
+                  </Field>
+                  <Field label="Fuel Type" error={vErr?.fuel?.message}>
+                    <input {...register(`vehicles.${i}.fuel`)} style={inputStyle} placeholder="e.g. Petrol / Diesel" {...focusHandlers} />
+                  </Field>
+                  <Field label="Push Price" error={vErr?.pushPrice?.message}>
+                    <input {...register(`vehicles.${i}.pushPrice`, { valueAsNumber: true })} type="number" step="0.01" style={inputStyle} placeholder="0.00" {...focusHandlers} />
+                  </Field>
+                  <Field label="CNF Price" error={vErr?.cnfPrice?.message}>
+                    <input {...register(`vehicles.${i}.cnfPrice`, { valueAsNumber: true })} type="number" step="0.01" style={inputStyle} placeholder="0.00" {...focusHandlers} />
+                  </Field>
+                </div>
+              </div>
+            );
+          })}
+
+          {errors.vehicles?.message && (
+            <p style={{ fontSize: "11px", color: "#cf222e" }}>{errors.vehicles.message}</p>
+          )}
+
+          <button
+            type="button"
+            onClick={() => addVehicle(EMPTY_VEHICLE)}
+            disabled={vehicleFields.length >= 50}
+            style={{
+              alignSelf: "flex-start",
+              display: "inline-flex", alignItems: "center", gap: "6px",
+              padding: "8px 16px", borderRadius: "8px",
+              fontSize: "13px", fontWeight: 600,
+              color: "#2563eb", background: "#eff6ff",
+              border: "1px dashed #93c5fd", cursor: "pointer",
+            }}
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+            Add More
+          </button>
+
+          <Field label="Sales Person" error={errors.salesperson?.message}>
+            <input {...register("salesperson")} style={inputStyle} placeholder="Sales person name" {...focusHandlers} />
           </Field>
-          <Field label="Year" error={errors.year?.message}>
-            <input {...register("year")} style={inputStyle} placeholder="e.g. 2022" {...focusHandlers} />
-          </Field>
-          <Field label="Color" error={errors.color?.message}>
-            <input {...register("color")} style={inputStyle} placeholder="e.g. White" {...focusHandlers} />
-          </Field>
-          <Field label="Chassis Number" error={errors.chassisNo?.message}>
-            <input {...register("chassisNo")} style={inputStyle} placeholder="Chassis No." {...focusHandlers} />
-          </Field>
-          <Field label="Engine Number" error={errors.engineNo?.message}>
-            <input {...register("engineNo")} style={inputStyle} placeholder="Engine No." {...focusHandlers} />
-          </Field>
-          <Field label="Transmission" error={errors.transmission?.message}>
-            <input {...register("transmission")} style={inputStyle} placeholder="e.g. AT / MT" {...focusHandlers} />
-          </Field>
-          <Field label="Fuel Type" error={errors.fuel?.message}>
-            <input {...register("fuel")} style={inputStyle} placeholder="e.g. Petrol / Diesel" {...focusHandlers} />
-          </Field>
-          <div className="form-span-2" style={{ gridColumn: "span 2" }}>
-            <Field label="Sales Person" error={errors.salesperson?.message}>
-              <input {...register("salesperson")} style={inputStyle} placeholder="Sales person name" {...focusHandlers} />
-            </Field>
-          </div>
         </div>
       </section>
 
@@ -193,15 +262,21 @@ export default function InvoiceRequestForm({ leadId, defaultConsignee, onSubmit 
           <Field label="Exchange Rate" error={errors.exchangeRate?.message}>
             <input {...register("exchangeRate", { valueAsNumber: true })} type="number" step="0.01" style={inputStyle} placeholder="0.00" {...focusHandlers} />
           </Field>
-          <Field label="Push Price" error={errors.pushPrice?.message}>
-            <input {...register("pushPrice", { valueAsNumber: true })} type="number" step="0.01" style={inputStyle} placeholder="0.00" {...focusHandlers} />
-          </Field>
-          <Field label="CNF Price" error={errors.cnfPrice?.message}>
-            <input {...register("cnfPrice", { valueAsNumber: true })} type="number" step="0.01" style={inputStyle} placeholder="0.00" {...focusHandlers} />
-          </Field>
           <Field label="Advance Payment %" error={errors.advancePercent?.message}>
             <input {...register("advancePercent", { valueAsNumber: true })} type="number" min="1" max="100" style={inputStyle} placeholder="e.g. 50" {...focusHandlers} />
           </Field>
+        </div>
+        {/* Push and CNF prices are entered per vehicle above; the invoice total is their sum */}
+        <div style={{
+          marginTop: "14px", padding: "12px 14px", borderRadius: "8px",
+          background: "#f6f8fa", border: "1px solid #eaeef2",
+          display: "flex", flexWrap: "wrap", gap: "8px 24px", fontSize: "13px", color: "#1f2328",
+        }}>
+          <span>Total Push Price: <strong>{totalPush.toLocaleString("en-US")}</strong></span>
+          <span>Total CNF Price: <strong>{totalCnf.toLocaleString("en-US")}</strong></span>
+          {vehicleFields.length > 1 && (
+            <span style={{ color: "#656d76" }}>({vehicleFields.length} vehicles)</span>
+          )}
         </div>
       </section>
 

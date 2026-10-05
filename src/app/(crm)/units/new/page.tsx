@@ -1,21 +1,48 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import TopBar from "@/components/layout/TopBar";
-import UnitForm from "@/components/units/UnitForm";
+import UnitForm, { type UnitFormDefaults } from "@/components/units/UnitForm";
+import { getInvoiceVehicles } from "@/lib/invoice-vehicles";
 import Link from "next/link";
 
 export default async function NewUnitPage({
   searchParams,
 }: {
-  searchParams: Promise<{ invoiceId?: string }>;
+  searchParams: Promise<{ invoiceId?: string; vehicle?: string }>;
 }) {
   const session = await auth();
   const role = session!.user.role;
 
   if (!["manager", "super_admin"].includes(role)) redirect("/dashboard");
 
-  const { invoiceId } = await searchParams;
+  const { invoiceId, vehicle } = await searchParams;
   if (!invoiceId) redirect("/invoices");
+
+  // Several vehicles on the invoice: "Add Unit" opens for the next vehicle
+  // without a unit, with that vehicle's details already filled in.
+  let defaults: UnitFormDefaults | undefined;
+  let subtitle = "Enter vehicle details for this payment";
+  const position = Number(vehicle);
+  if (Number.isInteger(position) && position >= 1) {
+    try {
+      const vehicles = await getInvoiceVehicles(invoiceId);
+      const v = vehicles[position - 1];
+      if (v) {
+        const words = v.unit.split(/\s+/).filter(Boolean);
+        const year = (v.year.match(/\b(19|20)\d{2}\b/) ?? [])[0];
+        defaults = {
+          make: words[0] ?? "",
+          carModel: words.slice(1).join(" "),
+          year: year ?? undefined,
+          color: v.color,
+          chassis: v.chassisNo,
+        };
+        subtitle = `Vehicle ${position} of ${vehicles.length}${v.unit ? ` — ${v.unit}` : ""}`;
+      }
+    } catch {
+      defaults = undefined;
+    }
+  }
 
   return (
     <div style={{ display: "flex", flexDirection: "column", flex: 1 }}>
@@ -41,10 +68,10 @@ export default async function NewUnitPage({
             background: "linear-gradient(135deg, #f6f8fa 0%, #eff6ff 100%)",
           }}>
             <h2 style={{ fontSize: "16px", fontWeight: 700, color: "#1f2328" }}>Add Unit</h2>
-            <p style={{ fontSize: "12px", color: "#8c959f", marginTop: "2px" }}>Enter vehicle details for this payment</p>
+            <p style={{ fontSize: "12px", color: "#8c959f", marginTop: "2px" }}>{subtitle}</p>
           </div>
           <div style={{ padding: "24px" }}>
-            <UnitForm invoiceId={invoiceId} />
+            <UnitForm invoiceId={invoiceId} defaults={defaults} />
           </div>
         </div>
       </div>

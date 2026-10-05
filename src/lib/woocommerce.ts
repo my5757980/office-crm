@@ -1,4 +1,5 @@
 import { query, queryOne } from "@/lib/pg";
+import { getInvoiceVehicles } from "@/lib/invoice-vehicles";
 
 // Credentials live in the app_settings table (shared by both Vercel and cPanel
 // deployments via the same database) rather than per-deploy-target env vars,
@@ -161,6 +162,9 @@ export interface WcOrderInput {
   total: number;
   invoiceId: string;
   billing?: { firstName: string; lastName?: string; phone?: string; address?: string; country?: string; email: string };
+  // An invoice with several vehicles: one fee line per vehicle, each with its
+  // own CNF price. Left out, the order has the single description/total line.
+  lines?: { name: string; total: number }[];
 }
 
 // Creates a WooCommerce order representing a CRM invoice — uses a fee line
@@ -173,7 +177,9 @@ export async function createWcOrder(input: WcOrderInput): Promise<number> {
     body: {
       customer_id: input.customerId,
       status: "on-hold",
-      fee_lines: [{ name: input.description, total: input.total.toFixed(2) }],
+      fee_lines: input.lines?.length
+        ? input.lines.map((l) => ({ name: l.name, total: l.total.toFixed(2) }))
+        : [{ name: input.description, total: input.total.toFixed(2) }],
       meta_data: [{ key: "crm_invoice_id", value: input.invoiceId }],
       billing: input.billing
         ? {
@@ -243,6 +249,12 @@ export async function syncInvoiceToWooCommerce(invoiceId: string): Promise<void>
     );
     if (!invoice || !invoice.lead_email) return;
 
+    // Several vehicles on one invoice: one order line per vehicle.
+    const vehicles = await getInvoiceVehicles(invoiceId);
+    const lines = vehicles.length > 1
+      ? vehicles.map((v) => ({ name: `${v.unit} — Chassis: ${v.chassisNo}`, total: v.cnfPrice }))
+      : undefined;
+
     const nameParts = invoice.consignee_name.trim().split(/\s+/);
     const customerId = await findOrCreateWcCustomer({
       email: invoice.lead_email,
@@ -257,6 +269,7 @@ export async function syncInvoiceToWooCommerce(invoiceId: string): Promise<void>
       customerId,
       description: `${invoice.unit} — Chassis: ${invoice.chassis_no}`,
       total: Number(invoice.cnf_price),
+      lines,
       invoiceId: invoice.id,
       billing: {
         firstName: nameParts[0] ?? invoice.consignee_name,
