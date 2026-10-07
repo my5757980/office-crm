@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import LeadTable from "@/components/leads/LeadTable";
 import CustomerTable from "@/components/leads/CustomerTable";
 import LeadFilters from "@/components/leads/LeadFilters";
+import LeadExcelUpload from "@/components/leads/LeadExcelUpload";
 import LeadPagination from "@/components/leads/LeadPagination";
 import TopBar from "@/components/layout/TopBar";
 import Link from "next/link";
@@ -177,6 +178,9 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
             </Link>
           )}
         </div>
+
+        {/* Agent: many leads at once from one Excel file */}
+        {!isElevated && tab === "leads" && <LeadExcelUpload />}
 
         {/* Tabs */}
         <div style={{
