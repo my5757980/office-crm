@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { query } from "@/lib/pg";
 import { serializeLead } from "@/lib/serialize";
+import { dateRange } from "@/lib/date-range";
 import LeadTable from "@/components/leads/LeadTable";
 import LeadFilters from "@/components/leads/LeadFilters";
 import LeadPagination from "@/components/leads/LeadPagination";
@@ -21,9 +22,9 @@ export default async function AdminLeadsPage({
 
   const params = await searchParams;
 
-  // Date range (applied to both the leads table AND the per-agent counts)
-  const dateFrom = params.from ? new Date(params.from) : null;
-  const dateTo = params.to ? (() => { const d = new Date(params.to); d.setHours(23, 59, 59, 999); return d; })() : null;
+  // Date range (applied to both the leads table AND the per-agent counts); whole
+  // days, and a date that is not a real one is ignored rather than breaking the page.
+  const { from: dateFrom, toExclusive: dateTo } = dateRange(params.from, params.to);
 
   const where: string[] = [];
   const filterParams: unknown[] = [];
@@ -34,7 +35,7 @@ export default async function AdminLeadsPage({
   if (params.status)  where.push(`l.status = ${p(params.status)}`);
   if (params.agentId) where.push(`l.created_by = ${p(params.agentId)}`);
   if (dateFrom)        where.push(`l.created_at >= ${p(dateFrom)}`);
-  if (dateTo)          where.push(`l.created_at <= ${p(dateTo)}`);
+  if (dateTo)          where.push(`l.created_at < ${p(dateTo)}`);
   const whereSql = where.length ? `WHERE ${where.join(" AND ")}` : "";
 
   // Per-agent counts respect the selected date (but not agent/search/status)
@@ -42,7 +43,7 @@ export default async function AdminLeadsPage({
   const countParams: unknown[] = [];
   const cp = (v: unknown) => { countParams.push(v); return `$${countParams.length}`; };
   if (dateFrom) countWhere.push(`created_at >= ${cp(dateFrom)}`);
-  if (dateTo)   countWhere.push(`created_at <= ${cp(dateTo)}`);
+  if (dateTo)   countWhere.push(`created_at < ${cp(dateTo)}`);
   const countWhereSql = countWhere.length ? `WHERE ${countWhere.join(" AND ")}` : "";
 
   // Pagination
